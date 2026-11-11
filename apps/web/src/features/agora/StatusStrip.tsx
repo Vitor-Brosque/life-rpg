@@ -11,6 +11,7 @@ import { useSyncStatus, type SyncStatus } from '../../sync/status';
 import { useTimerSheet } from '../../timer/TimerSheet';
 import { Button } from '../../ui/Button';
 import { ENERGY_LEVEL_LABEL, formatDuration } from '../../ui/format';
+import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { useCompanion } from '../companion/store';
 
@@ -43,7 +44,7 @@ function EnergyButton({ energy }: { energy?: EnergyLevel }) {
       size="sm"
       className="energy-btn"
       title="Toque para mudar"
-      onClick={() => { void setEnergy(energy ? NEXT_ENERGY[energy] : 'medium'); }}
+      onClick={() => safeRun(setEnergy(energy ? NEXT_ENERGY[energy] : 'medium'))}
     >
       <span className="energy-btn__bars" aria-hidden="true">
         {[1, 2, 3].map((i) => <span key={i} className={i <= bars ? 'is-on' : undefined} />)}
@@ -101,7 +102,7 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
   const hardDay = dayState?.hardDay ?? false;
 
   const toggleHardDay = () => {
-    void setHardDay(!hardDay);
+    safeRun(setHardDay(!hardDay));
     if (!hardDay) void useCompanion.getState().say('hardDay');
   };
 

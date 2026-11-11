@@ -3,7 +3,9 @@ import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Commitment, DayKey, Mission } from '@life/shared';
 import { addDays } from '@life/shared';
+import { useNow } from '../../db/hooks';
 import { Button } from '../../ui/Button';
+import { safeRun } from '../../ui/safeRun';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { moveToDay, reorderDay } from '../../domain/actions';
 import { useCaptureStore } from '../capture/CaptureBar';
@@ -11,8 +13,8 @@ import { useMissionSheet } from '../mission/MissionSheet';
 import { CommitmentSheet } from './CommitmentSheet';
 import { DayContainer } from './DayContainer';
 import {
-  backlogMissions, dayLabel, DRAG_INSTRUCTIONS, missionsOnDay, occurrencesOn, planCollision, usePlanData,
-  usePlanSensors,
+  backlogMissions, dayLabel, DRAG_INSTRUCTIONS, missionsOnDay, occurrencesOn, planCollision, recentlyDropped,
+  usePlanData, usePlanSensors,
 } from './planShared';
 import { WeekStrip } from './WeekStrip';
 
@@ -22,9 +24,31 @@ const dayId = (d: DayKey) => `day:${d}`;
 
 interface SheetState { commitment?: Commitment; date: DayKey }
 
+/** Collapsed list of missions dropped in the last 14 days; tapping one opens its sheet ("Reabrir"). */
+function RecentlyDropped({ missions, onOpen }: { missions: Mission[]; onOpen(m: Mission): void }) {
+  if (missions.length === 0) return null;
+  return (
+    <details className="today__fold">
+      <summary>Soltas recentemente ({missions.length})</summary>
+      <ul className="today__list">
+        {missions.map((m) => (
+          <li key={m.id} className="row-card row-card--plain">
+            <button type="button" className="row-card__main" onClick={() => onOpen(m)}>
+              <span className="row-card__stripe" aria-hidden="true" />
+              <span className="row-card__body"><span className="row-card__title">{m.title}</span></span>
+              <span className="tag tag--stone">solta</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 /** "Semana": 7 days from today (strip + list on phones, 7 columns on wide screens) and the backlog. */
 export function WeekView() {
-  const { today, missions, commitments, areas } = usePlanData();
+  const { today, dayStartHour, missions, commitments, areas } = usePlanData();
+  const now = useNow();
   const wide = useMediaQuery(WIDE_QUERY);
   const sensors = usePlanSensors();
   const [offset, setOffset] = useState(0);
@@ -37,13 +61,14 @@ export function WeekView() {
 
   if (!today || !start || !selected) return <p className="muted">Carregando…</p>;
 
-  const lists = new Map<string, Mission[]>(days.map((d) => [dayId(d), missionsOnDay(missions, d)]));
+  const lists = new Map<string, Mission[]>(days.map((d) => [dayId(d), missionsOnDay(missions, d, today)]));
   lists.set(BACKLOG, backlogMissions(missions));
-  const counts = new Map(days.map((d) => [d, (lists.get(dayId(d))?.length ?? 0) + occurrencesOn(commitments, d).length]));
+  const occurrences = new Map(days.map((d) => [d, occurrencesOn(commitments, d, dayStartHour)]));
+  const counts = new Map(days.map((d) => [d, (lists.get(dayId(d))?.length ?? 0) + (occurrences.get(d)?.length ?? 0)]));
 
   const shift = (weeks: number) => { setOffset((o) => o + weeks); setPicked(undefined); };
   const openMission = (m: Mission) => useMissionSheet.getState().open(m.id);
-  const onMove = (m: Mission, day: DayKey | null) => { void moveToDay(m.id, day); };
+  const onMove = (m: Mission, day: DayKey | null) => safeRun(moveToDay(m.id, day));
   const capture = (day: DayKey) => useCaptureStore.getState().open({ defaultDate: day });
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
@@ -66,9 +91,9 @@ export function WeekView() {
       next.splice(overIsItem ? next.indexOf(overId) : next.length, 0, activeId);
     }
     if (to === BACKLOG) {
-      if (from !== BACKLOG) void moveToDay(activeId, null);
+      if (from !== BACKLOG) safeRun(moveToDay(activeId, null));
     } else {
-      void reorderDay(next, to.slice('day:'.length), from !== to ? activeId : undefined);
+      safeRun(reorderDay(next, to.slice('day:'.length), from !== to ? activeId : undefined));
     }
   };
 
@@ -78,8 +103,9 @@ export function WeekView() {
       id={dayId(d)}
       label={dayLabel(d)}
       heading={<>{dayLabel(d)}{d === today && <span className="day-box__today"> · hoje</span>}</>}
+      day={d}
       missions={lists.get(dayId(d)) ?? []}
-      commitments={occurrencesOn(commitments, d)}
+      commitments={occurrences.get(d) ?? []}
       areas={areas}
       today={today}
       emptyText="Nada planejado."
@@ -131,6 +157,7 @@ export function WeekView() {
           onMove={onMove}
         />
       </DndContext>
+      <RecentlyDropped missions={recentlyDropped(missions, now)} onOpen={openMission} />
       <CommitmentSheet
         open={sheet !== undefined}
         commitment={sheet?.commitment}

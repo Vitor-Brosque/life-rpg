@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { createCommitment, createMission, startMission } from '../src/domain/actions';
+import { createCommitment, createMission, dropMission, startMission } from '../src/domain/actions';
+import { useMissionSheet } from '../src/features/mission/MissionSheet';
 import { BoardView } from '../src/features/plan/BoardView';
 import { PlanScreen } from '../src/features/plan/PlanScreen';
 import { WeekView } from '../src/features/plan/WeekView';
@@ -57,6 +58,56 @@ describe('WeekView', () => {
     render(<WeekView />);
     await userEvent.click(await screen.findByRole('button', { name: 'Próxima semana' }));
     expect(await screen.findByRole('button', { name: /qua 18\/11/ })).toBeInTheDocument();
+  });
+
+  it('"Mover para…" with a picked date moves only after "Mover"', async () => {
+    const m = await createMission({ title: 'Ler capítulo', date: '2026-11-11' });
+    render(<WeekView />);
+    await screen.findByText('Ler capítulo');
+    await userEvent.click(screen.getByRole('button', { name: /Mover para/ }));
+    fireEvent.change(screen.getByLabelText('Escolher dia'), { target: { value: '2026-11-20' } });
+    await new Promise((r) => setTimeout(r, 50));
+    expect((await db.missions.get(m.id))?.date).toBe('2026-11-11');
+    await userEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await waitFor(async () => expect((await db.missions.get(m.id))?.date).toBe('2026-11-20'));
+  });
+
+  it('pending missions from earlier days show in today’s box, tagged "de outro dia"', async () => {
+    await createMission({ title: 'Ficou de ontem', date: '2026-11-10' });
+    await createMission({ title: 'Planejada hoje', date: '2026-11-11' });
+    await createMission({ title: 'Feita ontem', date: '2026-11-10', status: 'done', completedAt: at(9) - 86_400_000 });
+    render(<WeekView />);
+    const today = await screen.findByRole('region', { name: 'qua 11/11' });
+    const row = (await within(today).findByText('Ficou de ontem')).closest('li')!;
+    expect(within(row).getByText('de outro dia')).toBeInTheDocument();
+    const own = within(today).getByText('Planejada hoje').closest('li')!;
+    expect(within(own).queryByText('de outro dia')).not.toBeInTheDocument();
+    expect(within(today).queryByText('Feita ontem')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'qua 11/11, hoje, 2 itens' })).toBeInTheDocument();
+  });
+
+  it('orders early-morning commitments after the evening ones (the day starts at 04:00)', async () => {
+    await createCommitment({ title: 'Madrugada', date: '2026-11-11', start: '02:00', end: '03:00' });
+    await createCommitment({ title: 'Noite', date: '2026-11-11', start: '23:00', end: '23:30' });
+    render(<WeekView />);
+    const today = await screen.findByRole('region', { name: 'qua 11/11' });
+    await within(today).findByText('Madrugada');
+    expect(within(today).getAllByText(/^(Madrugada|Noite)$/).map((e) => e.textContent)).toEqual(['Noite', 'Madrugada']);
+  });
+
+  it('lists recently dropped missions in a collapsed "Soltas recentemente" section', async () => {
+    const recent = await createMission({ title: 'Solta ontem' });
+    await dropMission(recent.id);
+    const old = await createMission({ title: 'Solta há tempos' });
+    await db.missions.update(old.id, { status: 'dropped', updatedAt: at(10) - 20 * 86_400_000 });
+    useMissionSheet.setState({ openId: undefined });
+    render(<WeekView />);
+    const summary = await screen.findByText('Soltas recentemente (1)');
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+    await userEvent.click(summary);
+    expect(screen.queryByText('Solta há tempos')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Solta ontem/ }));
+    expect(useMissionSheet.getState().openId).toBe(recent.id);
   });
 });
 
@@ -112,7 +163,10 @@ describe('BoardView', () => {
     render(<BoardView />);
     await screen.findByText('Sem dia');
     await userEvent.click(screen.getByRole('button', { name: /Mover para/ }));
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Hoje' }));
+    // A plain list of buttons: no menu role without the arrow-key behaviour that goes with it.
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Hoje' }));
     await waitFor(async () => expect((await db.missions.get(m.id))?.date).toBe('2026-11-11'));
   });
 });
@@ -125,6 +179,24 @@ describe('PlanScreen', () => {
     unmount();
     render(<PlanScreen />);
     expect(await screen.findByRole('tab', { name: 'Quadro', selected: true })).toBeInTheDocument();
+  });
+
+  it('tabs: only the selected one is in the Tab order and the arrow keys switch views', async () => {
+    const user = userEvent.setup();
+    render(<PlanScreen />);
+    const week = await screen.findByRole('tab', { name: 'Semana', selected: true });
+    expect(week).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('tab', { name: 'Quadro' })).toHaveAttribute('tabindex', '-1');
+    week.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'Quadro', selected: true })).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: 'Em andamento' })).toBeInTheDocument();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
+    await user.keyboard('{End}');
+    expect(screen.getByRole('tab', { name: 'Quadro', selected: true })).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
   });
 });
 

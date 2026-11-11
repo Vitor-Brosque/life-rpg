@@ -29,6 +29,8 @@ export function dayLabel(day: DayKey): string {
 
 export interface PlanData {
   today?: DayKey;
+  /** Logical day start (`occurrencesOn` puts earlier times on the next calendar morning). */
+  dayStartHour: number;
   missions: Mission[];
   commitments: Commitment[];
   areas: ReturnType<typeof useAreas>;
@@ -41,16 +43,31 @@ export function usePlanData(): PlanData {
   const missions = useMissions();
   const commitments = useCommitments();
   const areas = useAreas();
-  return { today, missions, commitments, areas, ready: settings !== undefined };
+  return {
+    today, dayStartHour: settings?.dayStartHour ?? 4, missions, commitments, areas, ready: settings !== undefined,
+  };
 }
 
-/** Pending missions planned for `day`, in manual order. */
-export function missionsOnDay(missions: Mission[], day: DayKey): Mission[] {
-  return missions.filter((m) => isPending(m) && m.date === day).sort(byDayOrder);
+/**
+ * Pending missions planned for `day`, in manual order. Today's list also takes the pending ones
+ * planned for earlier days (like the Agora "Hoje" list), so nothing overdue disappears.
+ */
+export function missionsOnDay(missions: Mission[], day: DayKey, today?: DayKey): Mission[] {
+  const overdue = day === today;
+  return missions
+    .filter((m) => isPending(m) && m.date !== undefined && (m.date === day || (overdue && m.date < day)))
+    .sort(byDayOrder);
 }
 
 export const backlogMissions = (missions: Mission[]): Mission[] =>
   missions.filter((m) => m.status === 'open' && m.date === undefined).sort(byDayOrder);
+
+const RECENT_DROP_MS = 14 * 86_400_000;
+
+/** Dropped ("soltas") in the last 14 days, most recent first (so they can be reopened). */
+export const recentlyDropped = (missions: Mission[], now: number): Mission[] =>
+  missions.filter((m) => m.status === 'dropped' && m.updatedAt >= now - RECENT_DROP_MS)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
 export { occurrencesOn };
 

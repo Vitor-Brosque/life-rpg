@@ -15,6 +15,7 @@ import { Chip } from '../../ui/Chip';
 import { formatDuration } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
+import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { GripIcon } from '../agora/TodayList';
 import { useCompanion } from '../companion/store';
@@ -52,16 +53,16 @@ function MissionItem({ mission }: { mission: Mission }) {
 
 function AddMission({ journey, nextOrder }: { journey: Journey; nextOrder: number }) {
   const [text, setText] = useState('');
-  const add = async () => {
+  const add = () => {
     const title = text.trim();
     if (!title) return;
     setText('');
-    await createMission({
+    safeRun(createMission({
       title, journeyId: journey.id, journeyOrder: nextOrder, ...(journey.areaId ? { areaId: journey.areaId } : {}),
-    });
+    }).catch((e: unknown) => { setText(title); throw e; })); // keep what was typed
   };
   return (
-    <form className="journey-add" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+    <form className="journey-add" onSubmit={(e) => { e.preventDefault(); add(); }}>
       <label className="field">
         <span className="field__label">Nova missão da jornada</span>
         <input type="text" value={text} enterKeyHint="done" placeholder="Próximo passo…"
@@ -90,21 +91,22 @@ function JourneyBody({ journey }: { journey: Journey }) {
   const nextOrder = own.reduce((mx, m) => Math.max(mx, (m.journeyOrder ?? -1) + 1), 0);
   const inactive = journey.status !== 'active';
 
-  const edit = (changes: Partial<Journey>) => { void patch<Journey>('journeys', journey.id, changes); };
+  const edit = (changes: Partial<Journey>) => safeRun(patch<Journey>('journeys', journey.id, changes));
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const next = arrayMove(order, order.indexOf(String(active.id)), order.indexOf(String(over.id)));
     setOrder(next);
-    next.forEach((id, i) => { if (byId.get(id)?.journeyOrder !== i) void updateMission(id, { journeyOrder: i }); });
+    safeRun(Promise.all(next.map((id, i) =>
+      (byId.get(id)?.journeyOrder !== i ? updateMission(id, { journeyOrder: i }) : undefined))));
   };
 
-  const finish = async () => {
+  const finish = () => safeRun(async () => {
     const { xp } = await completeJourney(journey.id);
     setConfirming(false);
     useToast.getState().show(xp > 0 ? `Jornada concluída · +${xp} XP` : 'Jornada concluída');
     void useCompanion.getState().say('complete');
-  };
+  });
 
   return (
     <section className="screen stack">
@@ -166,7 +168,7 @@ function JourneyBody({ journey }: { journey: Journey }) {
               {total > done ? ` Ainda há ${total - done} ${total - done === 1 ? 'missão aberta' : 'missões abertas'}.` : ''}
             </p>
             <div className="cluster">
-              <Button variant="primary" onClick={() => { void finish(); }}>Sim, concluir</Button>
+              <Button variant="primary" onClick={finish}>Sim, concluir</Button>
               <Button onClick={() => setConfirming(false)}>Cancelar</Button>
             </div>
           </div>

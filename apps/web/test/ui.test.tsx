@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -7,9 +9,20 @@ import { Sheet } from '../src/ui/Sheet';
 import { ToastHost, useToast } from '../src/ui/Toast';
 import { ProgressBar } from '../src/ui/ProgressBar';
 import { Chip } from '../src/ui/Chip';
-import { collectExport, exportFileName } from '../src/db/exportData';
+import { safeRun } from '../src/ui/safeRun';
+import { collectExport, downloadExport, exportFileName, requestPersistentStorage } from '../src/db/exportData';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
+import { EditableField } from '../src/features/mission/EditableField';
+
+/** Sets (or, with undefined, removes) an own property on navigator for one test. */
+function stubNavigator(key: string, value: unknown) {
+  if (value === undefined) delete (navigator as unknown as Record<string, unknown>)[key];
+  else Object.defineProperty(navigator, key, { configurable: true, value });
+}
+
+const setVisibility = (state: DocumentVisibilityState) =>
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
 
 function SheetHarness() {
   const [open, setOpen] = useState(false);
@@ -111,5 +124,128 @@ describe('data export', () => {
     expect(data.areas).toHaveLength(6);
     expect(data.profile[0]).toMatchObject({ id: 'me' });
     expect(exportFileName(new Date(2026, 10, 5, 23, 30))).toBe('life-rpg-2026-11-05.json');
+  });
+
+  describe('downloadExport', () => {
+    afterEach(() => {
+      stubNavigator('canShare', undefined);
+      stubNavigator('share', undefined);
+      vi.restoreAllMocks();
+    });
+
+    it('uses the share sheet when the device can share files (iPhone Home Screen app)', async () => {
+      await db.delete();
+      await db.open();
+      await ensureSeed();
+      const share = vi.fn(async (_data: ShareData) => {});
+      stubNavigator('canShare', vi.fn((data: ShareData) => (data.files?.length ?? 0) > 0));
+      stubNavigator('share', share);
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      await downloadExport();
+      expect(share).toHaveBeenCalledTimes(1);
+      const arg = share.mock.calls[0]![0];
+      expect(arg.title).toBe('LIFE RPG — backup');
+      const file = arg.files![0]!;
+      expect(file.name).toBe(exportFileName());
+      expect(file.type).toBe('application/json');
+      expect(Object.keys(JSON.parse(await file.text()))).toContain('missions');
+      expect(click).not.toHaveBeenCalled();
+    });
+
+    it('closing the share sheet is not an error', async () => {
+      stubNavigator('canShare', () => true);
+      stubNavigator('share', vi.fn(async () => { throw new DOMException('cancelado', 'AbortError'); }));
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      await expect(downloadExport()).resolves.toBeUndefined();
+      expect(click).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the download link when sharing files is not possible', async () => {
+      stubNavigator('canShare', () => false);
+      URL.createObjectURL = vi.fn(() => 'blob:life');
+      URL.revokeObjectURL = vi.fn();
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      await downloadExport();
+      expect(click).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('requestPersistentStorage', () => {
+    afterEach(() => { stubNavigator('storage', undefined); });
+
+    it('asks the browser to keep the data once, ignoring failures', async () => {
+      const persist = vi.fn(async () => { throw new Error('no'); });
+      stubNavigator('storage', { persist });
+      requestPersistentStorage();
+      expect(persist).toHaveBeenCalledTimes(1);
+      await new Promise((r) => setTimeout(r, 0)); // the rejection is swallowed (no unhandled rejection)
+      stubNavigator('storage', undefined);
+      expect(() => requestPersistentStorage()).not.toThrow();
+    });
+  });
+});
+
+describe('stacking order', () => {
+  it('toasts sit above open sheets', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+    const z = (name: string) => Number(new RegExp(`--z-${name}:\\s*(\\d+)`).exec(css)?.[1]);
+    expect(z('toast')).toBeGreaterThan(z('sheet'));
+  });
+});
+
+describe('safeRun', () => {
+  afterEach(() => { act(() => useToast.getState().dismiss()); vi.restoreAllMocks(); });
+
+  it('reports a failed write with a toast and console.error', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ToastHost />);
+    const boom = new Error('boom');
+    act(() => safeRun(Promise.reject(boom)));
+    expect(await screen.findByText('Algo não funcionou. Tente de novo.')).toBeInTheDocument();
+    expect(error).toHaveBeenCalledWith(expect.any(String), boom);
+  });
+
+  it('takes a function too, including one that throws before returning a promise', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ToastHost />);
+    act(() => safeRun(() => { throw new Error('sync'); }));
+    expect(await screen.findByText('Algo não funcionou. Tente de novo.')).toBeInTheDocument();
+    act(() => useToast.getState().dismiss());
+    act(() => safeRun(async () => { throw new Error('async'); }));
+    expect(await screen.findByText('Algo não funcionou. Tente de novo.')).toBeInTheDocument();
+    expect(error).toHaveBeenCalledTimes(2);
+  });
+
+  it('stays quiet when the write works', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ToastHost />);
+    const fn = vi.fn(async () => {});
+    act(() => safeRun(fn));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Algo não funcionou. Tente de novo.')).not.toBeInTheDocument();
+    expect(error).not.toHaveBeenCalled();
+  });
+});
+
+describe('EditableField drafts', () => {
+  afterEach(() => { delete (document as { visibilityState?: unknown }).visibilityState; });
+
+  it('saves the draft when the page goes to the background or is unloaded', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EditableField label="Notas" value="" onSave={onSave} />);
+    const field = screen.getByRole('textbox', { name: 'Notas' });
+    await user.type(field, 'comprar pão');
+    setVisibility('hidden');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(onSave).toHaveBeenLastCalledWith('comprar pão');
+
+    setVisibility('visible');
+    await user.type(field, ' e leite');
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(onSave).toHaveBeenLastCalledWith('comprar pão e leite');
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(field).toHaveFocus(); // nothing else changed for the user
   });
 });

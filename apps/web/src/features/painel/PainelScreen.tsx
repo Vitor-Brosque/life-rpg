@@ -10,6 +10,7 @@ import { useTimer } from '../../timer/store';
 import { Button } from '../../ui/Button';
 import { WEEKDAY_ABBR } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
+import { safeRun } from '../../ui/safeRun';
 import { WeekDots } from '../../ui/WeekDots';
 import { Alternatives } from '../agora/Alternatives';
 import { MainCard, MainCardEmpty } from '../agora/MainCard';
@@ -130,7 +131,8 @@ export function PainelScreen() {
   const review = useDayReview(today, missions);
   const apoioRef = useRef<HTMLElement>(null);
 
-  useCompanionMoments(settings?.dayStartHour, primary?.mission.id, primary?.postponedHint ?? false);
+  const empty = engine !== undefined && !primary && !engine.currentCommitment;
+  useCompanionMoments(settings?.dayStartHour, today, primary?.mission.id, primary?.postponedHint ?? false, empty);
 
   const focusCapture = useCallback(() => {
     const field = apoioRef.current?.querySelector<HTMLTextAreaElement>('.capture__input');
@@ -185,6 +187,7 @@ export function PainelScreen() {
             <div className="painel__today">
               <TodayList
                 title="Missões de hoje"
+                emptyText="Nenhuma missão planejada para hoje."
                 missions={todayMissions}
                 commitments={[]}
                 done={doneToday}
@@ -192,7 +195,7 @@ export function PainelScreen() {
                 hardDay={review.hardDay}
                 now={now}
                 onOpen={(m) => useMissionSheet.getState().open(m.id)}
-                onReorder={(ids) => { void reorderDay(ids, today); }}
+                onReorder={(ids) => safeRun(reorderDay(ids, today))}
               />
             </div>
           </>

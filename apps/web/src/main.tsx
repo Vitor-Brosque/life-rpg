@@ -8,10 +8,13 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app/App';
 import { ErrorBoundary } from './app/ErrorBoundary';
+import { requestPersistentStorage } from './db/exportData';
 import { ensureSeed } from './db/seed';
 import { startSync } from './sync/client';
 
 async function boot(): Promise<void> {
+  // Local data is the source of truth: ask the browser not to evict it.
+  requestPersistentStorage();
   try {
     await ensureSeed();
   } catch (e) {

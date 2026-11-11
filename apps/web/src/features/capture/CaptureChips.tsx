@@ -4,6 +4,7 @@ import { areaIcon, Icon, type IconName } from '../../art/icons';
 import { resolveArea, updateMission } from '../../domain/actions';
 import { Chip } from '../../ui/Chip';
 import { DURATION_OPTIONS, ENERGY_LABEL, ENERGY_OPTIONS, formatDay, formatDuration } from '../../ui/format';
+import { safeRun } from '../../ui/safeRun';
 
 const TOKEN_ICON: Record<CaptureToken['type'], IconName> = {
   date: 'calendar', time: 'timer', duration: 'timer', journey: 'journey', area: 'star', important: 'star',
@@ -78,7 +79,7 @@ export function QuickDetails({ mission, areas, onActivity }: QuickDetailsProps) 
   const apply = (changes: Partial<Mission>) => {
     setValues((v) => ({ ...v, ...changes }));
     onActivity();
-    void updateMission(mission.id, changes);
+    safeRun(updateMission(mission.id, changes));
   };
   const toggleEnergy = (e: Energy) => apply({ energy: values.energy === e ? undefined : e });
   return (

@@ -27,13 +27,17 @@ export function WelcomeStep({ onFresh, onExisting }: { onFresh(): void; onExisti
   );
 }
 
-const CODE_ERRORS: Partial<Record<TokenResult, string>> = {
+/** The code check, plus 'syncFailed' when the code works but the first download does not. */
+export type ConnectResult = TokenResult | 'syncFailed';
+
+const CODE_ERRORS: Partial<Record<ConnectResult, string>> = {
   invalid: 'Código inválido',
   offline: 'Sem conexão com o servidor',
+  syncFailed: 'Não consegui baixar seus dados. Tente de novo.',
 };
 
 export function AccessCodeStep({ onConnect, onBack }: {
-  onConnect(code: string): Promise<TokenResult>;
+  onConnect(code: string): Promise<ConnectResult>;
   onBack(): void;
 }) {
   const [code, setCode] = useState('');
@@ -44,7 +48,7 @@ export function AccessCodeStep({ onConnect, onBack }: {
     if (!token || busy) return;
     setError(undefined);
     setBusy('connecting');
-    let result: TokenResult;
+    let result: ConnectResult;
     try {
       result = await onConnect(token);
     } catch (e) {

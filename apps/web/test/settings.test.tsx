@@ -57,6 +57,12 @@ describe('SettingsScreen', () => {
     expect(fileName).toBe('life-rpg-2026-11-11.json');
   });
 
+  it('"Sobre" shows the version without repository paths', async () => {
+    renderSettings();
+    expect(await screen.findByText(/LIFE RPG, versão/)).toBeInTheDocument();
+    expect(screen.queryByText(/docs\/superpowers|\.md\b/)).not.toBeInTheDocument();
+  });
+
   it('changing "O dia começa às" persists in settings', async () => {
     const user = userEvent.setup();
     renderSettings();

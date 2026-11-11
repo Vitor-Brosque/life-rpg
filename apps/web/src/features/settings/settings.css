@@ -22,7 +22,6 @@
 .settings-hint { margin: 0; color: var(--text-dim); font-size: 0.875rem; line-height: 1.45; }
 .settings-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
 .settings-check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch); cursor: pointer; }
-.settings-code { color: var(--text); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .settings-link {
   min-height: var(--touch);
   padding: 0;

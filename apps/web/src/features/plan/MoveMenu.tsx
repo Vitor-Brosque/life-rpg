@@ -6,11 +6,10 @@ export interface MoveMenuProps {
   title: string;
   /** Receives a `close` callback to call after an action. */
   children: (close: () => void) => ReactNode;
-  role?: 'menu';
 }
 
-/** Small "Mover para…" disclosure that works without dragging (touch, keyboard). */
-export function MoveMenu({ title, children, role }: MoveMenuProps) {
+/** Small "Mover para…" disclosure (plain buttons inside) that works without dragging (touch, keyboard). */
+export function MoveMenu({ title, children }: MoveMenuProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   return (
@@ -27,7 +26,7 @@ export function MoveMenu({ title, children, role }: MoveMenuProps) {
         <Icon name="skip" size={12} />
       </button>
       {open && (
-        <div id={panelId} className="move-panel" role={role} aria-label={role ? `Mover ${title} para` : undefined}>
+        <div id={panelId} className="move-panel">
           {children(() => setOpen(false))}
         </div>
       )}

@@ -11,6 +11,8 @@ export interface DayContainerProps {
   /** Accessible name of the region. */
   label: string;
   heading: ReactNode;
+  /** The day shown (none for the backlog); missions planned earlier get a "de outro dia" tag. */
+  day?: DayKey;
   missions: Mission[];
   commitments?: CommitmentOccurrence[];
   areas: Area[];
@@ -25,7 +27,7 @@ export interface DayContainerProps {
 
 /** One day (or the backlog): commitments, then sortable missions; a drop target for drags. */
 export function DayContainer({
-  id, label, heading, missions, commitments = [], areas, today, emptyText, actions, className,
+  id, label, heading, day, missions, commitments = [], areas, today, emptyText, actions, className,
   onOpen, onMove, onOpenCommitment,
 }: DayContainerProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -55,6 +57,7 @@ export function DayContainer({
                 mission={m}
                 area={m.areaId ? areas.find((a) => a.id === m.areaId) : undefined}
                 today={today}
+                fromOtherDay={day !== undefined && m.date !== undefined && m.date < day}
                 onOpen={onOpen}
                 onMove={onMove}
               />

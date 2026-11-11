@@ -5,12 +5,12 @@ import { db } from '../../db/db';
 import { patch } from '../../db/repo';
 import { captureLines, reorderDay } from '../../domain/actions';
 import { getToday } from '../../domain/common';
-import { setSyncToken, syncNow, type TokenResult } from '../../sync/client';
+import { setSyncToken, syncNow } from '../../sync/client';
 import { Panel } from '../../ui/Panel';
 import { useToast } from '../../ui/Toast';
 import { DEFAULT_COMPANION, draftFromProfile, profileChanges, type LookDraft } from '../character/LookEditor';
 import { useCompanion } from '../companion/store';
-import { AccessCodeStep, LookStep, MindStep, PickStep, WelcomeStep } from './OnboardingSteps';
+import { AccessCodeStep, LookStep, MindStep, PickStep, WelcomeStep, type ConnectResult } from './OnboardingSteps';
 import './onboarding.css';
 
 type Step = 'welcome' | 'code' | 'look' | 'mind' | 'pick';
@@ -55,10 +55,11 @@ export function Onboarding() {
     await patch<Profile>('profile', 'me', { onboarded: true });
   });
 
-  const connect = async (code: string): Promise<TokenResult> => {
+  const connect = async (code: string): Promise<ConnectResult> => {
     const result = await setSyncToken(code);
     if (result !== 'ok') return result;
-    await syncNow();
+    // Without the other device's data, "Seu personagem" would start a second, empty profile.
+    if (!(await syncNow())) return 'syncFailed';
     // An onboarded profile from the other device makes App leave this screen (live query).
     const p = await db.profile.get('me');
     if (!p?.onboarded) await goLook();

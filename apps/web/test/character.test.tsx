@@ -118,6 +118,16 @@ describe('CharacterScreen', () => {
     expect(await within(await sheet()).findByRole('heading', { name: 'Vitor' })).toBeInTheDocument();
   });
 
+  it('every look radio carries its visible name as aria-label', async () => {
+    const user = userEvent.setup();
+    renderCharacter();
+    await user.click(await screen.findByRole('button', { name: 'Editar aparência' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar aparência' });
+    expect(within(dialog).getByRole('radio', { name: 'Clara' })).toHaveAttribute('aria-label', 'Clara');
+    expect(within(dialog).getByRole('radio', { name: 'Longo' })).toHaveAttribute('aria-label', 'Longo');
+    expect(within(dialog).getAllByRole('radio').every((r) => r.getAttribute('aria-label'))).toBe(true);
+  });
+
   it('links the gear to /ajustes', async () => {
     renderCharacter();
     expect(await screen.findByRole('link', { name: 'Ajustes' })).toHaveAttribute('href', '/ajustes');

@@ -6,10 +6,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { Area, DayKey, Mission } from '@life/shared';
 import { db } from '../../db/db';
-import { moveToDay, startMission, undoComplete, updateMission } from '../../domain/actions';
+import { moveToDay, startMission, updateMission } from '../../domain/actions';
 import { formatDuration, plural } from '../../ui/format';
+import { safeRun } from '../../ui/safeRun';
 import { coarsePointer, GripIcon } from '../agora/TodayList';
-import { completeWithFeedback } from '../mission/missionFeedback';
+import { completeWithFeedback, reopenMission } from '../mission/missionFeedback';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { MoveMenu } from './MoveMenu';
 import { byDayOrder, DRAG_INSTRUCTIONS, usePlanData } from './planShared';
@@ -38,14 +39,9 @@ export function columnOf(m: Mission, today: DayKey, now: number): ColumnId | und
 /** Applies a column drop / menu choice to a mission. */
 export async function moveToColumn(m: Mission, to: ColumnId, today: DayKey): Promise<void> {
   if (to === 'done') { await completeWithFeedback(m.id); return; }
-  if (m.status === 'done') {
-    // Moving out of "Feito" means it wasn't really done: undo the completion (and its XP),
-    // so completing it again can't award XP twice.
-    await undoComplete(m.id);
-    if ((await db.missions.get(m.id))?.status === 'done') {
-      await updateMission(m.id, { status: 'open', completedAt: undefined });
-    }
-  }
+  // Moving out of "Feito" means it wasn't really done: undo the completion (and its XP),
+  // so completing it again can't award XP twice.
+  if (m.status === 'done') await reopenMission(m.id);
   if (to === 'doing') { await startMission(m.id); return; }
   if ((await db.missions.get(m.id))?.status === 'doing') await updateMission(m.id, { status: 'open' });
   await moveToDay(m.id, to === 'today' ? today : null);
@@ -76,13 +72,19 @@ function BoardCard({ mission, area, current, today }: { mission: Mission; area?:
           {mission.durationMin !== undefined && <span className="row-card__sub">{formatDuration(mission.durationMin)}</span>}
         </span>
       </button>
-      <MoveMenu title={mission.title} role="menu">
-        {(close) => COLUMNS.filter((c) => c.id !== current).map((c) => (
-          <button key={c.id} type="button" role="menuitem" className="move-panel__item"
-            onClick={() => { void moveToColumn(mission, c.id, today); close(); }}>
-            {c.title}
-          </button>
-        ))}
+      <MoveMenu title={mission.title}>
+        {(close) => (
+          <ul className="move-panel__list" aria-label={`Mover ${mission.title} para`}>
+            {COLUMNS.filter((c) => c.id !== current).map((c) => (
+              <li key={c.id}>
+                <button type="button" className="move-panel__item"
+                  onClick={() => { safeRun(moveToColumn(mission, c.id, today)); close(); }}>
+                  {c.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </MoveMenu>
     </li>
   );
@@ -138,7 +140,7 @@ export function BoardView() {
     const m = missions.find((x) => x.id === active.id);
     if (!m || !to || !COLUMNS.some((c) => c.id === to)) return;
     if (columnOf(m, today, now) === to) return;
-    void moveToColumn(m, to, today);
+    safeRun(moveToColumn(m, to, today));
   };
 
   return (

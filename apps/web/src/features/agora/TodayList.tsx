@@ -78,11 +78,14 @@ export interface TodayListProps {
   onOpen(m: Mission): void;
   onReorder(ids: string[]): void;
   title?: string;
+  /** Shown when there is nothing to list (the Painel lists commitments on its timeline instead). */
+  emptyText?: string;
 }
 
 /** "Hoje": commitments by start time, then missions (drag to reorder), then done today. */
 export function TodayList({
   missions, commitments, done, areas, hardDay = false, now = Date.now(), onOpen, onReorder, title = 'Hoje',
+  emptyText = 'Nada planejado para hoje.',
 }: TodayListProps) {
   const headingId = useId();
   const areaOf = (m: Mission) => (m.areaId ? areas.find((a) => a.id === m.areaId) : undefined);
@@ -127,7 +130,7 @@ export function TodayList({
   return (
     <section className="today" aria-labelledby={headingId}>
       <h2 id={headingId} className="section-title">{title}</h2>
-      {empty && <p className="today__empty">Nada planejado para hoje.</p>}
+      {empty && <p className="today__empty">{emptyText}</p>}
 
       {commitments.length > 0 && (
         <ul className="today__list">

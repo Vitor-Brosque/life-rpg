@@ -8,6 +8,7 @@ import { Button } from '../../ui/Button';
 import { formatDay, plural } from '../../ui/format';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
+import { usePageHide } from '../../ui/usePageHide';
 import { CaptureChips, QuickDetails } from './CaptureChips';
 import { isMission, removeSpans, saveCapture, type Captured } from './captureSave';
 import './capture.css';
@@ -100,6 +101,23 @@ export function CaptureBar({ open, onClose, defaultDate }: CaptureBarProps) {
 
 const QUICK_DETAILS_MS = 6000;
 
+/**
+ * A half-typed capture is kept here while the page is hidden, so an app reload (update) or the
+ * phone killing the app in the background does not lose it. Restored once, by the next form.
+ */
+const DRAFT_KEY = 'life-rpg.capture.draft';
+
+function readDraft(): string {
+  try { return localStorage.getItem(DRAFT_KEY) ?? ''; } catch { return ''; }
+}
+
+function writeDraft(text: string): void {
+  try {
+    if (text.trim()) localStorage.setItem(DRAFT_KEY, text);
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch { /* storage may be unavailable */ }
+}
+
 interface Feedback { key: number; message: string; mission?: Mission }
 
 function feedbackFor(items: Captured[], today: DayKey): Omit<Feedback, 'key'> | undefined {
@@ -125,11 +143,23 @@ export interface CaptureFormProps {
 export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormProps) {
   const today = useToday() ?? dayKeyOf(Date.now(), 4);
   const areas = useAreas().filter((a) => !a.archived);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(readDraft);
   const [asMission, setAsMission] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>();
   const [activity, setActivity] = useState(0);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const textRef = useRef(text);
+  textRef.current = text;
+
+  // The restored draft now lives in the field; back in the foreground, the field holds it again.
+  useEffect(() => {
+    writeDraft('');
+    const onVisible = () => { if (document.visibilityState === 'visible') writeDraft(''); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+  // Only a form with text writes (an empty inline form must not erase the sheet's draft).
+  usePageHide(() => { if (textRef.current.trim()) writeDraft(textRef.current); });
 
   const lines = useMemo(() => text.split(/\r?\n/).filter((l) => l.trim() !== ''), [text]);
   const single = useMemo(() => (lines.length === 1 ? parseCapture(lines[0]!, today) : undefined), [lines, today]);

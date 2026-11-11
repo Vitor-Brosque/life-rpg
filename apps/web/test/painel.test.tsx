@@ -21,7 +21,7 @@ beforeEach(async () => {
   vi.setSystemTime(at(10, 20));
   localStorage.clear();
   useTimer.setState({ ...TIMER_IDLE });
-  useAgoraSession.setState({ reviewDismissed: false });
+  useAgoraSession.setState({ reviewDismissedDay: undefined, greetedDay: '2026-11-11', emptyDay: undefined });
   await db.delete();
   await db.open();
   await ensureSeed();
@@ -68,6 +68,15 @@ describe('PainelScreen', () => {
     expect(within(hoje).getByText('livre 7h')).toBeInTheDocument();
     expect(within(hoje).getByText('10:20')).toBeInTheDocument();
     expect(await within(hoje).findByText('Lavar louça')).toBeInTheDocument();
+  });
+
+  it('with commitments but no missions, "Missões de hoje" says no mission is planned', async () => {
+    await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '15:00', end: '16:00' });
+    renderPainel();
+    const hoje = await screen.findByRole('region', { name: 'Hoje' });
+    expect(await within(hoje).findByText('Dentista')).toBeInTheDocument();
+    expect(within(hoje).getByText('Nenhuma missão planejada para hoje.')).toBeInTheDocument();
+    expect(within(hoje).queryByText('Nada planejado para hoje.')).not.toBeInTheDocument();
   });
 
   it('Apoio offers "Iniciar foco" while idle and shows the big clock once running', async () => {

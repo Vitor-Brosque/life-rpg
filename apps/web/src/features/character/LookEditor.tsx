@@ -6,6 +6,7 @@ import { HAIR_COLORS, HAIR_STYLE_NAMES, HAIR_STYLES_COUNT, OUTFIT_COLORS, SKIN_T
 import { useProfile } from '../../db/hooks';
 import { patch } from '../../db/repo';
 import { Button } from '../../ui/Button';
+import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
 import './character.css';
 
@@ -38,9 +39,10 @@ function SwatchGroup({ legend, colors, names, value, onChange }: SwatchGroupProp
       <div className="look-picker__options">
         {colors.map((color, i) => (
           <label key={color} className="swatch" title={names[i]}>
-            <input type="radio" name={group} className="visually-hidden" checked={value === i} onChange={() => onChange(i)} />
+            {/* aria-label as well: some accessibility trees ignore the wrapping label of a hidden input. */}
+            <input type="radio" name={group} className="visually-hidden" aria-label={names[i]} checked={value === i}
+              onChange={() => onChange(i)} />
             <span className="swatch__color" style={{ background: color }} aria-hidden="true" />
-            <span className="visually-hidden">{names[i]}</span>
           </label>
         ))}
       </div>
@@ -85,10 +87,10 @@ export function LookFields({ value, onChange, nameLabel = 'Nome' }: LookFieldsPr
         <div className="look-picker__options look-picker__options--styles">
           {Array.from({ length: HAIR_STYLES_COUNT }, (_, hair) => (
             <label key={hair} className="look-style">
-              <input type="radio" name={group} className="visually-hidden" checked={look.hair === hair}
-                onChange={() => setLook({ hair })} />
+              <input type="radio" name={group} className="visually-hidden" aria-label={HAIR_STYLE_NAMES[hair]}
+                checked={look.hair === hair} onChange={() => setLook({ hair })} />
               <span className="look-style__card" aria-hidden="true"><Avatar look={{ ...look, hair }} scale={3} /></span>
-              <span className="look-style__name">{HAIR_STYLE_NAMES[hair]}</span>
+              <span className="look-style__name" aria-hidden="true">{HAIR_STYLE_NAMES[hair]}</span>
             </label>
           ))}
         </div>
@@ -104,12 +106,12 @@ export function LookFields({ value, onChange, nameLabel = 'Nome' }: LookFieldsPr
 
 function LookEditorForm({ profile, onDone }: { profile: Profile; onDone(): void }) {
   const [draft, setDraft] = useState(() => draftFromProfile(profile));
-  const save = async () => {
+  const save = () => safeRun(async () => {
     await patch<Profile>('profile', profile.id, profileChanges(draft));
     onDone();
-  };
+  });
   return (
-    <form className="look-editor" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+    <form className="look-editor" onSubmit={(e) => { e.preventDefault(); save(); }}>
       <LookFields value={draft} onChange={setDraft} />
       <div className="look-editor__actions">
         <Button type="submit" variant="primary">Salvar</Button>

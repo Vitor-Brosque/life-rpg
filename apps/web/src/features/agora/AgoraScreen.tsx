@@ -1,5 +1,6 @@
 import type { Mission } from '@life/shared';
 import { reorderDay } from '../../domain/actions';
+import { safeRun } from '../../ui/safeRun';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
@@ -27,7 +28,8 @@ function AgoraView() {
   const { settings, today, now, missions, areas, todayMissions, occurrences, doneToday } = useTodayData();
   const review = useDayReview(today, missions);
 
-  useCompanionMoments(settings?.dayStartHour, primary?.mission.id, primary?.postponedHint ?? false);
+  const empty = engine !== undefined && !primary && !engine.currentCommitment;
+  useCompanionMoments(settings?.dayStartHour, today, primary?.mission.id, primary?.postponedHint ?? false, empty);
 
   if (!engine || !today) return <section className="screen agora" aria-busy="true" aria-label="Agora" />;
 
@@ -63,7 +65,7 @@ function AgoraView() {
         hardDay={review.hardDay}
         now={now}
         onOpen={openSheet}
-        onReorder={(ids) => { void reorderDay(ids, today); }}
+        onReorder={(ids) => safeRun(reorderDay(ids, today))}
       />
 
       <ShrinkDialog mission={dialog?.kind === 'shrink' ? dialog.mission : undefined} onClose={closeDialog} />

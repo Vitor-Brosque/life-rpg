@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePageHide } from '../../ui/usePageHide';
 
 export interface EditableFieldProps {
   label: string;
   value?: string;
-  /** Called with the trimmed text when it changed (on blur, Enter in single-line fields, or unmount). */
+  /**
+   * Called with the trimmed text when it changed: on blur, Enter in single-line fields, unmount,
+   * and when the page is hidden or unloaded.
+   */
   onSave(value: string): void;
   multiline?: boolean;
   placeholder?: string;
@@ -20,20 +24,30 @@ export function EditableField({ label, value, onSave, multiline, placeholder, re
   latest.current = { draft, value, onSave, required };
 
   useEffect(() => {
-    if (!dirty.current) setDraft(value ?? '');
+    // A draft that only differs by surrounding spaces is what was just saved: keep it as typed
+    // (the field may still have focus after a save on page hide).
+    if (!dirty.current && (value ?? '') !== latest.current.draft.trim()) setDraft(value ?? '');
   }, [value]);
 
-  const commitRef = useRef(() => {
+  const commitRef = useRef((onHide = false) => {
     if (!dirty.current) return;
-    dirty.current = false;
     const { draft: d, value: v, onSave: save, required: req } = latest.current;
     const next = d.trim();
-    if (req && next === '') { setDraft(v ?? ''); return; }
+    if (req && next === '') {
+      // Still being retyped: leave it alone on page hide; otherwise revert to the saved value.
+      if (onHide) return;
+      dirty.current = false;
+      setDraft(v ?? '');
+      return;
+    }
+    dirty.current = false;
     if (next !== (v ?? '')) save(next);
   });
 
   // Closing the sheet unmounts the field without a blur: flush the pending edit.
   useEffect(() => () => commitRef.current(), []);
+  // The phone may kill or reload the app in the background without any blur or unmount.
+  usePageHide(() => commitRef.current(true));
 
   const common = {
     value: draft,

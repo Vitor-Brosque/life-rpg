@@ -9,8 +9,6 @@ import { SettingsSection } from './SettingsSection';
 import { SyncSection } from './SyncSection';
 import './settings.css';
 
-const SPEC_PATH = 'docs/superpowers/specs/2026-11-11-marco1-fundacao-agora-design.md';
-
 /**
  * "/ajustes": áreas da vida, dia, foco, companheiro, sincronização, notificações, dados e sobre.
  * Every change is saved right away (local first; sync carries it to the other devices).
@@ -38,9 +36,7 @@ export function SettingsScreen() {
           <DataSection />
           <SettingsSection title="Sobre" icon="book">
             <p>LIFE RPG, versão {APP_VERSION}.</p>
-            <p className="settings-hint">
-              Marco 1 — Fundação e “Agora”. Especificação no repositório: <code className="settings-code">{SPEC_PATH}</code>
-            </p>
+            <p className="settings-hint">Marco 1 — Fundação e “Agora”.</p>
           </SettingsSection>
         </div>
       </div>

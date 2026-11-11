@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { create } from 'zustand';
-import type { EngineOutput, Mission, Suggestion } from '@life/shared';
+import type { DayKey, EngineOutput, Mission, Suggestion } from '@life/shared';
 import { useEngine } from '../../db/hooks';
 import { skipMission } from '../../domain/actions';
-import { useToast } from '../../ui/Toast';
+import { safeRun } from '../../ui/safeRun';
 import { useMissionSheet } from '../mission/MissionSheet';
 import {
   completeWithFeedback, dropWithFeedback, splitWithFeedback, startWithFeedback,
@@ -37,18 +37,24 @@ export function arrangeSuggestions(
   return { primary: pinned, alternatives: engine.ranked.filter((s) => s !== pinned).slice(0, 3) };
 }
 
-/** App-session state of the Agora screen (survives navigating away and back). */
-export const useAgoraSession = create<{ reviewDismissed: boolean; dismissReview(): void }>((set) => ({
-  reviewDismissed: false,
-  dismissReview: () => set({ reviewDismissed: true }),
+interface AgoraSession {
+  /** Day the quick review was closed ("Pronto"/"Dispensar"): hidden until the next day. */
+  reviewDismissedDay?: DayKey;
+  /** Day the companion last greeted / last spoke its "empty" line (once per day each). */
+  greetedDay?: DayKey;
+  emptyDay?: DayKey;
+  dismissReview(day: DayKey): void;
+}
+
+/** App-session state of the Agora screen (survives navigating away and back), keyed by day. */
+export const useAgoraSession = create<AgoraSession>((set) => ({
+  reviewDismissedDay: undefined,
+  greetedDay: undefined,
+  emptyDay: undefined,
+  dismissReview: (day) => set({ reviewDismissedDay: day }),
 }));
 
-const guard = (fn: (m: Mission) => Promise<unknown>) => (m: Mission) => {
-  fn(m).catch((e) => {
-    console.error('agora action failed', e);
-    useToast.getState().show('Algo não funcionou. Tente de novo.');
-  });
-};
+const guard = (fn: (m: Mission) => Promise<unknown>) => (m: Mission) => { safeRun(() => fn(m)); };
 
 /** Engine output + session state (skips, promoted mission, open dialog) + actions. */
 export function useAgora() {

@@ -116,7 +116,10 @@ export interface MainCardProps {
 
 /** The one mission for now (parchment card), or the current commitment. */
 export function MainCard({ suggestion, area, commitment, canSkip, actions }: MainCardProps) {
-  const [showMission, setShowMission] = useState(false);
+  // "Ver a missão agora" applies to this occurrence only: the next commitment shows itself again.
+  const occurrenceKey = commitment ? `${commitment.commitment.id}@${commitment.startTs}` : undefined;
+  const [missionShownFor, setMissionShownFor] = useState<string>();
+  const showMission = occurrenceKey !== undefined && missionShownFor === occurrenceKey;
   const inCommitment = commitment !== undefined && (!showMission || !suggestion);
   return (
     <Panel role="region" aria-label="Missão agora" className="main-card">
@@ -131,7 +134,7 @@ export function MainCard({ suggestion, area, commitment, canSkip, actions }: Mai
           {suggestion && (
             <>
               <p className="main-card__after">Depois: <strong>{suggestion.mission.title}</strong></p>
-              <Button size="sm" variant="ghost" onClick={() => setShowMission(true)}>Ver a missão agora</Button>
+              <Button size="sm" variant="ghost" onClick={() => setMissionShownFor(occurrenceKey)}>Ver a missão agora</Button>
             </>
           )}
         </>

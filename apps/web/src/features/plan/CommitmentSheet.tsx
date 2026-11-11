@@ -5,6 +5,7 @@ import { useSettings } from '../../db/hooks';
 import { patch, softDelete } from '../../db/repo';
 import { createCommitment } from '../../domain/actions';
 import { Button } from '../../ui/Button';
+import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
 import './plan.css';
 
@@ -83,8 +84,9 @@ function CommitmentForm({ commitment, defaultDate, onClose }: Omit<CommitmentShe
     onClose();
   };
 
+  // A failed write keeps the sheet open (with what was typed) and says so.
   return (
-    <form className="commit-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+    <form className="commit-form" onSubmit={(e) => { e.preventDefault(); safeRun(save); }}>
       <label className="field">
         <span className="field__label">Título</span>
         <input type="text" value={title} autoFocus={!commitment} enterKeyHint="done"
@@ -151,7 +153,7 @@ function CommitmentForm({ commitment, defaultDate, onClose }: Omit<CommitmentShe
             <div className="mission-sheet__confirm">
               <p>{recurring ? 'Excluir este compromisso e todas as repetições?' : 'Excluir este compromisso?'}</p>
               <div className="cluster">
-                <Button variant="danger" onClick={() => { void remove(); }}>Sim, excluir</Button>
+                <Button variant="danger" onClick={() => safeRun(remove)}>Sim, excluir</Button>
                 <Button onClick={() => setConfirmDelete(false)}>Cancelar exclusão</Button>
               </div>
             </div>

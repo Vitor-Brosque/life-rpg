@@ -6,6 +6,7 @@ import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { formatDay, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
+import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { dropWithFeedback } from '../mission/missionFeedback';
 import { ShrinkDialog } from './ShrinkDialog';
@@ -16,14 +17,14 @@ export interface ReviewSheetProps {
   /** `needsReview(missions, today)`. */
   missions: Mission[];
   today: DayKey;
-  /** "Pronto" (after finishing) or "Dispensar" (hide for this session). */
+  /** "Pronto" or "Dispensar": hide the card for the rest of the day. */
   onClose(): void;
 }
 
 const deadlinePassed = (m: Mission, today: DayKey) => m.deadline !== undefined && m.deadline < today;
 
-function ReviewItem({ mission, today, onHandled, onShrink }: {
-  mission: Mission; today: DayKey; onHandled(id: string): void; onShrink(m: Mission): void;
+function ReviewItem({ mission, today, onHandled, onUnhandled, onShrink }: {
+  mission: Mission; today: DayKey; onHandled(id: string): void; onUnhandled(id: string): void; onShrink(m: Mission): void;
 }) {
   const [mode, setMode] = useState<'pick' | 'drop'>();
   const [date, setDate] = useState(addDays(today, 1));
@@ -31,11 +32,13 @@ function ReviewItem({ mission, today, onHandled, onShrink }: {
   const passed = deadlinePassed(mission, today);
 
   const act = (fn: () => Promise<unknown>) => () => {
-    fn().then(() => onHandled(mission.id)).catch((e) => {
-      console.error('review action failed', e);
-      useToast.getState().show('Algo não funcionou. Tente de novo.');
+    safeRun(async () => {
+      await fn();
+      onHandled(mission.id);
     });
   };
+  // "Desfazer" on the drop toast puts the mission back in the list.
+  const drop = (reason?: string) => act(() => dropWithFeedback(mission.id, reason, () => onUnhandled(mission.id)));
   // Re-planning a mission whose hard deadline passed is a conscious decision: the old deadline goes.
   const moveTo = (day: DayKey) => act(async () => {
     await rescheduleMission(mission.id, day);
@@ -75,9 +78,9 @@ function ReviewItem({ mission, today, onHandled, onShrink }: {
         <div className="review__item-extra" role="group" aria-labelledby={`${titleId}-reason`}>
           <span id={`${titleId}-reason`} className="review__extra-label">Motivo (opcional):</span>
           {DROP_REASONS.map((r) => (
-            <Chip key={r} onClick={act(() => dropWithFeedback(mission.id, r))}>{r}</Chip>
+            <Chip key={r} onClick={drop(r)}>{r}</Chip>
           ))}
-          <Chip onClick={act(() => dropWithFeedback(mission.id))}>só soltar</Chip>
+          <Chip onClick={drop()}>só soltar</Chip>
         </div>
       )}
     </li>
@@ -88,23 +91,42 @@ function ReviewItem({ mission, today, onHandled, onShrink }: {
 export function ReviewSheet({ missions, today, onClose }: ReviewSheetProps) {
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
   const [shrinking, setShrinking] = useState<Mission>();
-  const finished = useRef(false);
+  const finishing = useRef<Promise<void> | undefined>(undefined);
   const headingId = useId();
   const items = missions.filter((m) => !handled.has(m.id));
+  // The review only counts (reviewDone + XP) once at least one mission was decided here.
+  const decided = handled.size > 0;
 
-  const finish = async () => {
-    if (finished.current) return;
-    finished.current = true;
-    const { xp } = await finishReview();
-    if (xp > 0) useToast.getState().show(`Revisão feita · +${xp} XP`);
+  // One finish per review; "Pronto" right after the last decision waits for the one in flight.
+  const finish = (): Promise<void> => {
+    finishing.current ??= finishReview().then(({ xp }) => {
+      if (xp > 0) useToast.getState().show(`Revisão feita · +${xp} XP`);
+    }, (e: unknown) => {
+      finishing.current = undefined; // a later "Pronto" can try again
+      throw e;
+    });
+    return finishing.current;
   };
 
   useEffect(() => {
-    if (items.length === 0) finish().catch((e) => console.error('review failed', e));
+    if (items.length === 0 && decided) safeRun(finish);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
 
   const markHandled = (id: string) => setHandled((s) => new Set(s).add(id));
+  const unmarkHandled = (id: string) => setHandled((s) => {
+    const next = new Set(s);
+    next.delete(id);
+    return next;
+  });
+  // "Pronto" with no decision just hides the card for today.
+  const done = () => safeRun(async () => {
+    try {
+      if (decided) await finish();
+    } finally {
+      onClose();
+    }
+  });
 
   return (
     <Panel variant="stone" role="region" aria-labelledby={headingId} className="review px-border--gold">
@@ -112,7 +134,7 @@ export function ReviewSheet({ missions, today, onClose }: ReviewSheetProps) {
         <h2 id={headingId} className="review__title">
           Revisão rápida — {items.length === 0
             ? 'tudo em ordem'
-            : `${plural(items.length, 'missão', 'missões')} ${items.length === 1 ? 'ficou' : 'ficaram'} para trás`}
+            : `${plural(items.length, 'missão', 'missões')} para reavaliar`}
         </h2>
         <Button variant="ghost" size="sm" icon="close" aria-label="Dispensar revisão" onClick={onClose} />
       </div>
@@ -121,15 +143,15 @@ export function ReviewSheet({ missions, today, onClose }: ReviewSheetProps) {
           <p className="review__intro">Hoje, outro dia ou soltar — você escolhe. Nada aqui é atraso.</p>
           <ul className="review__list">
             {items.map((m) => (
-              <ReviewItem key={m.id} mission={m} today={today} onHandled={markHandled} onShrink={setShrinking} />
+              <ReviewItem key={m.id} mission={m} today={today} onHandled={markHandled} onUnhandled={unmarkHandled}
+                onShrink={setShrinking} />
             ))}
           </ul>
         </>
       ) : (
         <p className="review__intro">Tudo decidido. Bom começo de dia!</p>
       )}
-      <Button variant="primary" className="review__done"
-        onClick={() => { void finish().catch((e) => console.error('review failed', e)).finally(onClose); }}>
+      <Button variant="primary" className="review__done" onClick={done}>
         Pronto
       </Button>
       <ShrinkDialog

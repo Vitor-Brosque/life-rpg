@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
+import { safeRun } from '../../ui/safeRun';
 import { GripIcon } from '../agora/TodayList';
 import { DRAG_INSTRUCTIONS, usePlanSensors } from '../plan/planShared';
 import { journeyStats } from './journeyData';
@@ -82,7 +83,7 @@ function NewJourneyForm({ onDone }: { onDone(): void }) {
   };
   return (
     <Panel variant="stone">
-      <form className="journey-form" onSubmit={(e) => { e.preventDefault(); void create(); }}>
+      <form className="journey-form" onSubmit={(e) => { e.preventDefault(); safeRun(create); }}>
         <label className="field">
           <span className="field__label">Título</span>
           <input type="text" value={title} autoFocus onChange={(e) => setTitle(e.target.value)} />
@@ -124,7 +125,8 @@ export function JourneysScreen() {
     if (!over || a.id === over.id) return;
     const next = arrayMove(order, order.indexOf(String(a.id)), order.indexOf(String(over.id)));
     setOrder(next);
-    next.forEach((id, i) => { if (byId.get(id)?.order !== i) void patch<Journey>('journeys', id, { order: i }); });
+    safeRun(Promise.all(next.map((id, i) =>
+      (byId.get(id)?.order !== i ? patch<Journey>('journeys', id, { order: i }) : undefined))));
   };
 
   return (

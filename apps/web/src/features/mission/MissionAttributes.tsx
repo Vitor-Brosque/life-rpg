@@ -4,6 +4,7 @@ import { db } from '../../db/db';
 import { moveToDay, updateMission } from '../../domain/actions';
 import { Chip } from '../../ui/Chip';
 import { DURATION_OPTIONS, ENERGY_LABEL, ENERGY_OPTIONS, formatDuration } from '../../ui/format';
+import { safeRun } from '../../ui/safeRun';
 import { RecurrencePicker } from './RecurrencePicker';
 
 interface Props { mission: Mission; areas: Area[]; journeys: Journey[]; today: DayKey }
@@ -32,18 +33,18 @@ function DateField({ label, value, onChange, min, noneLabel }: {
 
 /** Chips (duration, energy, area, important), dates, recurrence and journey. Saved on change. */
 export function MissionAttributes({ mission, areas, journeys, today }: Props) {
-  const set = (changes: Partial<Mission>) => { void updateMission(mission.id, changes); };
+  const set = (changes: Partial<Mission>) => safeRun(updateMission(mission.id, changes));
   const durations = [...new Set([...DURATION_OPTIONS, ...(mission.durationMin ? [mission.durationMin] : [])])]
     .sort((a, b) => a - b);
   const activeJourneys = journeys.filter((j) => j.status === 'active' || j.id === mission.journeyId)
     .sort((a, b) => a.order - b.order);
 
-  const setJourney = async (journeyId: string) => {
-    if (!journeyId) { set({ journeyId: undefined, journeyOrder: undefined }); return; }
+  const setJourney = (journeyId: string) => safeRun(async () => {
+    if (!journeyId) { await updateMission(mission.id, { journeyId: undefined, journeyOrder: undefined }); return; }
     const siblings = await db.missions.where('journeyId').equals(journeyId).filter((m) => !m.deleted).toArray();
     const order = siblings.reduce((mx, m) => Math.max(mx, (m.journeyOrder ?? -1) + 1), 0);
-    set({ journeyId, journeyOrder: order });
-  };
+    await updateMission(mission.id, { journeyId, journeyOrder: order });
+  });
 
   return (
     <>
@@ -95,7 +96,7 @@ export function MissionAttributes({ mission, areas, journeys, today }: Props) {
         <legend className="field__label">Quando</legend>
         <div className="attr__dates">
           <DateField label="Dia planejado" value={mission.date} noneLabel="Sem data"
-            onChange={(d) => { void moveToDay(mission.id, d ?? null); }} />
+            onChange={(d) => safeRun(moveToDay(mission.id, d ?? null))} />
           <DateField label="Prazo" value={mission.deadline} onChange={(deadline) => set({ deadline })} />
           <DateField label="Não antes de" value={mission.notBefore} min={today}
             onChange={(notBefore) => set({ notBefore })} />
@@ -110,7 +111,7 @@ export function MissionAttributes({ mission, areas, journeys, today }: Props) {
 
       <label className="field attr">
         <span className="field__label">Jornada</span>
-        <select value={mission.journeyId ?? ''} onChange={(e) => { void setJourney(e.target.value); }}>
+        <select value={mission.journeyId ?? ''} onChange={(e) => setJourney(e.target.value)}>
           <option value="">Nenhuma</option>
           {activeJourneys.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
         </select>

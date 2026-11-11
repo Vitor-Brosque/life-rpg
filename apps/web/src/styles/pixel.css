@@ -143,6 +143,7 @@ a.btn { text-decoration: none; }
   border: 0;
 }
 .chip__remove {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -155,6 +156,8 @@ a.btn { text-decoration: none; }
   border: 0;
   border-left: 2px solid rgba(0, 0, 0, 0.3);
 }
+/* 44 px wide touch target without changing the look: the hit area reaches into the gap on the right. */
+.chip__remove::after { content: ''; position: absolute; inset: 0 -8px 0 0; }
 .chip--selected { color: var(--ink); background: var(--gold); }
 .panel--parchment .chip { color: var(--ink); background: var(--parchment-dark); box-shadow: 0 -2px 0 0 var(--frame-wood), 0 2px 0 0 var(--frame-wood), -2px 0 0 0 var(--frame-wood), 2px 0 0 0 var(--frame-wood); }
 .panel--parchment .chip--selected { background: var(--gold); }

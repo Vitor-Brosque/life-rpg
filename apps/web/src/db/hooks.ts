@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type {
   Area, Commitment, DayKey, DayState, EnergyLevel, EngineOutput, Journey, LevelInfo, Mission,
@@ -7,13 +7,57 @@ import type {
 import { activeDays, dayKeyOf, levelFromXp, suggest } from '@life/shared';
 import { db } from './db';
 
-export function useNow(intervalMs = 30_000): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
+// ------------------------------------------------------------------ shared clock
+
+const CLOCK_MS = 30_000;
+let clockNow = Date.now();
+const clockListeners = new Set<() => void>();
+let stopClock: (() => void) | undefined;
+
+function tick(): void {
+  const t = Date.now();
+  if (t === clockNow) return;
+  clockNow = t;
+  for (const l of clockListeners) l();
+}
+
+/** One interval for the whole app, plus an immediate tick when the app comes back (phone wakes). */
+function startClock(): () => void {
+  const id = setInterval(tick, CLOCK_MS);
+  const onVisibility = () => { if (document.visibilityState === 'visible') tick(); };
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pageshow', tick);
+  window.addEventListener('focus', tick);
+  return () => {
+    clearInterval(id);
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('pageshow', tick);
+    window.removeEventListener('focus', tick);
+  };
+}
+
+function subscribeClock(listener: () => void): () => void {
+  clockListeners.add(listener);
+  stopClock ??= startClock();
+  return () => {
+    clockListeners.delete(listener);
+    if (clockListeners.size === 0) {
+      stopClock?.();
+      stopClock = undefined;
+    }
+  };
+}
+
+function readClock(): number {
+  // Nothing kept the clock fresh while nobody listened: catch up before a first render uses it.
+  // (Re-reading within the same second keeps the snapshot stable across React's double reads.)
+  if (clockListeners.size === 0 && Math.abs(Date.now() - clockNow) >= 1000) clockNow = Date.now();
+  return clockNow;
+}
+
+/** Current time from the shared app clock (30 s ticks; refreshed on visibilitychange/pageshow/focus). */
+export function useNow(): number {
+  return useSyncExternalStore(subscribeClock, readClock);
 }
 
 export function useSettings(): Settings | undefined {

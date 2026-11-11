@@ -55,6 +55,8 @@
 .week-strip__day.is-today .week-strip__num { color: var(--gold); }
 .week-strip__day.is-selected { background: var(--stone-light); box-shadow: inset 0 0 0 3px var(--gold); }
 .week-strip__day.is-selected .week-strip__wd { color: var(--text); }
+/* On the selected (--stone-light) day --text-dim would be 4.1:1. */
+.week-strip__day.is-selected .week-strip__badge.is-empty { color: var(--text); }
 
 .day-box { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .day-box__title { margin: 0; color: var(--gold); font-size: 1.0625rem; }
@@ -98,6 +100,8 @@
 .move-btn[aria-expanded='true'] { color: var(--gold); }
 .move-btn .icon { transform: rotate(90deg); }
 .move-panel {
+  /* --text-dim on --stone-light is only 4.1:1: labels here use the full text colour (8.0:1). */
+  --muted: var(--text);
   display: flex;
   flex: 1 1 100%;
   flex-direction: column;
@@ -105,8 +109,11 @@
   padding: var(--space-3);
   background: var(--stone-light);
 }
-.move-panel[role='menu'] { gap: var(--space-2); }
+.move-panel__date { display: flex; align-items: flex-end; gap: var(--space-2); }
+.move-panel__date .field { flex: 1; }
+.move-panel__list { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .move-panel__item {
+  width: 100%;
   min-height: var(--touch);
   padding: 0 var(--space-3);
   color: var(--text);

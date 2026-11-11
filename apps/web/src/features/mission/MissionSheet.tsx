@@ -7,12 +7,14 @@ import { db } from '../../db/db';
 import { useAreas, useJourneys, useToday } from '../../db/hooks';
 import { deleteMission, updateMission } from '../../domain/actions';
 import { Button } from '../../ui/Button';
+import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
-import { useToast } from '../../ui/Toast';
 import { ChecklistEditor } from './ChecklistEditor';
 import { EditableField } from './EditableField';
 import { MissionAttributes } from './MissionAttributes';
-import { completeWithFeedback, dropWithFeedback, splitWithFeedback, startWithFeedback } from './missionFeedback';
+import {
+  completeWithFeedback, dropWithFeedback, reopenMission, splitWithFeedback, startWithFeedback,
+} from './missionFeedback';
 import { useTimerBridge } from './timerBridge';
 import './mission.css';
 
@@ -65,22 +67,27 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hintId = useId();
   const live = mission.status === 'open' || mission.status === 'doing';
-  const set = (changes: Partial<Mission>) => { void updateMission(mission.id, changes); };
+  const finished = mission.status === 'done' || mission.status === 'dropped';
+  const set = (changes: Partial<Mission>) => safeRun(updateMission(mission.id, changes));
   const tag = STATUS_TAG[mission.status];
 
-  const run = (fn: () => Promise<unknown>, close = false) => async () => {
-    try {
+  const run = (fn: () => Promise<unknown>, close = false) => () => {
+    safeRun(async () => {
       await fn();
       if (close) onClose();
-    } catch (e) {
-      console.error('mission action failed', e);
-      useToast.getState().show('Algo não funcionou. Tente de novo.');
-    }
+    });
   };
 
   return (
     <div className="mission-sheet">
-      {tag && <p className="mission-sheet__status"><span className="tag tag--stone">{tag}</span></p>}
+      {tag && (
+        <p className="mission-sheet__status">
+          <span className="tag tag--stone">{tag}</span>
+          {finished && (
+            <Button size="sm" onClick={run(() => reopenMission(mission.id))}>Reabrir</Button>
+          )}
+        </p>
+      )}
       <EditableField label="Título" value={mission.title} required className="field--title"
         onSave={(title) => set({ title })} />
       <EditableField label="Primeiro passo" value={mission.firstStep} placeholder="A menor ação para começar"

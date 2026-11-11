@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Area, DayKey, Mission } from '@life/shared';
@@ -11,13 +12,31 @@ export interface MissionRowProps {
   mission: Mission;
   area?: Area;
   today: DayKey;
+  /** Planned for an earlier day but listed under today: neutral "de outro dia" tag. */
+  fromOtherDay?: boolean;
   onOpen(m: Mission): void;
   /** Move to a day, or to the backlog with `null`. */
   onMove(m: Mission, day: DayKey | null): void;
 }
 
+/** "Escolher dia": the date only applies with "Mover", so scrolling the picker never moves anything. */
+function PickDay({ mission, onPick }: { mission: Mission; onPick(day: DayKey): void }) {
+  const [date, setDate] = useState<DayKey>(mission.date ?? '');
+  return (
+    <div className="move-panel__date">
+      <label className="field">
+        <span className="field__label">Escolher dia</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </label>
+      <Button size="sm" variant="primary" disabled={!date || date === mission.date} onClick={() => onPick(date)}>
+        Mover
+      </Button>
+    </div>
+  );
+}
+
 /** Week/backlog row: drag handle, title (opens the sheet), and the "Mover para…" menu. */
-export function MissionRow({ mission, area, today, onOpen, onMove }: MissionRowProps) {
+export function MissionRow({ mission, area, today, fromOtherDay, onOpen, onMove }: MissionRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: mission.id });
   return (
@@ -41,20 +60,14 @@ export function MissionRow({ mission, area, today, onOpen, onMove }: MissionRowP
         <span className="row-card__body">
           <span className="row-card__title">{mission.title}</span>
         </span>
+        {fromOtherDay && <span className="tag tag--stone">de outro dia</span>}
         {mission.status === 'doing' && <span className="tag tag--gold">fazendo</span>}
         {mission.durationMin !== undefined && <span className="tag tag--stone">{formatDuration(mission.durationMin)}</span>}
       </button>
       <MoveMenu title={mission.title}>
         {(close) => (
           <>
-            <label className="field">
-              <span className="field__label">Escolher dia</span>
-              <input
-                type="date"
-                value={mission.date ?? ''}
-                onChange={(e) => { if (e.target.value) { onMove(mission, e.target.value); close(); } }}
-              />
-            </label>
+            <PickDay mission={mission} onPick={(day) => { onMove(mission, day); close(); }} />
             <div className="cluster">
               <Button size="sm" onClick={() => { onMove(mission, today); close(); }}>Hoje</Button>
               <Button size="sm" onClick={() => { onMove(mission, addDays(today, 1)); close(); }}>Amanhã</Button>

@@ -6,6 +6,7 @@ import {
   updateMission, type CompletionResult,
 } from '../../domain/actions';
 import { formatDay } from '../../ui/format';
+import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import type { PhraseCategory } from '../companion/phrases';
 import { useCompanion } from '../companion/store';
@@ -26,10 +27,28 @@ export async function completeWithFeedback(id: string): Promise<CompletionResult
     const msg = r.leveledUp
       ? `Missão concluída · +${r.xp} XP · Subiu para o nível ${r.newLevel}!`
       : `Missão concluída · +${r.xp} XP`;
-    toast(msg, { label: 'Desfazer', run: () => { void undoComplete(id); } }, UNDO_MS);
+    toast(msg, { label: 'Desfazer', run: () => safeRun(undoComplete(id)) }, UNDO_MS);
     say(r.leveledUp ? 'levelUp' : 'complete');
   }
   return r;
+}
+
+/**
+ * Back to open (the mission sheet's "Reabrir", the board's move out of "Feito"). A done mission
+ * undoes its completion, XP included, so completing it again cannot award twice; when no
+ * completion is on record (e.g. synced already done) the status is reset directly.
+ */
+export async function reopenMission(id: string): Promise<void> {
+  const m = await db.missions.get(id);
+  if (!m) return;
+  if (m.status === 'done') {
+    await undoComplete(id);
+    if ((await db.missions.get(id))?.status === 'done') {
+      await updateMission(id, { status: 'open', completedAt: undefined });
+    }
+  } else if (m.status === 'dropped') {
+    await updateMission(id, { status: 'open', dropReason: undefined });
+  }
 }
 
 export async function startWithFeedback(id: string): Promise<void> {
@@ -38,13 +57,19 @@ export async function startWithFeedback(id: string): Promise<void> {
   say('start');
 }
 
-/** "Soltar" is a legitimate exit: no penalty, and it can be undone for a few seconds. */
-export async function dropWithFeedback(id: string, reason?: string): Promise<void> {
+/**
+ * "Soltar" is a legitimate exit: no penalty, and it can be undone for a few seconds.
+ * `onUndo` runs once "Desfazer" has restored the mission (the review lists it again).
+ */
+export async function dropWithFeedback(id: string, reason?: string, onUndo?: () => void): Promise<void> {
   const prev: MissionStatus = (await db.missions.get(id))?.status ?? 'open';
   await dropMission(id, reason);
   toast('Missão solta. Tudo bem.', {
     label: 'Desfazer',
-    run: () => { void updateMission(id, { status: prev === 'dropped' ? 'open' : prev, dropReason: undefined }); },
+    run: () => safeRun(async () => {
+      await updateMission(id, { status: prev === 'dropped' ? 'open' : prev, dropReason: undefined });
+      onUndo?.();
+    }),
   }, UNDO_MS);
   say('drop');
 }

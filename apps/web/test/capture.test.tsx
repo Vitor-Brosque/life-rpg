@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
@@ -10,11 +10,15 @@ beforeEach(async () => {
   // setImmediate stays real: fake-indexeddb schedules transaction work with it.
   vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
   vi.setSystemTime(new Date(2026, 10, 11, 10, 0));
+  localStorage.clear();
   await db.delete();
   await db.open();
   await ensureSeed();
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => {
+  vi.useRealTimers();
+  delete (document as { visibilityState?: unknown }).visibilityState;
+});
 
 const setup = () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
 const liveMissions = async () => (await db.missions.toArray()).filter((m) => !m.deleted);
@@ -124,5 +128,35 @@ describe('CaptureBar', () => {
     await user.type(input, 'ler 20min amanhã');
     await user.click(await screen.findByRole('button', { name: 'Remover amanhã' }));
     expect(input).toHaveValue('ler 20min');
+  });
+
+  it('a half-typed capture survives the page being unloaded (saved when the page hides)', async () => {
+    const user = setup();
+    const first = render(<CaptureBar open onClose={() => {}} />);
+    await user.type(await screen.findByRole('textbox', { name: 'Capturar' }), 'ligar para a Ana');
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    first.unmount(); // the page goes away (e.g. reloaded by an app update)
+
+    const second = render(<CaptureBar open onClose={() => {}} />);
+    expect(await screen.findByRole('textbox', { name: 'Capturar' })).toHaveValue('ligar para a Ana');
+    second.unmount();
+    // Restored once: the next capture starts empty.
+    render(<CaptureBar open onClose={() => {}} />);
+    expect(await screen.findByRole('textbox', { name: 'Capturar' })).toHaveValue('');
+    expect(await liveMissions()).toHaveLength(0);
+  });
+
+  it('coming back to the page keeps the draft in the field only', async () => {
+    const user = setup();
+    const first = render(<CaptureBar open onClose={() => {}} />);
+    await user.type(await screen.findByRole('textbox', { name: 'Capturar' }), 'pagar a luz');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(screen.getByRole('textbox', { name: 'Capturar' })).toHaveValue('pagar a luz');
+    first.unmount(); // closed on purpose: nothing comes back next time
+    render(<CaptureBar open onClose={() => {}} />);
+    expect(await screen.findByRole('textbox', { name: 'Capturar' })).toHaveValue('');
   });
 });

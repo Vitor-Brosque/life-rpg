@@ -100,6 +100,40 @@ describe('Onboarding', () => {
     expect(await screen.findByLabelText('Como devo te chamar?')).toHaveValue('Ana');
     expect(await getMeta('syncToken')).toBe('tok');
   });
+
+  it('access code: a failed first download stays on the code step and says so', async () => {
+    const user = userEvent.setup();
+    // The code is accepted, then the download itself fails (connection dropped).
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) return json({ cursor: 0, changes: [] });
+      throw new TypeError('network');
+    }));
+    render(<Onboarding />);
+    await user.click(await screen.findByRole('button', { name: 'Já uso em outro aparelho' }));
+    await user.type(screen.getByLabelText('Código de acesso'), 'tok');
+    await user.click(screen.getByRole('button', { name: 'Conectar' }));
+    expect(await screen.findByText('Não consegui baixar seus dados. Tente de novo.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Seu personagem' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Código de acesso')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Conectar' })).toBeEnabled();
+    expect((await db.profile.get('me'))?.onboarded).toBeFalsy();
+  });
+
+  it('the appearance radios are named after their visible labels', async () => {
+    const user = userEvent.setup();
+    render(<Onboarding />);
+    await user.click(await screen.findByRole('button', { name: 'Começar do zero' }));
+    await screen.findByLabelText('Como devo te chamar?');
+    const named = (group: string, name: string) =>
+      within(screen.getByRole('group', { name: group })).getByRole('radio', { name });
+    expect(named('Tom de pele', 'Clara')).toHaveAttribute('aria-label', 'Clara');
+    expect(named('Cabelo', 'Curto')).toHaveAttribute('aria-label', 'Curto');
+    expect(named('Cor do cabelo', 'Ruivo')).toHaveAttribute('aria-label', 'Ruivo');
+    expect(named('Cor da roupa', 'Azul')).toHaveAttribute('aria-label', 'Azul');
+    expect(screen.getAllByRole('radio').every((r) => r.getAttribute('aria-label'))).toBe(true);
+  });
 });
 
 describe('App gate', () => {

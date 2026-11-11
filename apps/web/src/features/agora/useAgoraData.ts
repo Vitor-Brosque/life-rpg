@@ -19,8 +19,12 @@ export function useTodayData() {
   const areas = useAreas();
   const commitments = useCommitments();
 
+  const dayStartHour = settings?.dayStartHour;
   const todayMissions = useMemo(() => (today ? todayList(missions, today, now) : []), [missions, today, now]);
-  const occurrences = useMemo(() => (today ? occurrencesOn(commitments, today) : []), [commitments, today]);
+  const occurrences = useMemo(
+    () => (today ? occurrencesOn(commitments, today, dayStartHour) : []),
+    [commitments, today, dayStartHour],
+  );
   const doneToday = useMemo(() => {
     if (!today || !settings) return [];
     return missions
@@ -34,31 +38,31 @@ export function useTodayData() {
 
 /**
  * The quick review card (§8): shown when missions were left behind and today's review is not
- * done. Latched: once shown it stays (even after finishReview marks the day) until "Pronto"/"Dispensar".
+ * done. Latched: once shown it stays (even after finishReview marks the day) until
+ * "Pronto"/"Dispensar", which hide it for the rest of that day.
  */
 export function useDayReview(today: DayKey | undefined, missions: Mission[]) {
   // undefined while loading, null when the day has no state yet.
   const dayState = useLiveQuery(async () => (today ? (await db.dayState.get(today)) ?? null : undefined), [today]);
-  const reviewDismissed = useAgoraSession((s) => s.reviewDismissed);
+  const dismissedDay = useAgoraSession((s) => s.reviewDismissedDay);
   const dismissReview = useAgoraSession((s) => s.dismissReview);
   const [open, setOpen] = useState(false);
+  const dismissed = today !== undefined && dismissedDay === today;
 
   const items = useMemo(() => (today ? needsReview(missions, today) : []), [missions, today]);
   const reviewDone = dayState === undefined ? true : !!dayState && !dayState.deleted && dayState.reviewDone;
   const hardDay = !!dayState && !dayState.deleted && dayState.hardDay;
   useEffect(() => {
-    if (!reviewDismissed && !reviewDone && items.length > 0) setOpen(true);
-  }, [reviewDismissed, reviewDone, items.length]);
+    if (!dismissed && !reviewDone && items.length > 0) setOpen(true);
+  }, [dismissed, reviewDone, items.length]);
 
   return {
     items,
-    show: open && !reviewDismissed,
-    close: () => { setOpen(false); dismissReview(); },
+    show: open && !dismissed,
+    close: () => { setOpen(false); if (today) dismissReview(today); },
     hardDay,
   };
 }
-
-let greeted = false;
 
 function greetingFor(hour: number, dayStartHour: number): PhraseCategory {
   if (hour >= dayStartHour && hour < 12) return 'greetMorning';
@@ -66,15 +70,38 @@ function greetingFor(hour: number, dayStartHour: number): PhraseCategory {
   return 'greetNight';
 }
 
-/** Companion greets once per app session; later, a mission postponed 3+ times gets a gentle nudge. */
-export function useCompanionMoments(dayStartHour: number | undefined, primaryId: string | undefined, postponed: boolean) {
+/** A greeting is on its way (its `say` has not set the message yet). */
+let greetingPending = false;
+
+/**
+ * Companion moments of the Agora/Painel: a greeting once per day, the "empty" line once per day
+ * when there is nothing to suggest (after any other message is gone), and a gentle nudge when the
+ * card moves on from a mission postponed 3+ times.
+ */
+export function useCompanionMoments(
+  dayStartHour: number | undefined, today: DayKey | undefined, primaryId: string | undefined,
+  postponed: boolean, empty: boolean,
+) {
   useEffect(() => {
-    if (greeted || dayStartHour === undefined) return;
-    greeted = true;
-    // The first-access introduction (Onboarding) is already showing: it is this session's greeting.
+    if (dayStartHour === undefined || !today) return;
+    const session = useAgoraSession.getState();
+    if (session.greetedDay === today) return;
+    useAgoraSession.setState({ greetedDay: today });
+    // The first-access introduction (Onboarding) is already showing: it is today's greeting.
     if (useCompanion.getState().message) return;
-    void useCompanion.getState().say(greetingFor(new Date().getHours(), dayStartHour));
-  }, [dayStartHour]);
+    greetingPending = true;
+    void useCompanion.getState().say(greetingFor(new Date().getHours(), dayStartHour))
+      .finally(() => { greetingPending = false; });
+  }, [dayStartHour, today]);
+
+  const message = useCompanion((s) => s.message);
+  const greetedDay = useAgoraSession((s) => s.greetedDay);
+  useEffect(() => {
+    if (!empty || !today || message !== undefined || greetingPending || greetedDay !== today) return;
+    if (useAgoraSession.getState().emptyDay === today) return;
+    useAgoraSession.setState({ emptyDay: today });
+    void useCompanion.getState().say('empty');
+  }, [empty, today, message, greetedDay]);
 
   const lastPrimary = useRef<string | undefined>(undefined);
   useEffect(() => {
