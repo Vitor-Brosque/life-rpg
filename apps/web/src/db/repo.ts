@@ -34,7 +34,11 @@ async function writeInTx<T extends BaseRecord>(table: SyncTable, record: T): Pro
   const prev = (await t.get(record.id)) as BaseRecord | undefined;
   let saved: T;
   if (prev) {
-    saved = { ...record, updatedAt: Math.max(Date.now(), prev.updatedAt + 1) };
+    const updatedAt = Math.max(Date.now(), prev.updatedAt + 1);
+    // A new record written over a soft-deleted one with the same (deterministic) id revives it
+    // as a fresh record, so "untouched since creation" checks keep working.
+    const revived = prev.deleted && !record.deleted && record.createdAt === record.updatedAt;
+    saved = { ...record, updatedAt, ...(revived ? { createdAt: updatedAt } : {}) };
   } else {
     const fresh = record.createdAt === record.updatedAt;
     const updatedAt = Math.max(Date.now(), record.updatedAt);

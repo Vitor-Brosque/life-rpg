@@ -42,8 +42,16 @@ function loadVapid(dataDir: string): VapidKeys {
   return keys;
 }
 
+/** VAPID "subject" (a contact URL the push services may use); LIFE_RPG_VAPID_SUBJECT overrides it. */
+export function vapidSubject(env: NodeJS.ProcessEnv = process.env): string {
+  return env.LIFE_RPG_VAPID_SUBJECT || 'mailto:life-rpg@example.com';
+}
+
+/** A push that is this late (e.g. the server was down) is dropped instead of arriving out of context. */
+const MAX_LATE_MS = 10 * 60_000;
+
 function defaultSender(vapid: VapidKeys): PushSender {
-  webpush.setVapidDetails('mailto:life-rpg@localhost', vapid.publicKey, vapid.privateKey);
+  webpush.setVapidDetails(vapidSubject(), vapid.publicKey, vapid.privateKey);
   return {
     async send(sub, payload) {
       try {
@@ -104,16 +112,23 @@ export class PushService {
     this.store.db.prepare('DELETE FROM push_queue WHERE tag = ?').run(tag);
   }
 
+  /** Sends the due pushes; resolves with how many were sent (stale ones are dropped unsent). */
   async tick(): Promise<number> {
     const db = this.store.db;
+    const now = this.now();
+    db.prepare('DELETE FROM push_queue WHERE at < ?').run(now - MAX_LATE_MS);
     const due = db
       .prepare('SELECT tag, at, title, body FROM push_queue WHERE at <= ? ORDER BY at')
-      .all(this.now()) as unknown as ScheduledPush[];
+      .all(now) as unknown as ScheduledPush[];
     if (due.length === 0) return 0;
     const sender = (this.sender ??= defaultSender(this.keys()));
+    const take = db.prepare('DELETE FROM push_queue WHERE tag = ? AND at = ?');
+    let sent = 0;
     for (const p of due) {
-      // Drop before sending so a failing send never retries forever.
-      this.cancel(p.tag);
+      // Drop before sending so a failing send never retries forever. Matching `at` too keeps a tag
+      // that was rescheduled (or cancelled) while earlier pushes were being sent: skip this one then.
+      if (Number(take.run(p.tag, p.at).changes) === 0) continue;
+      sent += 1;
       const payload = JSON.stringify({ title: p.title, body: p.body, tag: p.tag });
       const subs = db.prepare('SELECT data FROM push_subs').all() as unknown as { data: string }[];
       for (const row of subs) {
@@ -126,7 +141,7 @@ export class PushService {
         }
       }
     }
-    return due.length;
+    return sent;
   }
 
   start(intervalMs = 5000): () => void {

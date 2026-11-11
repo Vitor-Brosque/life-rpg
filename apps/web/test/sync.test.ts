@@ -17,7 +17,7 @@ const json = (body: unknown, status = 200) => ({ ok: status >= 200 && status < 3
 describe('sync client', () => {
   it('is disabled without a token', async () => {
     const f = vi.fn(); vi.stubGlobal('fetch', f);
-    await syncNow();
+    expect(await syncNow()).toBe(true);
     expect(f).not.toHaveBeenCalled();
     expect(useSyncStatus.getState().state).toBe('disabled');
   });
@@ -34,7 +34,7 @@ describe('sync client', () => {
       return json({ cursor: 7, changes: [{ table: 'missions', record: remote }] });
     });
     vi.stubGlobal('fetch', f);
-    await syncNow();
+    expect(await syncNow()).toBe(true);
     expect(f).toHaveBeenCalledWith('/api/sync', expect.anything());
     expect(await db.outbox.count()).toBe(0);
     expect((await db.missions.get('remote1'))!.title).toBe('remote');
@@ -92,10 +92,10 @@ describe('sync client', () => {
   it('401 sets error status; network failure sets offline', async () => {
     await setMeta('syncToken', 'bad');
     vi.stubGlobal('fetch', vi.fn(async () => json({}, 401)));
-    await syncNow();
+    expect(await syncNow()).toBe(false);
     expect(useSyncStatus.getState()).toMatchObject({ state: 'error', error: 'Código de acesso inválido' });
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
-    await syncNow();
+    expect(await syncNow()).toBe(false);
     expect(useSyncStatus.getState().state).toBe('offline');
   });
 
@@ -161,6 +161,81 @@ describe('sync client', () => {
     await syncNow();
     expect(useSyncStatus.getState().state).toBe('offline');
     vi.restoreAllMocks();
+    spy.mockRestore();
+  });
+
+  it('on reset (server restored from a backup) resends every local record from cursor 0', async () => {
+    await setMeta('syncToken', 'tok');
+    const a = await put('missions', mk('a'));
+    const b = await put('missions', mk('b'));
+    vi.stubGlobal('fetch', vi.fn(async () => json({ cursor: 40, changes: [] })));
+    expect(await syncNow()).toBe(true);
+    expect(await db.outbox.count()).toBe(0);
+    await db.settings.put({
+      id: 'settings', createdAt: 1, updatedAt: 123, deleted: false, dayStartHour: 4, dayEndHour: 23,
+      pomodoro: { focusMin: 25, breakMin: 5 }, companionMuted: false, commitmentReminderMin: 10,
+    }); // a record that came from the server earlier (no outbox entry)
+
+    const bodies: SyncRequest[] = [];
+    const f = vi.fn(async (_url: string, init: { body: string }) => {
+      const body = JSON.parse(init.body) as SyncRequest;
+      bodies.push(body);
+      return body.cursor > 3 ? json({ cursor: 0, changes: [], reset: true }) : json({ cursor: 3, changes: [] });
+    });
+    vi.stubGlobal('fetch', f);
+    expect(await syncNow()).toBe(true);
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(bodies[0]!.cursor).toBe(40);
+    expect(bodies[1]!.cursor).toBe(0);
+    const sent = new Map(bodies[1]!.changes.map((c) => [`${c.table}:${c.record.id}`, c.record.updatedAt]));
+    expect(sent.get(`missions:${a.id}`)).toBe(a.updatedAt);
+    expect(sent.get(`missions:${b.id}`)).toBe(b.updatedAt);
+    expect(sent.get('settings:settings')).toBe(123);
+    expect(sent.size).toBe(3);
+    expect(await getMeta('cursor')).toBe(3);
+    expect(await db.outbox.count()).toBe(0);
+  });
+
+  it('a server that keeps answering reset cannot loop forever', async () => {
+    await setMeta('syncToken', 'tok');
+    await setMeta('cursor', 9);
+    await put('missions', mk('a'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const f = vi.fn(async () => json({ cursor: 0, changes: [], reset: true }));
+    vi.stubGlobal('fetch', f);
+    expect(await syncNow()).toBe(false);
+    expect(f.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(useSyncStatus.getState().state).toBe('error');
+    expect(await db.outbox.count()).toBe(1);
+    spy.mockRestore();
+  });
+
+  it('on 413 halves the push batch within the cycle and goes back to full batches after success', async () => {
+    await setMeta('syncToken', 'tok');
+    await importRecords(Array.from({ length: 10 }, (_, i) => ({
+      table: 'missions' as const, record: { ...mk(), id: `m-${i}` },
+    })));
+    const sizes: number[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: { body: string }) => {
+      const n = (JSON.parse(init.body) as SyncRequest).changes.length;
+      sizes.push(n);
+      return n > 3 ? json({ error: 'too large' }, 413) : json({ cursor: 1, changes: [] });
+    }));
+    expect(await syncNow()).toBe(true);
+    expect(sizes).toEqual([10, 5, 2, 8, 4, 2, 6, 3, 3]);
+    expect(await db.outbox.count()).toBe(0);
+    expect(useSyncStatus.getState()).toMatchObject({ state: 'idle', pending: 0 });
+  });
+
+  it('a single record still too large is an error', async () => {
+    await setMeta('syncToken', 'tok');
+    await put('missions', mk('huge'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const f = vi.fn(async () => json({}, 413));
+    vi.stubGlobal('fetch', f);
+    expect(await syncNow()).toBe(false);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(useSyncStatus.getState()).toMatchObject({ state: 'error', error: 'Erro do servidor (413)' });
     spy.mockRestore();
   });
 

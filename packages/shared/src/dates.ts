@@ -46,6 +46,14 @@ export function timestampAt(day: DayKey, t: HHmm): number {
   return d.getTime();
 }
 
+/**
+ * Timestamp of time `t` within logical day `day` (§4): a time earlier than `dayStartHour`
+ * belongs to the next calendar morning (02:00 on the 11th with day start 4 → 12th 02:00).
+ */
+export function logicalTimestamp(day: DayKey, t: HHmm, dayStartHour: number): number {
+  return timestampAt(parseHHmm(t) < dayStartHour * 60 ? addDays(day, 1) : day, t);
+}
+
 export function daysInMonth(year: number, month1: number): number {
   return new Date(year, month1, 0).getDate();
 }

@@ -128,8 +128,11 @@ async function recordSession(
   const endedAt = end !== undefined && end < now ? end : now;
   const mission = s.missionId ? await db.missions.get(s.missionId) : undefined;
   const notes = extra.notes?.trim();
+  const startedAt = s.startedAt ?? endedAt - activeMs;
   return recordFocus({
-    startedAt: s.startedAt ?? endedAt - activeMs,
+    // Deterministic per session (and per Pomodoro focus phase): two tabs recording it store one.
+    id: s.mode === 'pomodoro' ? `focus-${startedAt}-${s.pomodoroCount}` : `focus-${startedAt}`,
+    startedAt,
     endedAt,
     activeMs,
     mode: s.mode,

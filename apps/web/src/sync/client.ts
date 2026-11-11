@@ -1,6 +1,6 @@
-import type { SyncChange, SyncRequest, SyncResponse } from '@life/shared';
-import { ulid } from '@life/shared';
-import { db, tableOf } from '../db/db';
+import type { BaseRecord, SyncChange, SyncRequest, SyncResponse } from '@life/shared';
+import { SYNC_TABLES, ulid } from '@life/shared';
+import { db, tableOf, type OutboxEntry } from '../db/db';
 import { applyRemote, getMeta, onLocalChange, setMeta } from '../db/repo';
 import { useSyncStatus } from './status';
 
@@ -8,6 +8,8 @@ const PAGE_LIMIT = 5000;
 /** Outbox entries pushed per request (the server accepts at most 2000 changes per request). */
 const PUSH_LIMIT = 1000;
 const MAX_PAGES = 20;
+/** "Start over" answers accepted in one round (after one, the cursor is 0 and the server cannot be behind). */
+const MAX_RESETS = 2;
 const BACKOFF_START = 2000;
 const BACKOFF_MAX = 5 * 60_000;
 
@@ -50,12 +52,9 @@ async function post(token: string, body: SyncRequest): Promise<SyncResponse> {
   return (await res.json()) as SyncResponse;
 }
 
-/** One push + pull round. Resolves true when the outbox had more entries than one request carries. */
-async function performSync(token: string): Promise<boolean> {
-  const deviceId = await getDeviceId();
-  let cursor = (await getMeta<number>('cursor')) ?? 0;
-
-  const snapshot = await db.outbox.limit(PUSH_LIMIT).toArray();
+/** The first `limit` outbox entries with their current records (entries whose record is gone are dropped). */
+async function takeBatch(limit: number): Promise<{ snapshot: OutboxEntry[]; changes: SyncChange[] }> {
+  const snapshot = await db.outbox.limit(limit).toArray();
   const changes: SyncChange[] = [];
   const stale: string[] = [];
   for (const entry of snapshot) {
@@ -64,26 +63,67 @@ async function performSync(token: string): Promise<boolean> {
     else stale.push(entry.key);
   }
   if (stale.length) await db.outbox.bulkDelete(stale);
+  return { snapshot, changes };
+}
 
-  let outgoing = changes;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const res = await post(token, { deviceId, cursor, changes: outgoing });
-    if (page === 0) {
-      // Delete only rows that were not edited while the request was in flight.
-      await db.transaction('rw', db.outbox, async () => {
-        for (const entry of snapshot) {
-          const cur = await db.outbox.get(entry.key);
-          if (cur && cur.updatedAt === entry.updatedAt) await db.outbox.delete(entry.key);
-        }
-      });
+/**
+ * The server lost revisions this device already has (restored backup): queue every local
+ * record again, keeping its own updatedAt, so the next round resends all of them from cursor 0.
+ */
+async function requeueEverything(): Promise<void> {
+  const tables = SYNC_TABLES.map(tableOf);
+  await db.transaction('rw', [...tables, db.outbox, db.meta], async () => {
+    for (const table of SYNC_TABLES) {
+      const records = (await tableOf(table).toArray()) as BaseRecord[];
+      await db.outbox.bulkPut(records.map((r) => ({
+        key: `${table}:${r.id}`, table, id: r.id, updatedAt: r.updatedAt,
+      })));
     }
-    for (const change of res.changes) await applyRemote(change);
-    cursor = res.cursor;
-    await setMeta('cursor', cursor);
-    outgoing = [];
-    if (res.changes.length < PAGE_LIMIT) break;
+    await db.meta.put({ key: 'cursor', value: 0 });
+  });
+}
+
+/** One push + pull round. Resolves true when the outbox had more entries than one request carries. */
+async function performSync(token: string): Promise<boolean> {
+  const deviceId = await getDeviceId();
+  let limit = PUSH_LIMIT; // halved on 413 for this round only
+  let resets = 0;
+  for (;;) {
+    let cursor = (await getMeta<number>('cursor')) ?? 0;
+    const { snapshot, changes } = await takeBatch(limit);
+    let res: SyncResponse;
+    try {
+      res = await post(token, { deviceId, cursor, changes });
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 413 && snapshot.length > 1) {
+        limit = Math.max(1, Math.floor(snapshot.length / 2));
+        continue;
+      }
+      throw e;
+    }
+    if (res.reset) {
+      if (++resets > MAX_RESETS) throw new Error('sync: the server keeps asking for a reset');
+      await requeueEverything();
+      continue;
+    }
+
+    // Delete only rows that were not edited while the request was in flight.
+    await db.transaction('rw', db.outbox, async () => {
+      for (const entry of snapshot) {
+        const cur = await db.outbox.get(entry.key);
+        if (cur && cur.updatedAt === entry.updatedAt) await db.outbox.delete(entry.key);
+      }
+    });
+    for (let page = 1; ; page++) {
+      for (const change of res.changes) await applyRemote(change);
+      cursor = res.cursor;
+      await setMeta('cursor', cursor);
+      if (res.changes.length < PAGE_LIMIT || page >= MAX_PAGES) break;
+      res = await post(token, { deviceId, cursor, changes: [] });
+      if (res.reset) return true; // the server was rolled back meanwhile: run another round
+    }
+    return snapshot.length === limit;
   }
-  return snapshot.length === PUSH_LIMIT;
 }
 
 let running: Promise<boolean> | undefined;
@@ -148,8 +188,9 @@ function runSync(): Promise<boolean> {
   return running;
 }
 
-export async function syncNow(): Promise<void> {
-  await runSync();
+/** Syncs now; resolves true when it finished without error (or sync is disabled), false otherwise. */
+export function syncNow(): Promise<boolean> {
+  return runSync();
 }
 
 export type TokenResult = 'ok' | 'invalid' | 'offline';

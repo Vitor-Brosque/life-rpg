@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   dayKeyOf, addDays, diffDays, weekdayOf, parseHHmm, formatHHmm,
-  timestampAt, daysInMonth, isValidDayKey, toDayKey, dayKeyToDate,
+  timestampAt, daysInMonth, isValidDayKey, toDayKey, dayKeyToDate, logicalTimestamp,
 } from '../src/dates';
 
 describe('dates', () => {
+  it('logicalTimestamp puts times before dayStartHour on the next calendar morning', () => {
+    expect(logicalTimestamp('2026-11-11', '02:00', 4)).toBe(new Date(2026, 10, 12, 2, 0).getTime());
+    expect(logicalTimestamp('2026-11-11', '03:59', 4)).toBe(new Date(2026, 10, 12, 3, 59).getTime());
+    expect(logicalTimestamp('2026-11-11', '04:00', 4)).toBe(new Date(2026, 10, 11, 4, 0).getTime());
+    expect(logicalTimestamp('2026-11-11', '23:30', 4)).toBe(new Date(2026, 10, 11, 23, 30).getTime());
+    expect(logicalTimestamp('2026-11-30', '01:00', 4)).toBe(new Date(2026, 11, 1, 1, 0).getTime());
+    expect(logicalTimestamp('2026-11-11', '02:00', 0)).toBe(timestampAt('2026-11-11', '02:00'));
+  });
   it('dayKeyOf honours dayStartHour', () => {
     expect(dayKeyOf(new Date(2026, 10, 12, 3, 30).getTime(), 4)).toBe('2026-11-11');
     expect(dayKeyOf(new Date(2026, 10, 12, 4, 0).getTime(), 4)).toBe('2026-11-12');

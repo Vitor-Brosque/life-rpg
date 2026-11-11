@@ -1,5 +1,5 @@
 import type { Commitment, DayKey, EnergyLevel, ID, Journey, Mission } from './types';
-import { addDays, dayKeyOf, diffDays, timestampAt, weekdayOf } from './dates';
+import { addDays, dayKeyOf, diffDays, logicalTimestamp, timestampAt, weekdayOf } from './dates';
 
 export interface EngineInput {
   now: number;
@@ -29,15 +29,20 @@ export interface EngineOutput {
 const MINUTE = 60000;
 const hh = (h: number): string => `${String(h).padStart(2, '0')}:00`;
 
-function occurrenceOf(c: Commitment, day: DayKey): CommitmentOccurrence {
-  const startTs = timestampAt(day, c.start);
-  const sameDayEnd = timestampAt(day, c.end);
-  const endTs = sameDayEnd < startTs ? timestampAt(addDays(day, 1), c.end) : sameDayEnd;
+function occurrenceOf(c: Commitment, day: DayKey, dayStartHour: number): CommitmentOccurrence {
+  const startTs = logicalTimestamp(day, c.start, dayStartHour);
+  const sameDayEnd = logicalTimestamp(day, c.end, dayStartHour);
+  const endTs = sameDayEnd < startTs ? timestampAt(addDays(dayKeyOf(sameDayEnd, 0), 1), c.end) : sameDayEnd;
   return { commitment: c, date: day, startTs, endTs };
 }
 
-/** Commitment occurrences on `day`, sorted by start; deleted ones excluded. */
-export function occurrencesOn(commitments: Commitment[], day: DayKey): CommitmentOccurrence[] {
+/**
+ * Commitment occurrences on logical day `day`, sorted by start; deleted ones excluded. Times
+ * earlier than `dayStartHour` fall on the next calendar morning (0 = plain calendar day).
+ */
+export function occurrencesOn(
+  commitments: Commitment[], day: DayKey, dayStartHour = 0,
+): CommitmentOccurrence[] {
   const out: CommitmentOccurrence[] = [];
   for (const c of commitments) {
     if (c.deleted) continue;
@@ -48,7 +53,7 @@ export function occurrencesOn(commitments: Commitment[], day: DayKey): Commitmen
     } else if (c.date !== day) {
       continue;
     }
-    out.push(occurrenceOf(c, day));
+    out.push(occurrenceOf(c, day, dayStartHour));
   }
   return out.sort((a, b) => a.startTs - b.startTs);
 }
@@ -72,7 +77,7 @@ function energyReason(current: EnergyLevel | undefined, m: Mission): Reason | un
 
 function deadlineReason(deadline: DayKey, today: DayKey): Reason | undefined {
   const d = diffDays(today, deadline);
-  if (d < 0) return { code: 'deadline', text: 'prazo vencido', points: 50 };
+  if (d < 0) return { code: 'deadline', text: 'prazo passou', points: 50 };
   if (d === 0) return { code: 'deadline', text: 'prazo hoje', points: 40 };
   if (d === 1) return { code: 'deadline', text: 'prazo amanhã', points: 25 };
   if (d <= 3) return { code: 'deadline', text: `prazo em ${d} dias`, points: 15 };
@@ -125,7 +130,7 @@ export function suggest(input: EngineInput): EngineOutput {
   const today = dayKeyOf(now, dayStartHour);
 
   // Free time
-  const occs = occurrencesOn(input.commitments, today);
+  const occs = occurrencesOn(input.commitments, today, dayStartHour);
   const currentCommitment = occs.find((o) => o.startTs <= now && now < o.endTs);
   const nextCommitment = currentCommitment ? undefined : occs.find((o) => o.startTs > now);
   const endDay = dayEndHour < dayStartHour ? addDays(today, 1) : today;

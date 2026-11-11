@@ -36,10 +36,10 @@ A URL final será `https://<nome-da-maquina>.<tailnet>.ts.net` (acrescente `:844
 
 ## 3. Token de acesso
 
-O token é gerado na primeira execução:
+O token é gerado na primeira execução. Os arquivos em `data/` pertencem ao root (criados pelo container), por isso use `sudo -n`:
 
 ```bash
-ssh homelab "cat ~/projects/life-rpg/data/token"
+ssh homelab "sudo -n cat ~/projects/life-rpg/data/token"
 ```
 
 Cole o token na tela de configuração do app.
@@ -54,3 +54,18 @@ Cole o token na tela de configuração do app.
 ## Backups e dados
 
 Tudo fica em `~/projects/life-rpg/data/`: banco (`life-rpg.sqlite`), `token`, `vapid.json` (chaves de push) e `backups/` (um backup diário por volta das 03h, mantendo os 14 mais recentes). Não apague `vapid.json`: sem ele as inscrições de push existentes deixam de valer.
+
+Opcional: a variável de ambiente `LIFE_RPG_VAPID_SUBJECT` (por exemplo `mailto:voce@exemplo.com`) define o contato informado aos serviços de push; o padrão é `mailto:life-rpg@example.com`.
+
+## Restaurar um backup
+
+Troque `AAAA-MM-DD` pela data do backup desejado (veja os disponíveis com `ssh homelab "sudo -n ls ~/projects/life-rpg/data/backups"`):
+
+```bash
+ssh homelab "cd ~/projects/life-rpg && sudo -n docker compose stop"
+ssh homelab "cd ~/projects/life-rpg && sudo -n cp data/backups/life-rpg-AAAA-MM-DD.sqlite data/life-rpg.sqlite"
+ssh homelab "cd ~/projects/life-rpg && sudo -n rm -f data/life-rpg.sqlite-wal data/life-rpg.sqlite-shm"
+ssh homelab "cd ~/projects/life-rpg && sudo -n docker compose start"
+```
+
+Não é preciso fazer nada nos aparelhos: na próxima sincronização cada um percebe que o servidor voltou no tempo e reenvia automaticamente tudo o que tem, então o que foi feito depois do backup volta para o servidor. Para garantir, abra o app em todos os aparelhos logo depois de restaurar, antes de registrar coisas novas.

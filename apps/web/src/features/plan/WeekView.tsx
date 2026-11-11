@@ -68,7 +68,7 @@ export function WeekView() {
     if (to === BACKLOG) {
       if (from !== BACKLOG) void moveToDay(activeId, null);
     } else {
-      void reorderDay(next, to.slice('day:'.length));
+      void reorderDay(next, to.slice('day:'.length), from !== to ? activeId : undefined);
     }
   };
 

@@ -158,6 +158,28 @@ describe('phase end', () => {
     expect(await sessions()).toHaveLength(1); // breaks are not focus
   });
 
+  it('a focus phase end seen by two tabs is recorded once (same session id, one XP)', async () => {
+    timer().start('pomodoro');
+    advance(25 * MIN + 2000);
+    const painel = createTimerStore(); // the other tab, hydrated from the same localStorage
+    const a = timer().checkPhaseEnd(Date.now());
+    const b = painel.getState().checkPhaseEnd(Date.now());
+    await Promise.all([a?.recorded, b?.recorded]);
+    const list = await sessions();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.id).toBe(`focus-${T0}-0`);
+    const focusXp = (await db.xpEvents.toArray()).filter((x) => x.reason === 'focus' && !x.deleted);
+    expect(focusXp).toHaveLength(1);
+    expect(focusXp[0]!.id).toBe(`xp-focus-focus-${T0}-0`);
+  });
+
+  it('free and countdown sessions use their start time as id', async () => {
+    timer().start('free');
+    advance(12 * MIN);
+    await timer().finish();
+    expect((await sessions())[0]!.id).toBe(`focus-${T0}`);
+  });
+
   it('countdown: the end is handled once and the active time is capped at the target', async () => {
     timer().start('countdown', { targetMin: 10 });
     advance(30 * MIN);

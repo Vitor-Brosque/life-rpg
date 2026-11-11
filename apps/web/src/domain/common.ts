@@ -16,10 +16,16 @@ export async function logEvent(
   }));
 }
 
+/**
+ * `extra.id` gives the award a deterministic id, so the same award made on two devices (or twice
+ * on one) merges into one record; writing it again revives a soft-deleted one.
+ */
 export async function awardXp(
-  amount: number, reason: XpReason, day: DayKey, extra: { areaId?: string; missionId?: string } = {},
+  amount: number, reason: XpReason, day: DayKey,
+  extra: { areaId?: string; missionId?: string; id?: string } = {},
 ): Promise<XpEvent> {
   return put('xpEvents', newRecord<XpEvent>({
+    ...(extra.id ? { id: extra.id } : {}),
     at: Date.now(), amount, reason, dayKey: day,
     ...(extra.areaId ? { areaId: extra.areaId } : {}),
     ...(extra.missionId ? { missionId: extra.missionId } : {}),

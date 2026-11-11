@@ -14,7 +14,10 @@ fi
 echo "Enviando $(git rev-parse --short HEAD) para homelab:${REMOTE_DIR} ..."
 git archive --format=tar HEAD | ssh homelab "mkdir -p ${REMOTE_DIR} && tar -xf - -C ${REMOTE_DIR}"
 
-echo "Construindo e subindo o container ..."
-ssh homelab "cd ${REMOTE_DIR} && (docker compose up -d --build || sudo -n docker compose up -d --build) && (docker compose ps || sudo -n docker compose ps)"
+# Decide once whether this user can talk to Docker directly (a failed build is never retried).
+if ssh homelab 'docker info >/dev/null 2>&1'; then D=docker; else D='sudo -n docker'; fi
+
+echo "Construindo e subindo o container (${D}) ..."
+ssh homelab "cd ${REMOTE_DIR} && ${D} compose up -d --build && ${D} compose ps"
 
 echo "Pronto. Verifique: ssh homelab \"curl -s http://127.0.0.1:8787/api/health\""

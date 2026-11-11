@@ -108,7 +108,7 @@ describe('suggest', () => {
 
   it('6b. deadline tiers and planned reasons', () => {
     const cases: [string, number, string][] = [
-      ['2026-11-10', 50, 'prazo vencido'],
+      ['2026-11-10', 50, 'prazo passou'],
       ['2026-11-12', 25, 'prazo amanhã'],
       ['2026-11-14', 15, 'prazo em 3 dias'],
       ['2026-11-18', 5, 'prazo em 7 dias'],
@@ -223,6 +223,19 @@ describe('suggest', () => {
     expect(out.primary!.reasons).toEqual([{ code: 'planned', text: 'planejada para hoje', points: 20 }]);
   });
 
+  it('a commitment earlier than dayStartHour is on the next calendar morning of the day', () => {
+    const now = new Date(2026, 10, 11, 23, 0).getTime();
+    const night = mkCommitment({ id: 'night', date: TODAY, start: '02:00', end: '03:00' });
+    const out = suggest(input({ now, dayEndHour: 3, commitments: [night] }));
+    expect(out.currentCommitment).toBeUndefined();
+    expect(out.nextCommitment?.commitment.id).toBe('night');
+    expect(out.nextCommitment?.startTs).toBe(new Date(2026, 10, 12, 2, 0).getTime());
+    expect(out.freeMinutes).toBe(180);
+    // Still bounded by dayEndHour.
+    expect(suggest(input({ now, dayEndHour: 1, commitments: [night] })).freeMinutes).toBe(120);
+    expect(suggest(input({ now, dayEndHour: 23, commitments: [night] })).freeMinutes).toBe(0);
+  });
+
   it('dayEndHour 0 means midnight after today', () => {
     expect(suggest(input({ dayEndHour: 0 })).freeMinutes).toBe(840);
   });
@@ -246,6 +259,18 @@ describe('occurrencesOn', () => {
     const occ = occurrencesOn([late, del, early], TODAY);
     expect(occ.map((o) => o.commitment.id)).toEqual(['early', 'late']);
     expect(occ[1]!.endTs).toBe(new Date(2026, 10, 12, 1, 0).getTime());
+  });
+  it('with dayStartHour, early-morning occurrences come after the evening ones', () => {
+    const night = mkCommitment({ id: 'night', start: '02:00', end: '05:00' });
+    const late = mkCommitment({ id: 'late', start: '22:00', end: '01:00' });
+    const occ = occurrencesOn([night, late], TODAY, 4);
+    expect(occ.map((o) => o.commitment.id)).toEqual(['late', 'night']);
+    expect(occ[0]!.endTs).toBe(new Date(2026, 10, 12, 1, 0).getTime());
+    expect(occ[1]!.startTs).toBe(new Date(2026, 10, 12, 2, 0).getTime());
+    expect(occ[1]!.endTs).toBe(new Date(2026, 10, 12, 5, 0).getTime());
+    expect(occ[1]!.date).toBe(TODAY);
+    // Without dayStartHour the old calendar behaviour stays.
+    expect(occurrencesOn([night], TODAY)[0]!.startTs).toBe(new Date(2026, 10, 11, 2, 0).getTime());
   });
 });
 

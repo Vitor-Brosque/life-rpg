@@ -103,8 +103,22 @@ async function startMissionLocked(id: string): Promise<{ xp: number }> {
   return { xp };
 }
 
-function nextInstance(m: Mission, today: DayKey): Promise<Mission> {
+/**
+ * Deterministic id of the next instance of a recurring mission: `${seriesRoot}-n${generation}`.
+ * Two devices completing the same instance create the same record, and the id stays short
+ * (the server accepts ids up to 64 chars) however long the series runs.
+ */
+export function nextInstanceId(missionId: string): string {
+  const match = /^(.+)-n(\d+)$/.exec(missionId);
+  return match ? `${match[1]}-n${Number(match[2]) + 1}` : `${missionId}-n1`;
+}
+
+async function nextInstance(m: Mission, today: DayKey): Promise<Mission> {
+  const id = nextInstanceId(m.id);
+  const existing = await db.missions.get(id);
+  if (existing && !existing.deleted) return existing;
   return put('missions', newRecord<Mission>({
+    id,
     title: m.title,
     checklist: m.checklist.map((c) => ({ ...c, id: ulid(), done: false })),
     status: 'open', important: m.important, shrunk: false, postponeCount: 0,
@@ -139,8 +153,12 @@ async function completeMissionLocked(id: string): Promise<CompletionResult> {
     completionsTodayBefore, hardDay: dayState && !dayState.deleted ? dayState.hardDay : false,
   });
   const ref = { areaId: m.areaId, missionId: id };
-  const xpIds: string[] = [(await awardXp(amount, 'complete', today, ref)).id];
-  if (resilience > 0) xpIds.push((await awardXp(resilience, 'resilience', today, ref)).id);
+  // Deterministic ids: the same completion on two devices merges; undo soft-deletes them and a
+  // later completion revives them with the new amounts.
+  const xpIds: string[] = [(await awardXp(amount, 'complete', today, { ...ref, id: `xp-complete-${id}` })).id];
+  if (resilience > 0) {
+    xpIds.push((await awardXp(resilience, 'resilience', today, { ...ref, id: `xp-resilience-${id}` })).id);
+  }
   const next = m.recurrence ? await nextInstance(m, today) : undefined;
   await patch<Mission>('missions', id, { status: 'done', completedAt: Date.now() });
   await logEvent('completed', id, {
@@ -259,8 +277,17 @@ export async function updateMission(id: string, changes: Partial<Mission>): Prom
   await patch<Mission>('missions', id, changes);
 }
 
-export async function reorderDay(ids: string[], day: DayKey): Promise<void> {
-  for (const [i, id] of ids.entries()) await patch<Mission>('missions', id, { dayOrder: i, date: day });
+/**
+ * Sets the manual order of `day`. Undated or overdue missions move to `day`; missions planned for
+ * a later day (e.g. one in progress shown in today's list) keep their date, except `moved`, the
+ * one just dropped into this day from another list.
+ */
+export async function reorderDay(ids: string[], day: DayKey, moved?: string): Promise<void> {
+  for (const [i, id] of ids.entries()) {
+    const m = await db.missions.get(id);
+    const redate = id === moved || !m || m.date === undefined || m.date < day;
+    await patch<Mission>('missions', id, { dayOrder: i, ...(redate ? { date: day } : {}) });
+  }
 }
 
 export async function moveToDay(id: string, day: DayKey | null): Promise<void> {

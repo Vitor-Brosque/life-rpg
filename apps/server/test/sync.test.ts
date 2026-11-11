@@ -109,3 +109,94 @@ describe('static serving', () => {
     expect(api.json()).toEqual({ error: 'not_found' });
   });
 });
+
+describe('auth on encoded paths', () => {
+  it('percent-encoded /api paths never bypass auth', async () => {
+    const store = new RecordStore(':memory:');
+    const app = await buildApp(cfg, { store });
+    const body = { deviceId: 'A', cursor: 0, changes: [mission('evil')] };
+    for (const url of ['/%61pi/sync', '/ap%69/sync', '/%61%70%69/sync', '/api/%73ync']) {
+      const res = await app.inject({ method: 'POST', url, payload: body });
+      expect([401, 404], url).toContain(res.statusCode);
+    }
+    expect(store.currentRev()).toBe(0);
+    expect(store.since(0).changes).toHaveLength(0);
+    for (const url of ['/%61pi/push/key', '/%61pi/stream', '/ap%69/stream?token=bad']) {
+      const res = await app.inject({ url });
+      expect([401, 404], url).toContain(res.statusCode);
+    }
+    await app.close();
+  });
+
+  it('a wrong token of any length is rejected and the right one works', async () => {
+    const { app } = await make();
+    for (const authorization of ['Bearer ', 'Bearer x', 'Bearer tt', 'bearer t', 't']) {
+      const res = await app.inject({ method: 'POST', url: '/api/sync', headers: { authorization }, payload: {} });
+      expect(res.statusCode, authorization).toBe(401);
+    }
+    const ok = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'A', cursor: 0, changes: [] },
+    });
+    expect(ok.statusCode).toBe(200);
+  });
+
+  it('unknown /api paths are a JSON 404 only after auth', async () => {
+    const { app } = await make();
+    const anon = await app.inject({ url: '/api/nope' });
+    expect([401, 404]).toContain(anon.statusCode);
+    expect(anon.headers['content-type']).toContain('application/json');
+    const authed = await app.inject({ url: '/api/nope', headers: auth });
+    expect(authed.statusCode).toBe(404);
+    expect(authed.json()).toEqual({ error: 'not_found' });
+  });
+});
+
+describe('cursor ahead of the server (restored backup)', () => {
+  it('answers reset without applying the pushed changes', async () => {
+    const store = new RecordStore(':memory:');
+    const app = await buildApp(cfg, { store });
+    const seed = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'A', cursor: 0, changes: [mission('m1')] },
+    });
+    expect(seed.json().cursor).toBe(1);
+    const res = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'B', cursor: 50, changes: [mission('m2')] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ cursor: 0, changes: [], reset: true });
+    expect(store.currentRev()).toBe(1);
+    expect(store.since(0).changes.map((c) => c.record.id)).toEqual(['m1']);
+    // A cursor equal to the current rev is normal.
+    const same = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'A', cursor: 1, changes: [] },
+    });
+    expect(same.json()).toEqual({ cursor: 1, changes: [] });
+  });
+});
+
+describe('SSE stream', () => {
+  it('an open stream does not block app.close()', async () => {
+    const { get } = await import('node:http');
+    const { app } = await make();
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const { port } = app.server.address() as { port: number };
+    const req = get(`http://127.0.0.1:${port}/api/stream?token=t`);
+    const firstChunk = await new Promise<string>((resolve, reject) => {
+      req.on('response', (res) => res.once('data', (d: Buffer) => resolve(d.toString())));
+      req.on('error', reject);
+    });
+    expect(firstChunk).toContain('event: hello');
+    req.on('error', () => {}); // the server ending the stream may surface as a socket error
+    const started = Date.now();
+    const closed = await Promise.race([
+      app.close().then(() => true),
+      new Promise<boolean>((r) => setTimeout(() => r(false), 1000)),
+    ]);
+    req.destroy();
+    expect(closed).toBe(true);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});

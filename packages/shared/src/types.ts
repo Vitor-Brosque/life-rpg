@@ -139,4 +139,9 @@ export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents'];
 
 export interface SyncChange { table: SyncTable; record: BaseRecord & Record<string, unknown> }
 export interface SyncRequest { deviceId: string; cursor: number; changes: SyncChange[] }
-export interface SyncResponse { cursor: number; changes: SyncChange[] }
+export interface SyncResponse {
+  cursor: number;
+  changes: SyncChange[];
+  /** The server is behind the device's cursor (restored backup): restart from 0 and resend everything. */
+  reset?: boolean;
+}

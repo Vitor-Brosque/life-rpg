@@ -18,6 +18,18 @@ describe('repo', () => {
     expect(await db.outbox.count()).toBe(1);
   });
 
+  it('put over a soft-deleted record revives it as a fresh record', async () => {
+    const a = await put('missions', { ...mk(), id: 'det-1' });
+    await patch<Mission>('missions', a.id, { deleted: true });
+    const dead = (await db.missions.get(a.id))!;
+    const again = await put('missions', { ...mk(), id: 'det-1', title: 'again' });
+    expect(again.deleted).toBe(false);
+    expect(again.updatedAt).toBeGreaterThan(dead.updatedAt);
+    expect(again.createdAt).toBe(again.updatedAt); // untouched since (re)creation
+    expect((await db.missions.get(a.id))!).toMatchObject({ deleted: false, title: 'again' });
+    expect((await db.outbox.get(`missions:${a.id}`))!.updatedAt).toBe(again.updatedAt);
+  });
+
   it('patch merges and notifies listeners after commit', async () => {
     let n = 0;
     const off = onLocalChange(() => { n++; });

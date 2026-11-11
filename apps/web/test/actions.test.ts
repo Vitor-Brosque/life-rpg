@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import type { Commitment, Mission } from '@life/shared';
+import type { Commitment, Journey, Mission, SyncChange, SyncTable } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { softDelete } from '../src/db/repo';
+import { importRecords, patch, softDelete } from '../src/db/repo';
 import { useCharacterStats } from '../src/db/hooks';
 import {
   captureLines, completeMission, createMission, finishReview, shrinkMission, snoozeMission,
-  splitMission, startMission, dropMission, undoComplete, setHardDay, recordFocus, completeJourney,
+  splitMission, startMission, dropMission, undoComplete, setHardDay, recordFocus, completeJourney, reorderDay,
 } from '../src/domain/actions';
 
 beforeEach(async () => {
@@ -192,5 +192,110 @@ describe('other actions', () => {
     const r = await Promise.all([finishReview(), finishReview()]);
     expect(r.map((x) => x.xp).sort((a, b) => a - b)).toEqual([0, 5]);
     expect((await db.xpEvents.toArray()).filter((x) => x.reason === 'review')).toHaveLength(1);
+  });
+});
+
+describe('deterministic ids (duplicates from two devices merge)', () => {
+  const live = async (missionId: string, reason: string) =>
+    (await db.xpEvents.where('missionId').equals(missionId).toArray()).filter((x) => x.reason === reason && !x.deleted);
+  const series = async (title: string) => (await db.missions.toArray()).filter((x) => x.title === title);
+  const dump = async (tables: SyncTable[]): Promise<SyncChange[]> => {
+    const out: SyncChange[] = [];
+    for (const table of tables) {
+      for (const record of await db.table(table).toArray()) out.push({ table, record });
+    }
+    return out;
+  };
+
+  it('the same mission completed offline on two devices yields one complete XP and one next instance', async () => {
+    const m = await createMission({ title: 'água', recurrence: { kind: 'daily' }, date: '2026-11-11' });
+    const shared = (await db.missions.get(m.id))!;
+    await completeMission(m.id); // device A
+    const fromA = await dump(['missions', 'xpEvents']);
+
+    await db.delete(); await db.open(); await ensureSeed(); // device B, same mission, still open
+    await db.missions.put(shared);
+    vi.setSystemTime(new Date(2026, 10, 11, 10, 5));
+    await completeMission(m.id);
+    await importRecords(fromA); // A's records arrive
+
+    expect(await live(m.id, 'complete')).toHaveLength(1);
+    expect((await db.xpEvents.toArray()).filter((x) => x.reason === 'complete')).toHaveLength(1);
+    expect((await series('água')).filter((x) => x.id !== m.id)).toHaveLength(1);
+  });
+
+  it('complete → undo → complete revives the same XP and next instance', async () => {
+    const m = await createMission({ title: 'água', recurrence: { kind: 'daily' }, date: '2026-11-11' });
+    const first = await completeMission(m.id);
+    await undoComplete(m.id);
+    const second = await completeMission(m.id);
+    expect(second.next!.id).toBe(first.next!.id);
+    const all = (await db.xpEvents.where('missionId').equals(m.id).toArray()).filter((x) => x.reason === 'complete');
+    expect(all).toHaveLength(1);
+    expect(all[0]).toMatchObject({ id: `xp-complete-${m.id}`, deleted: false, amount: 8 });
+    const nexts = (await series('água')).filter((x) => x.id !== m.id);
+    expect(nexts).toHaveLength(1);
+    expect(nexts[0]!.deleted).toBe(false);
+    // Undoing the revived completion still removes the untouched next instance.
+    await undoComplete(m.id);
+    expect((await db.missions.get(first.next!.id))!.deleted).toBe(true);
+    expect(await xpTotal()).toBe(0);
+  });
+
+  it('a hard-day completion uses deterministic complete and resilience ids', async () => {
+    await setHardDay(true);
+    const m = await createMission({ title: 'a' });
+    expect((await completeMission(m.id)).xp).toBe(13);
+    expect((await db.xpEvents.get(`xp-complete-${m.id}`))!.amount).toBe(8);
+    expect((await db.xpEvents.get(`xp-resilience-${m.id}`))!.amount).toBe(5);
+  });
+
+  it('a reactivated journey cannot award its XP twice', async () => {
+    const [m] = (await captureLines('x #j')) as Mission[];
+    const jid = m!.journeyId!;
+    expect((await completeJourney(jid)).xp).toBe(30);
+    await patch<Journey>('journeys', jid, { status: 'active' }); // "Reativar jornada"
+    expect((await completeJourney(jid)).xp).toBe(0);
+    expect((await db.journeys.get(jid))!.status).toBe('done');
+    const journeyXp = (await db.xpEvents.toArray()).filter((x) => x.reason === 'journey' && !x.deleted);
+    expect(journeyXp.map((x) => x.id)).toEqual([`xp-journey-${jid}`]);
+  });
+
+  it('the review XP id is per day', async () => {
+    await finishReview();
+    expect((await db.xpEvents.get('xp-review-2026-11-11'))).toMatchObject({ amount: 5, reason: 'review' });
+  });
+
+  it('the same focus session recorded twice is one session and one XP', async () => {
+    const s = { startedAt: 1000, endedAt: 1000 + 25 * 60_000, activeMs: 25 * 60_000, mode: 'free' as const, outcome: 'finished' as const };
+    expect((await recordFocus(s)).xp).toBe(4);
+    expect((await recordFocus(s)).xp).toBe(0);
+    expect(await db.focusSessions.toArray()).toHaveLength(1);
+    expect((await db.focusSessions.toArray())[0]!.id).toBe('focus-1000');
+    const focusXp = (await db.xpEvents.toArray()).filter((x) => x.reason === 'focus');
+    expect(focusXp).toHaveLength(1);
+    expect(focusXp[0]).toMatchObject({ id: 'xp-focus-focus-1000', amount: 4 });
+  });
+});
+
+describe('reorderDay', () => {
+  it('orders the day without moving missions planned for a later day', async () => {
+    const loose = await createMission({ title: 'sem data' });
+    const late = await createMission({ title: 'atrasada', date: '2026-11-10' });
+    const future = await createMission({ title: 'em andamento', date: '2026-11-13', status: 'doing' });
+    const today = await createMission({ title: 'hoje', date: '2026-11-11' });
+    await reorderDay([future.id, loose.id, late.id, today.id], '2026-11-11');
+    const got = async (id: string) => { const m = (await db.missions.get(id))!; return [m.date, m.dayOrder]; };
+    expect(await got(future.id)).toEqual(['2026-11-13', 0]);
+    expect(await got(loose.id)).toEqual(['2026-11-11', 1]);
+    expect(await got(late.id)).toEqual(['2026-11-11', 2]);
+    expect(await got(today.id)).toEqual(['2026-11-11', 3]);
+  });
+
+  it('a mission dropped into the day from a later day moves to it (week view drag)', async () => {
+    const friday = await createMission({ title: 'sexta', date: '2026-11-13' });
+    const wed = await createMission({ title: 'quarta', date: '2026-11-11' });
+    await reorderDay([wed.id, friday.id], '2026-11-11', friday.id);
+    expect((await db.missions.get(friday.id))!).toMatchObject({ date: '2026-11-11', dayOrder: 1 });
   });
 });
