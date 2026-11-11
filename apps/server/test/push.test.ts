@@ -139,7 +139,7 @@ describe('push routes', () => {
     const store = new RecordStore(':memory:');
     const push = new PushService(store, tmp(), { send: async () => ({ gone: false }) }, () => 0);
     const app = await buildApp(
-      { port: 0, dataDir: '.', token: 't', dbPath: ':memory:' },
+      { port: 0, host: '127.0.0.1', dataDir: '.', token: 't', dbPath: ':memory:' },
       { store, push },
     );
     const h = { authorization: 'Bearer t' };

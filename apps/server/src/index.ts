@@ -13,8 +13,8 @@ const push = new PushService(store, cfg.dataDir);
 const stopPush = push.start();
 const stopBackup = scheduleDailyBackup(store, cfg.dataDir);
 const app = await buildApp(cfg, { store, hub, push });
-await app.listen({ port: cfg.port, host: '0.0.0.0' });
-console.log(`LIFE RPG server listening on http://0.0.0.0:${cfg.port}`);
+await app.listen({ port: cfg.port, host: cfg.host });
+console.log(`LIFE RPG server listening on http://${cfg.host}:${cfg.port}`);
 console.log(`Access token file: ${join(cfg.dataDir, 'token')}`);
 
 const shutdown = () => {

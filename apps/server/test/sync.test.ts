@@ -5,7 +5,7 @@ import { Hub } from '../src/hub';
 import { RecordStore } from '../src/store';
 import type { ServerConfig } from '../src/config';
 
-const cfg: ServerConfig = { port: 0, dataDir: '.', token: 't', dbPath: ':memory:' };
+const cfg: ServerConfig = { port: 0, host: '127.0.0.1', dataDir: '.', token: 't', dbPath: ':memory:' };
 const auth = { authorization: 'Bearer t' };
 const mission = (id: string, updatedAt = 10) => ({
   table: 'missions',

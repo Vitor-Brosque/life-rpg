@@ -4,6 +4,8 @@ import { join } from 'node:path';
 
 export interface ServerConfig {
   port: number;
+  /** Interface to listen on: '0.0.0.0' in Docker, '127.0.0.1' for local-only use. */
+  host: string;
   dataDir: string;
   token: string;
   webDir?: string;
@@ -30,6 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
 
   return {
     port,
+    host: env.LIFE_RPG_HOST || '0.0.0.0',
     dataDir,
     token,
     webDir: env.LIFE_RPG_WEB_DIR || undefined,

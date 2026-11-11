@@ -15,7 +15,9 @@
     "dev:web": "npm run dev -w @life/web",
     "dev:server": "npm run dev -w @life/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "start": "node scripts/start-local.mjs",
+    "local": "npm run build && node scripts/start-local.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
