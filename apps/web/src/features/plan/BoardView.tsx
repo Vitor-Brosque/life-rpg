@@ -5,7 +5,8 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { Area, DayKey, Mission } from '@life/shared';
-import { moveToDay, startMission, updateMission } from '../../domain/actions';
+import { db } from '../../db/db';
+import { moveToDay, startMission, undoComplete, updateMission } from '../../domain/actions';
 import { formatDuration, plural } from '../../ui/format';
 import { coarsePointer, GripIcon } from '../agora/TodayList';
 import { completeWithFeedback } from '../mission/missionFeedback';
@@ -37,9 +38,16 @@ export function columnOf(m: Mission, today: DayKey, now: number): ColumnId | und
 /** Applies a column drop / menu choice to a mission. */
 export async function moveToColumn(m: Mission, to: ColumnId, today: DayKey): Promise<void> {
   if (to === 'done') { await completeWithFeedback(m.id); return; }
-  if (m.status === 'done') await updateMission(m.id, { status: 'open', completedAt: undefined });
+  if (m.status === 'done') {
+    // Moving out of "Feito" means it wasn't really done: undo the completion (and its XP),
+    // so completing it again can't award XP twice.
+    await undoComplete(m.id);
+    if ((await db.missions.get(m.id))?.status === 'done') {
+      await updateMission(m.id, { status: 'open', completedAt: undefined });
+    }
+  }
   if (to === 'doing') { await startMission(m.id); return; }
-  if (m.status === 'doing') await updateMission(m.id, { status: 'open' });
+  if ((await db.missions.get(m.id))?.status === 'doing') await updateMission(m.id, { status: 'open' });
   await moveToDay(m.id, to === 'today' ? today : null);
 }
 

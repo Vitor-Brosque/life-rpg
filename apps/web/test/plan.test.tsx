@@ -126,3 +126,26 @@ describe('PlanScreen', () => {
     expect(await screen.findByRole('tab', { name: 'Quadro', selected: true })).toBeInTheDocument();
   });
 });
+
+describe('moveToColumn out of "Feito"', () => {
+  it('undoes the completion so completing again does not award XP twice', async () => {
+    const { completeMission } = await import('../src/domain/actions');
+    const { moveToColumn } = await import('../src/features/plan/BoardView');
+    const m = await createMission({ title: 'Lavar louça' });
+    await completeMission(m.id);
+    const xpAfterFirst = (await db.xpEvents.toArray()).filter((x) => !x.deleted).reduce((s, x) => s + x.amount, 0);
+    expect(xpAfterFirst).toBe(8);
+
+    const done = (await db.missions.get(m.id))!;
+    await moveToColumn(done, 'today', '2026-11-11');
+    const moved = (await db.missions.get(m.id))!;
+    expect(moved.status).toBe('open');
+    expect(moved.date).toBe('2026-11-11');
+    const xpAfterMove = (await db.xpEvents.toArray()).filter((x) => !x.deleted).reduce((s, x) => s + x.amount, 0);
+    expect(xpAfterMove).toBe(0);
+
+    await completeMission(m.id);
+    const xpAfterSecond = (await db.xpEvents.toArray()).filter((x) => !x.deleted).reduce((s, x) => s + x.amount, 0);
+    expect(xpAfterSecond).toBe(8);
+  });
+});
