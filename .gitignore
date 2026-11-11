@@ -12,3 +12,4 @@ apps/server/data/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+.claude/
