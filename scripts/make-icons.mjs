@@ -157,3 +157,35 @@ for (const { file, size, padding } of OUTPUTS) {
   writeFileSync(new URL(file, OUT_DIR), png);
   console.log(`${file}  ${size}×${size}  ${png.length} bytes`);
 }
+
+/** Windows .ico holding PNG images (supported since Vista); used by the Desktop shortcut. */
+function encodeIco(images) {
+  const header = Buffer.alloc(6 + 16 * images.length);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+  let offset = header.length;
+  images.forEach(({ size, png }, i) => {
+    const e = 6 + 16 * i;
+    header.writeUInt8(size >= 256 ? 0 : size, e); // 0 means 256
+    header.writeUInt8(size >= 256 ? 0 : size, e + 1);
+    header.writeUInt8(0, e + 2); // palette colours
+    header.writeUInt8(0, e + 3); // reserved
+    header.writeUInt16LE(1, e + 4); // colour planes
+    header.writeUInt16LE(32, e + 6); // bits per pixel
+    header.writeUInt32LE(png.length, e + 8);
+    header.writeUInt32LE(offset, e + 12);
+    offset += png.length;
+  });
+  return Buffer.concat([header, ...images.map((im) => im.png)]);
+}
+
+const ICO_SIZES = [
+  { size: 16, padding: 0 },
+  { size: 32, padding: 0 },
+  { size: 48, padding: 0.06 },
+  { size: 256, padding: 0.12 },
+];
+const ico = encodeIco(ICO_SIZES.map(({ size, padding }) => ({ size, png: renderIcon(size, padding) })));
+writeFileSync(new URL('../LIFE RPG.ico', import.meta.url), ico);
+console.log(`LIFE RPG.ico  ${ICO_SIZES.map((s) => s.size).join('/')}  ${ico.length} bytes`);

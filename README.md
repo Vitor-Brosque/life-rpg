@@ -5,8 +5,11 @@ O que já existe e por quê: [especificação do Marco 1](docs/superpowers/specs
 
 ## Usar neste computador
 
-Dê dois cliques em **`LIFE RPG.cmd`**. Ele reconstrói o app, sobe o servidor e abre o navegador em
-<http://localhost:8787>. Deixe a janela preta aberta enquanto usa; fechar a janela desliga o app.
+Dê dois cliques no atalho **LIFE RPG** da Área de Trabalho (ou em `LIFE RPG.cmd`, nesta pasta). Ele
+reconstrói o app, sobe o servidor e abre o navegador em <http://localhost:8787>. A janela do servidor
+abre minimizada na barra de tarefas: deixe-a aberta enquanto usa, porque fechá-la desliga o app.
+Se precisar recriar o atalho, aponte-o para `LIFE RPG.cmd`, com o ícone `LIFE RPG.ico`
+(gerado por `npm run icons`).
 
 Pelo terminal, o mesmo comando é:
 
