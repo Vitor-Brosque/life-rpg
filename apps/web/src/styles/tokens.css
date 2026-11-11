@@ -1,0 +1,65 @@
+/* Design tokens — "noite na taverna".
+   Contrast (WCAG): --text on --bg 14.7, on --stone 10.7, on --stone-light 8.0;
+   --text-dim on --bg 7.5, on --stone 5.5 (do not use it on --stone-light: 4.1);
+   --ink on --parchment 12.8, --ink-soft on --parchment 7.0, on --parchment-dark 5.2;
+   --ink on --gold 9.7, on --ember 5.4. Never put --ember/--danger text on parchment:
+   use --ember-ink (4.9) / --danger-ink (5.7) there. */
+:root {
+  color-scheme: dark;
+
+  --bg: #12141f;
+  --bg-2: #1b1e2e;
+  --stone: #2a2e45;
+  --stone-light: #3b4063;
+  --parchment: #f1e3c4;
+  --parchment-dark: #d9c39a;
+  --ink: #2b1d12;
+  --ink-soft: #5a4632;
+  --text: #ece6d6;
+  --text-dim: #a9a3b8;
+  --gold: #f2c14e;
+  --ember: #e8743b;
+  --leaf: #7bc96f;
+  --sky: #6fb3e0;
+  --danger: #d9534f;
+
+  /* Derived, contrast-safe variants. */
+  --gold-dark: #a8741f;
+  --ember-ink: #9a4a12;
+  --danger-ink: #9e2f2b;
+  --danger-text: #f08a86;
+  --danger-strong: #a8322d;
+  --outline: #0b0c14;
+  --frame-wood: #3a2614;
+
+  /* Text colour for secondary copy; panels override it for their surface. */
+  --muted: var(--text-dim);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius: 0;
+  --px: 3px; /* size of one "pixel" in frames and bevels */
+
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-pixel: 'Pixelify Sans', var(--font-body);
+
+  --touch: 44px;
+  --nav-h: 64px;
+  --sidebar-w: 232px;
+  --dock-h: 0px; /* height of the slot above the nav, measured by Layout */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --z-nav: 20;
+  --z-dock: 25;
+  --z-toast: 40;
+  --z-sheet: 50;
+}

@@ -1,0 +1,351 @@
+/* Pixel frames and the UI kit built on them (buttons, panels, chips, sheet, toast...). */
+
+/* Stacked box-shadows draw a 1-"pixel" frame with notched corners, plus an inner bevel
+   (light top-left, dark bottom-right). Set --px-c / --px-hi / --px-lo to recolour. */
+.px-border {
+  --px-c: var(--outline);
+  --px-hi: rgba(255, 255, 255, 0.1);
+  --px-lo: rgba(0, 0, 0, 0.25);
+  --px-drop: 0 0 0 0 transparent;
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--px-c),
+    0 var(--px) 0 0 var(--px-c),
+    calc(var(--px) * -1) 0 0 0 var(--px-c),
+    var(--px) 0 0 0 var(--px-c),
+    inset var(--px) var(--px) 0 0 var(--px-hi),
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--px-lo),
+    var(--px-drop);
+}
+.px-border--gold { --px-c: var(--gold); }
+.px-shadow { --px-drop: 0 calc(var(--px) * 2) 0 0 rgba(0, 0, 0, 0.45); }
+
+/* ------------------------------------------------------------------- Panel */
+
+.panel { padding: var(--space-4); border-radius: var(--radius); }
+.panel--parchment {
+  --muted: var(--ink-soft);
+  --px-c: var(--frame-wood);
+  --px-hi: #fff8e6;
+  --px-lo: #cdb486;
+  color: var(--ink);
+  background: radial-gradient(120% 90% at 50% 0%, #f8eed6 0%, var(--parchment) 60%, #ead7b0 100%);
+}
+.panel--parchment h1, .panel--parchment h2, .panel--parchment h3 { color: var(--ink); }
+.panel--stone {
+  --muted: var(--text-dim);
+  --px-hi: #3e4365;
+  --px-lo: #1c1f31;
+  color: var(--text);
+  background: var(--stone);
+}
+
+/* ------------------------------------------------------------------ Button */
+
+.btn {
+  --btn-bg: var(--stone-light);
+  --btn-fg: var(--text);
+  --btn-hi: #565d8c;
+  --btn-lo: #262a40;
+  --btn-edge: var(--outline);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--touch);
+  min-height: 48px;
+  padding: 0 18px;
+  color: var(--btn-fg);
+  font-family: var(--font-pixel);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  background: var(--btn-bg);
+  border: 0;
+  border-radius: var(--radius);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--btn-edge),
+    0 var(--px) 0 0 var(--btn-edge),
+    calc(var(--px) * -1) 0 0 0 var(--btn-edge),
+    var(--px) 0 0 0 var(--btn-edge),
+    inset 0 var(--px) 0 0 var(--btn-hi),
+    inset 0 calc(var(--px) * -1) 0 0 var(--btn-lo),
+    0 calc(var(--px) * 2) 0 0 rgba(0, 0, 0, 0.4);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform 60ms steps(1);
+}
+@media (hover: hover) { .btn:hover { filter: brightness(1.08); } }
+.btn:active:not(:disabled) {
+  transform: translateY(var(--px));
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--btn-edge),
+    0 var(--px) 0 0 var(--btn-edge),
+    calc(var(--px) * -1) 0 0 0 var(--btn-edge),
+    var(--px) 0 0 0 var(--btn-edge),
+    inset 0 var(--px) 0 0 var(--btn-lo);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+.btn--primary { --btn-bg: var(--gold); --btn-fg: var(--ink); --btn-hi: #fbe39c; --btn-lo: var(--gold-dark); }
+.btn--secondary { /* defaults */ }
+.btn--danger { --btn-bg: var(--danger-strong); --btn-fg: var(--text); --btn-hi: #cc5a50; --btn-lo: #6c1f1b; }
+.btn--ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--text);
+  box-shadow: none;
+}
+@media (hover: hover) { .btn--ghost:hover { filter: none; background: rgba(255, 255, 255, 0.07); } }
+.btn--ghost:active:not(:disabled) { box-shadow: none; background: rgba(255, 255, 255, 0.12); }
+
+.panel--parchment .btn--secondary { --btn-bg: var(--parchment-dark); --btn-fg: var(--ink); --btn-hi: #efdfbd; --btn-lo: #b0956a; --btn-edge: var(--frame-wood); }
+.panel--parchment .btn--primary { --btn-edge: var(--frame-wood); }
+.panel--parchment .btn--ghost { --btn-fg: var(--ink); }
+@media (hover: hover) { .panel--parchment .btn--ghost:hover { background: rgba(43, 29, 18, 0.08); } }
+
+.btn--sm { min-height: var(--touch); padding: 0 12px; font-size: 0.9375rem; gap: 6px; }
+.btn--lg { min-height: 56px; padding: 0 24px; font-size: 1.25rem; }
+.btn--icon-only { padding: 0; width: 48px; }
+.btn--sm.btn--icon-only { width: var(--touch); }
+.btn--lg.btn--icon-only { width: 56px; }
+
+/* Floating capture button ("+"). Use: <Button variant="primary" size="lg" icon="plus" className="fab" aria-label="Capturar" /> */
+.fab.btn { width: 60px; min-height: 60px; padding: 0; }
+
+/* -------------------------------------------------------------------- Chip */
+
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 40px;
+  color: var(--text);
+  background: var(--stone-light);
+  box-shadow:
+    0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline),
+    -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+}
+.chip__label, .chip__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.chip__main {
+  min-height: var(--touch);
+  margin: -2px 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: var(--touch);
+  margin: -2px 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid rgba(0, 0, 0, 0.3);
+}
+.chip--selected { color: var(--ink); background: var(--gold); }
+.panel--parchment .chip { color: var(--ink); background: var(--parchment-dark); box-shadow: 0 -2px 0 0 var(--frame-wood), 0 2px 0 0 var(--frame-wood), -2px 0 0 0 var(--frame-wood), 2px 0 0 0 var(--frame-wood); }
+.panel--parchment .chip--selected { background: var(--gold); }
+
+/* ------------------------------------------------------------- ProgressBar */
+
+.progress { display: flex; flex-direction: column; gap: var(--space-1); }
+.progress__label { color: var(--muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.progress__track {
+  position: relative;
+  height: 14px;
+  margin: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline),
+    -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline),
+    inset 0 2px 0 0 rgba(0, 0, 0, 0.35);
+}
+.panel--parchment .progress__track { background: #cdb486; }
+.progress__fill {
+  height: 100%;
+  background-color: var(--bar-color, var(--gold));
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(0, 0, 0, 0.16) 10px 12px);
+  box-shadow: inset 0 3px 0 0 rgba(255, 255, 255, 0.35), inset 0 -3px 0 0 rgba(0, 0, 0, 0.2);
+  transition: width 400ms steps(8);
+}
+
+/* ------------------------------------------------------------------- Sheet */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(6, 7, 12, 0.72);
+  animation: fade-in 120ms steps(3);
+}
+.sheet {
+  --px-c: var(--outline);
+  --px-hi: #3e4365;
+  --px-lo: #1c1f31;
+  width: 100%;
+  max-height: calc(100dvh - var(--safe-top) - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 calc(var(--safe-right) + var(--space-4)) calc(var(--safe-bottom) + var(--space-5)) calc(var(--safe-left) + var(--space-4));
+  color: var(--text);
+  background: var(--stone);
+  box-shadow: 0 calc(var(--px) * -1) 0 0 var(--outline), 0 calc(var(--px) * -2) 0 0 var(--gold-dark), inset 0 var(--px) 0 0 var(--px-hi);
+  animation: sheet-up 160ms steps(4);
+}
+.sheet__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 calc(var(--space-4) * -1) var(--space-3);
+  padding: var(--space-3) var(--space-2) var(--space-2) var(--space-4);
+  background: var(--stone);
+}
+.sheet__title { flex: 1; margin: 0; color: var(--gold); font-size: 1.25rem; }
+.sheet__grip {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 36px;
+  height: var(--px);
+  margin-left: -18px;
+  background: var(--stone-light);
+}
+.sheet:focus-visible { outline: none; }
+
+@media (min-width: 768px) {
+  .sheet-backdrop { align-items: center; padding: var(--space-6); }
+  .sheet {
+    max-width: 560px;
+    max-height: 85dvh;
+    padding: 0 var(--space-5) var(--space-5);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--outline), 0 var(--px) 0 0 var(--outline),
+      calc(var(--px) * -1) 0 0 0 var(--outline), var(--px) 0 0 0 var(--outline),
+      0 0 0 calc(var(--px) * 2) var(--gold-dark),
+      inset var(--px) var(--px) 0 0 var(--px-hi), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--px-lo);
+    animation-name: fade-in;
+  }
+  .sheet__header { margin: 0 calc(var(--space-5) * -1) var(--space-3); padding-left: var(--space-5); }
+  .sheet__grip { display: none; }
+}
+
+@keyframes sheet-up { from { transform: translateY(40%); } to { transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ------------------------------------------------------------------- Toast */
+
+.toast-host {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-h) + var(--space-3));
+  z-index: var(--z-toast);
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-4);
+  pointer-events: none;
+}
+.toast {
+  --px-c: var(--gold-dark);
+  --px-hi: rgba(255, 255, 255, 0.08);
+  --px-lo: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 480px;
+  min-height: 52px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  color: var(--parchment);
+  background: var(--ink);
+  pointer-events: auto;
+  animation: toast-in 160ms steps(4);
+}
+.toast__msg { flex: 1; }
+.toast .btn--ghost { --btn-fg: var(--gold); }
+@keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (min-width: 1200px) {
+  .toast-host { left: var(--sidebar-w); bottom: calc(var(--dock-h) + var(--space-5)); }
+}
+
+/* --------------------------------------------------------------- Companion */
+
+.companion { position: relative; display: inline-block; flex-shrink: 0; }
+.companion::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background: radial-gradient(circle at 50% 55%, rgba(245, 160, 60, 0.22), rgba(245, 160, 60, 0) 60%);
+  pointer-events: none;
+}
+.companion__frame { position: absolute; inset: 0; }
+.companion__frame--b { opacity: 0; }
+.companion__frame--a { animation: frame-a 1s step-end infinite; }
+.companion__frame--b { animation: frame-b 1s step-end infinite; }
+.companion--speaking .companion__frame { animation-duration: 0.5s; }
+.companion--speaking { animation: bob 1s step-end infinite; }
+@keyframes frame-a { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes frame-b { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes bob { 0% { transform: none; } 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .companion, .companion__frame { animation: none !important; }
+  .companion__frame--a { opacity: 1; }
+  .companion__frame--b { opacity: 0; }
+}
+
+.speech { min-width: 0; }
+.speech__bubble {
+  --px-c: var(--frame-wood);
+  --px-hi: #fff8e6;
+  --px-lo: #cdb486;
+  position: relative;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink);
+  background: var(--parchment);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--px-c), 0 var(--px) 0 0 var(--px-c),
+    calc(var(--px) * -1) 0 0 0 var(--px-c), var(--px) 0 0 0 var(--px-c),
+    inset 0 calc(var(--px) * -1) 0 0 var(--px-lo);
+  animation: fade-in 120ms steps(3);
+}
+/* Stepped tail on the top edge, pointing up towards the companion (top-right corner by
+   default; move it with --tail-right). */
+.speech__bubble::before,
+.speech__bubble::after {
+  content: '';
+  position: absolute;
+  background: var(--parchment);
+}
+.speech__bubble::after {
+  top: calc(var(--px) * -1);
+  right: var(--tail-right, 18px);
+  width: calc(var(--px) * 3);
+  height: var(--px);
+  box-shadow: calc(var(--px) * -1) 0 0 0 var(--px-c), var(--px) 0 0 0 var(--px-c);
+}
+.speech__bubble::before {
+  top: calc(var(--px) * -2);
+  right: calc(var(--tail-right, 18px) + var(--px));
+  width: var(--px);
+  height: var(--px);
+  box-shadow: calc(var(--px) * -1) 0 0 0 var(--px-c), var(--px) 0 0 0 var(--px-c), 0 calc(var(--px) * -1) 0 0 var(--px-c);
+}
