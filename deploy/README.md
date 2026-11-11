@@ -10,7 +10,7 @@ No Windows (Git Bash), a partir da raiz do repositório:
 ./deploy/deploy.sh
 ```
 
-O script sincroniza o projeto com `homelab:~/projects/life-rpg/` (sem `node_modules`, `data` e `.git`) e executa `docker compose up -d --build`.
+O script envia o estado **commitado** do branch atual (via `git archive`, que funciona no Git Bash do Windows) para `homelab:~/projects/life-rpg/` e executa `docker compose up -d --build`. A pasta `data/` do servidor nunca é tocada. Pré-requisito: o Tailscale ligado neste PC, para o alias `homelab` responder.
 
 ## 2. Expor com HTTPS via Tailscale
 
