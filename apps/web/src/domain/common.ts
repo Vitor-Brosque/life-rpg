@@ -36,3 +36,14 @@ export async function totalXp(): Promise<number> {
   await db.xpEvents.each((x) => { if (!x.deleted) sum += x.amount; });
   return sum;
 }
+
+const locks = new Map<string, Promise<unknown>>();
+
+/** Serialises async read-check-write sequences that share a key (prevents double XP awards). */
+export function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const run = (locks.get(key) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => undefined);
+  locks.set(key, tail);
+  void tail.then(() => { if (locks.get(key) === tail) locks.delete(key); });
+  return run;
+}

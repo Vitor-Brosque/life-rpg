@@ -7,7 +7,7 @@ import {
 } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put, softDelete } from '../db/repo';
-import { awardXp, getToday, hasXp, logEvent, totalXp } from './common';
+import { awardXp, getToday, hasXp, logEvent, totalXp, withLock } from './common';
 
 export interface CompletionResult { xp: number; leveledUp: boolean; newLevel: number; next?: Mission }
 
@@ -84,9 +84,13 @@ export async function captureLines(
   return out;
 }
 
-export async function startMission(id: string): Promise<{ xp: number }> {
+export const startMission = (id: string): Promise<{ xp: number }> =>
+  withLock(`mission:${id}`, () => startMissionLocked(id));
+
+async function startMissionLocked(id: string): Promise<{ xp: number }> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
+  if (m.deleted || m.status === 'done' || m.status === 'dropped') return { xp: 0 };
   const today = await getToday();
   await patch<Mission>('missions', id, { status: 'doing', startedAt: Date.now() });
   let xp = 0;
@@ -115,9 +119,15 @@ function nextInstance(m: Mission, today: DayKey): Promise<Mission> {
   }));
 }
 
-export async function completeMission(id: string): Promise<CompletionResult> {
+export const completeMission = (id: string): Promise<CompletionResult> =>
+  withLock(`mission:${id}`, () => completeMissionLocked(id));
+
+async function completeMissionLocked(id: string): Promise<CompletionResult> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
+  if (m.deleted || m.status === 'done' || m.status === 'dropped') {
+    return { xp: 0, leveledUp: false, newLevel: levelFromXp(await totalXp()).level };
+  }
   const today = await getToday();
   const [dayState, before, completionsTodayBefore] = await Promise.all([
     db.dayState.get(today),
@@ -166,7 +176,10 @@ export async function skipMission(id: string): Promise<void> {
   await logEvent('skipped', id);
 }
 
-export async function shrinkMission(id: string, firstStep: string): Promise<{ xp: number }> {
+export const shrinkMission = (id: string, firstStep: string): Promise<{ xp: number }> =>
+  withLock(`mission:${id}`, () => shrinkMissionLocked(id, firstStep));
+
+async function shrinkMissionLocked(id: string, firstStep: string): Promise<{ xp: number }> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
   const today = await getToday();

@@ -3,10 +3,11 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { Commitment, Mission } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
+import { softDelete } from '../src/db/repo';
 import { useCharacterStats } from '../src/db/hooks';
 import {
   captureLines, completeMission, createMission, finishReview, shrinkMission, snoozeMission,
-  splitMission, startMission, undoComplete, setHardDay, recordFocus, completeJourney,
+  splitMission, startMission, dropMission, undoComplete, setHardDay, recordFocus, completeJourney,
 } from '../src/domain/actions';
 
 beforeEach(async () => {
@@ -153,5 +154,43 @@ describe('other actions', () => {
     expect(ms.map((x) => x.journeyOrder)).toEqual([0, 1]);
     expect((await db.missions.get(m.id))!.deleted).toBe(true);
     expect(j.title).toBe('mudança');
+  });
+
+  it('concurrent completeMission calls award once and create one next instance', async () => {
+    const m = await createMission({ title: 'água', recurrence: { kind: 'daily' }, date: '2026-11-11' });
+    const [a, b] = await Promise.all([completeMission(m.id), completeMission(m.id)]);
+    expect([a.xp, b.xp].sort((x, y) => x - y)).toEqual([0, 8]);
+    const completes = (await db.xpEvents.toArray()).filter((x) => x.reason === 'complete' && !x.deleted);
+    expect(completes).toHaveLength(1);
+    const next = (await db.missions.toArray()).filter((x) => x.id !== m.id && x.title === 'água');
+    expect(next).toHaveLength(1);
+  });
+
+  it('completing a done, dropped or deleted mission is a no-op; startMission ignores done/dropped', async () => {
+    const m = await createMission({ title: 'a' });
+    await completeMission(m.id);
+    const again = await completeMission(m.id);
+    expect(again).toMatchObject({ xp: 0, leveledUp: false });
+    expect(again.newLevel).toBeGreaterThanOrEqual(1);
+    expect(await xpTotal()).toBe(8);
+    expect(await startMission(m.id)).toEqual({ xp: 0 });
+    expect((await db.missions.get(m.id))!.status).toBe('done');
+
+    const d = await createMission({ title: 'd' });
+    await dropMission(d.id);
+    expect((await completeMission(d.id)).xp).toBe(0);
+    expect(await startMission(d.id)).toEqual({ xp: 0 });
+    expect((await db.missions.get(d.id))!.status).toBe('dropped');
+
+    const x = await createMission({ title: 'x' });
+    await softDelete('missions', x.id);
+    expect((await completeMission(x.id)).xp).toBe(0);
+    expect(await xpTotal()).toBe(8);
+  });
+
+  it('concurrent finishReview awards once', async () => {
+    const r = await Promise.all([finishReview(), finishReview()]);
+    expect(r.map((x) => x.xp).sort((a, b) => a - b)).toEqual([0, 5]);
+    expect((await db.xpEvents.toArray()).filter((x) => x.reason === 'review')).toHaveLength(1);
   });
 });

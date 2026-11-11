@@ -2,9 +2,12 @@ import type { DayState, EnergyLevel, EnergyLog, FocusSession, Journey } from '@l
 import { focusXp, JOURNEY_XP, REVIEW_XP } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put } from '../db/repo';
-import { awardXp, getToday, logEvent } from './common';
+import { awardXp, getToday, logEvent, withLock } from './common';
 
-export async function completeJourney(id: string): Promise<{ xp: number }> {
+export const completeJourney = (id: string): Promise<{ xp: number }> =>
+  withLock(`journey:${id}`, () => completeJourneyLocked(id));
+
+async function completeJourneyLocked(id: string): Promise<{ xp: number }> {
   const j = await db.journeys.get(id);
   if (!j) throw new Error(`journey ${id} not found`);
   if (j.status === 'done') return { xp: 0 };
@@ -30,7 +33,9 @@ export async function setHardDay(on: boolean): Promise<void> {
   await logEvent('hardDay', undefined, { on });
 }
 
-export async function finishReview(): Promise<{ xp: number }> {
+export const finishReview = (): Promise<{ xp: number }> => withLock('review', finishReviewLocked);
+
+async function finishReviewLocked(): Promise<{ xp: number }> {
   const today = await getToday();
   const existing = await db.dayState.get(today);
   if (existing?.reviewDone) return { xp: 0 };
@@ -40,9 +45,12 @@ export async function finishReview(): Promise<{ xp: number }> {
   return { xp: REVIEW_XP };
 }
 
-export async function recordFocus(
-  s: Omit<FocusSession, 'id' | 'createdAt' | 'updatedAt' | 'deleted'>,
-): Promise<{ xp: number }> {
+type FocusInput = Omit<FocusSession, 'id' | 'createdAt' | 'updatedAt' | 'deleted'>;
+
+export const recordFocus = (s: FocusInput): Promise<{ xp: number }> =>
+  withLock('focus', () => recordFocusLocked(s));
+
+async function recordFocusLocked(s: FocusInput): Promise<{ xp: number }> {
   const today = await getToday();
   let already = 0;
   await db.xpEvents.where('dayKey').equals(today).each((x) => {

@@ -1,6 +1,6 @@
 import type { Area, Profile, Settings } from '@life/shared';
 import { db } from './db';
-import { newRecord, put } from './repo';
+import { newRecord, putSeed } from './repo';
 
 export const DEFAULT_AREAS: Array<Pick<Area, 'name' | 'attribute' | 'color' | 'icon' | 'order'>> = [
   { name: 'Corpo', attribute: 'Vigor', color: '#e5675d', icon: 'heart', order: 0 },
@@ -15,13 +15,13 @@ const AREA_IDS = ['area-vigor', 'area-equilibrio', 'area-intelecto', 'area-ofici
 
 export async function ensureSeed(): Promise<void> {
   if (!(await db.profile.get('me'))) {
-    await put('profile', newRecord<Profile>({
+    await putSeed('profile', newRecord<Profile>({
       id: 'me', name: '', look: { skin: 0, hair: 0, hairColor: 0, outfit: 0 },
       companionName: 'Faísca', onboarded: false,
     }));
   }
   if (!(await db.settings.get('settings'))) {
-    await put('settings', newRecord<Settings>({
+    await putSeed('settings', newRecord<Settings>({
       id: 'settings', dayStartHour: 4, dayEndHour: 23,
       pomodoro: { focusMin: 25, breakMin: 5 }, companionMuted: false, commitmentReminderMin: 10,
     }));
@@ -29,6 +29,6 @@ export async function ensureSeed(): Promise<void> {
   for (const [i, a] of DEFAULT_AREAS.entries()) {
     const id = AREA_IDS[i]!;
     if (await db.areas.get(id)) continue;
-    await put('areas', newRecord<Area>({ ...a, id, archived: false }));
+    await putSeed('areas', newRecord<Area>({ ...a, id, archived: false }));
   }
 }

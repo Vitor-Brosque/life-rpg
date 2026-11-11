@@ -61,4 +61,16 @@ describe('repo', () => {
     expect(await db.profile.count()).toBe(1);
     expect((await db.settings.get('settings'))!.dayStartHour).toBe(4);
   });
+
+  it('seed records never win over real data', async () => {
+    await ensureSeed();
+    expect((await db.profile.get('me'))!.updatedAt).toBe(1);
+    expect((await db.areas.get('area-vigor'))!.updatedAt).toBe(1);
+    expect(await db.outbox.get('profile:me')).toMatchObject({ updatedAt: 1 });
+    const seeded = (await db.profile.get('me'))!;
+    expect(await applyRemote({ table: 'profile', record: { ...seeded, updatedAt: 5, onboarded: true, name: 'Ana' } })).toBe(true);
+    expect((await db.profile.get('me'))!.onboarded).toBe(true);
+    const edited = await patch<typeof seeded>('profile', 'me', { name: 'Bia' });
+    expect(edited.updatedAt).toBeGreaterThan(1);
+  });
 });

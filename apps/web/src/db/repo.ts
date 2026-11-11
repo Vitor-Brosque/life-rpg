@@ -51,6 +51,16 @@ export async function put<T extends BaseRecord>(table: SyncTable, record: T): Pr
   return saved;
 }
 
+/** Writes a seed record with createdAt = updatedAt = 1 (loses to any real edit) and queues it for sync. */
+export async function putSeed<T extends BaseRecord>(table: SyncTable, record: T): Promise<void> {
+  const seeded = { ...record, createdAt: 1, updatedAt: 1 };
+  await db.transaction('rw', tableOf(table), db.outbox, async () => {
+    await tableOf(table).put(seeded);
+    await db.outbox.put({ key: `${table}:${seeded.id}`, table, id: seeded.id, updatedAt: 1 });
+  });
+  notify();
+}
+
 export async function patch<T extends BaseRecord>(
   table: SyncTable, id: string, changes: Partial<T>,
 ): Promise<T> {

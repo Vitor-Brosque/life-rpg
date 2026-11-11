@@ -9,6 +9,10 @@ const MAX_PAGES = 20;
 const BACKOFF_START = 2000;
 const BACKOFF_MAX = 5 * 60_000;
 
+const TOKEN_EVENT = 'life-rpg:token';
+
+class NetworkError extends Error {}
+
 class HttpError extends Error {
   constructor(public status: number) { super(`HTTP ${status}`); }
 }
@@ -29,11 +33,17 @@ async function getDeviceId(): Promise<string> {
 }
 
 async function post(token: string, body: SyncRequest): Promise<SyncResponse> {
-  const res = await fetch('/api/sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    if (e instanceof TypeError) throw new NetworkError('network');
+    throw e;
+  }
   if (!res.ok) throw new HttpError(res.status);
   return (await res.json()) as SyncResponse;
 }
@@ -75,42 +85,61 @@ async function performSync(token: string): Promise<void> {
 let running: Promise<boolean> | undefined;
 let rerun = false;
 
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+/** One sync attempt with status reporting; resolves true when it finished without error (or sync is disabled). */
+async function syncOnce(): Promise<boolean> {
+  try {
+    const token = await getMeta<string>('syncToken');
+    if (!token) {
+      setStatus({ state: 'disabled', error: undefined });
+      return true;
+    }
+    setStatus({ state: 'syncing' });
+    await performSync(token);
+    setStatus({ state: 'idle', lastSync: Date.now(), error: undefined });
+    return true;
+  } catch (e) {
+    if (e instanceof NetworkError || isOffline()) {
+      setStatus({ state: 'offline', error: undefined });
+    } else if (e instanceof HttpError && e.status === 401) {
+      setStatus({ state: 'error', error: 'Código de acesso inválido' });
+    } else {
+      console.error('sync failed', e);
+      setStatus({
+        state: 'error',
+        error: e instanceof HttpError ? `Erro do servidor (${e.status})` : 'Falha na sincronização',
+      });
+    }
+    return false;
+  }
+}
+
 /** Runs one sync; resolves true when it finished without error (or sync is disabled). */
-async function runSync(): Promise<boolean> {
+function runSync(): Promise<boolean> {
   if (running) {
     rerun = true;
     return running;
   }
   running = (async () => {
     let ok = true;
-    do {
+    try {
+      for (;;) {
+        rerun = false;
+        ok = await syncOnce();
+        try { await refreshPending(); } catch (e) { console.error('refreshPending failed', e); }
+        // The exit check and the `finally` below run in the same synchronous step, so a trigger
+        // either sets `rerun` before this check (joins the loop) or sees `running` cleared.
+        if (!ok || !rerun) break;
+      }
+    } finally {
+      running = undefined;
       rerun = false;
-      const token = await getMeta<string>('syncToken');
-      if (!token) {
-        setStatus({ state: 'disabled', error: undefined });
-        await refreshPending();
-        return true;
-      }
-      setStatus({ state: 'syncing' });
-      try {
-        await performSync(token);
-        setStatus({ state: 'idle', lastSync: Date.now(), error: undefined });
-        ok = true;
-      } catch (e) {
-        ok = false;
-        if (e instanceof HttpError && e.status === 401) {
-          setStatus({ state: 'error', error: 'Código de acesso inválido' });
-        } else if (e instanceof HttpError) {
-          setStatus({ state: 'error', error: `Erro do servidor (${e.status})` });
-        } else {
-          setStatus({ state: 'offline', error: undefined });
-        }
-        break;
-      }
-    } while (rerun);
-    await refreshPending();
+    }
     return ok;
-  })().finally(() => { running = undefined; });
+  })();
   return running;
 }
 
@@ -118,16 +147,22 @@ export async function syncNow(): Promise<void> {
   await runSync();
 }
 
-export async function setSyncToken(token: string): Promise<boolean> {
+export type TokenResult = 'ok' | 'invalid' | 'offline';
+
+export async function setSyncToken(token: string): Promise<TokenResult> {
   try {
     const deviceId = await getDeviceId();
     const cursor = (await getMeta<number>('cursor')) ?? 0;
     await post(token, { deviceId, cursor, changes: [] });
-  } catch {
-    return false;
+  } catch (e) {
+    if (e instanceof HttpError && e.status === 401) return 'invalid';
+    if (!(e instanceof NetworkError)) console.error('token check failed', e);
+    return 'offline';
   }
   await setMeta('syncToken', token);
-  return true;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(TOKEN_EVENT));
+  void syncNow();
+  return 'ok';
 }
 
 export function startSync(): () => void {
@@ -138,8 +173,10 @@ export function startSync(): () => void {
   let delay = BACKOFF_START;
   let stream: EventSource | undefined;
   let streamToken: string | undefined;
+  let streamRetry: ReturnType<typeof setTimeout> | undefined;
 
-  const trigger = async (): Promise<void> => {
+  // Only a failed retry escalates the delay; ordinary triggers never do.
+  const trigger = async (isRetry = false): Promise<void> => {
     if (stopped) return;
     const ok = await runSync();
     if (stopped) return;
@@ -147,9 +184,9 @@ export function startSync(): () => void {
       delay = BACKOFF_START;
       void ensureStream();
     } else {
+      if (isRetry) delay = Math.min(delay * 2, BACKOFF_MAX);
       clearTimeout(retry);
-      retry = setTimeout(() => { void trigger(); }, delay);
-      delay = Math.min(delay * 2, BACKOFF_MAX);
+      retry = setTimeout(() => { void trigger(true); }, delay);
     }
   };
 
@@ -161,8 +198,16 @@ export function startSync(): () => void {
     stream = undefined;
     streamToken = token;
     if (!token) return;
-    stream = new EventSource(`/api/stream?token=${encodeURIComponent(token)}`);
-    stream.addEventListener('changed', () => { void trigger(); });
+    const es = new EventSource(`/api/stream?token=${encodeURIComponent(token)}`);
+    stream = es;
+    es.addEventListener('changed', () => { void trigger(); });
+    es.addEventListener('error', () => {
+      if (es.readyState !== 2 /* EventSource.CLOSED */ || stream !== es || stopped) return;
+      stream = undefined;
+      streamToken = undefined;
+      clearTimeout(streamRetry);
+      streamRetry = setTimeout(() => { void ensureStream(); }, delay);
+    });
   };
 
   const onLocal = (): void => {
@@ -170,11 +215,13 @@ export function startSync(): () => void {
     clearTimeout(debounce);
     debounce = setTimeout(() => { void trigger(); }, 1000);
   };
+  const onToken = (): void => { void ensureStream(); };
   const onOnline = (): void => { void trigger(); };
   const onVisible = (): void => { if (document.visibilityState === 'visible') void trigger(); };
 
   const offLocal = onLocalChange(onLocal);
   window.addEventListener('online', onOnline);
+  window.addEventListener(TOKEN_EVENT, onToken);
   document.addEventListener('visibilitychange', onVisible);
   const interval = setInterval(() => { void trigger(); }, 60_000);
   void refreshPending();
@@ -184,10 +231,12 @@ export function startSync(): () => void {
     stopped = true;
     offLocal();
     window.removeEventListener('online', onOnline);
+    window.removeEventListener(TOKEN_EVENT, onToken);
     document.removeEventListener('visibilitychange', onVisible);
     clearInterval(interval);
     clearTimeout(debounce);
     clearTimeout(retry);
+    clearTimeout(streamRetry);
     stream?.close();
   };
 }
