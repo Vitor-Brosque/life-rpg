@@ -1,0 +1,95 @@
+/* Ficha da missão (inside the stone Sheet). */
+
+.mission-sheet { display: flex; flex-direction: column; gap: var(--space-5); }
+.mission-sheet__status { margin: 0; }
+.field--title input { font-size: 1.125rem; font-weight: 600; }
+
+.mission-sheet__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.mission-sheet__danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 2px dashed var(--stone-light);
+}
+.mission-sheet__hint { flex-basis: 100%; margin: calc(var(--space-2) * -1) 0 0; color: var(--muted); font-size: 0.875rem; }
+.mission-sheet__confirm {
+  flex-basis: 100%;
+  padding: var(--space-3);
+  background: rgba(168, 50, 45, 0.18);
+  box-shadow: inset 0 0 0 2px var(--danger-strong);
+}
+.mission-sheet__confirm p { margin-bottom: var(--space-3); }
+
+/* Checklist */
+.checklist__count { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.checklist__list { display: flex; flex-direction: column; margin: 0 0 var(--space-2); padding: 0; list-style: none; }
+.checklist__item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch); }
+.checklist__check {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.checklist__check span { overflow-wrap: anywhere; }
+.checklist__item--done .checklist__check span { color: var(--text-dim); text-decoration: line-through; }
+.checklist__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+}
+@media (hover: hover) { .checklist__remove:hover { color: var(--text); } }
+.checklist__add { display: flex; gap: var(--space-2); }
+
+/* Attributes */
+.attr .cluster { gap: 10px; padding: 2px; }
+.attr__dates { display: flex; flex-direction: column; gap: var(--space-3); }
+.date-field { display: flex; align-items: flex-end; gap: var(--space-3); }
+.date-field .chip { flex-shrink: 0; margin-bottom: 2px; }
+.date-field .field { flex: 1; }
+.date-field__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+}
+
+/* Recurrence */
+.recurrence { display: flex; flex-direction: column; gap: var(--space-3); }
+.recurrence .cluster { gap: 10px; padding: 2px; }
+.recurrence__weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 360px; }
+.weekday-toggle {
+  min-height: var(--touch);
+  padding: 0;
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  background: var(--stone-light);
+  border: 0;
+  box-shadow: inset 0 0 0 2px var(--outline);
+}
+.weekday-toggle[aria-pressed='true'] { color: var(--ink); background: var(--gold); }
+.recurrence__number { display: flex; align-items: center; gap: var(--space-3); }
+.recurrence__number input { width: 96px; }
+.recurrence__desc { margin: 0; color: var(--gold); }

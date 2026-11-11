@@ -49,7 +49,8 @@ async function resolveJourney(name: string): Promise<Journey> {
   return put('journeys', newRecord<Journey>({ title: name.trim(), status: 'active', order }));
 }
 
-function resolveArea(areas: Area[], query: string): Area | undefined {
+/** Area whose name or attribute starts with the query (case/accent-insensitive). */
+export function resolveArea(areas: Area[], query: string): Area | undefined {
   const q = normalize(query.trim());
   if (!q) return undefined;
   return areas.find((a) => normalize(a.name).startsWith(q) || normalize(a.attribute).startsWith(q));
@@ -247,6 +248,11 @@ export async function splitMission(id: string): Promise<Journey> {
   await softDelete('missions', id);
   await logEvent('split', id, { journeyId: journey.id });
   return journey;
+}
+
+/** Soft delete (synced); used by "Excluir" in the mission sheet. */
+export async function deleteMission(id: string): Promise<void> {
+  await softDelete('missions', id);
 }
 
 export async function updateMission(id: string, changes: Partial<Mission>): Promise<void> {

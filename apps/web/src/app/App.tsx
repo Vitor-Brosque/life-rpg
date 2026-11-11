@@ -1,4 +1,7 @@
 import { Route, Switch } from 'wouter';
+import { AgoraScreen } from '../features/agora/AgoraScreen';
+import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
+import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { Panel } from '../ui/Panel';
 import { ToastHost } from '../ui/Toast';
 import { Layout } from './Layout';
@@ -18,9 +21,9 @@ function Placeholder({ title }: { title: string }) {
 export function App() {
   return (
     <>
-      <Layout>
+      <Layout floating={<CaptureFab />}>
         <Switch>
-          <Route path="/"><Placeholder title="Agora" /></Route>
+          <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><Placeholder title="Planejar" /></Route>
           <Route path="/jornadas"><Placeholder title="Jornadas" /></Route>
           <Route path="/jornadas/:id"><Placeholder title="Jornada" /></Route>
@@ -30,6 +33,8 @@ export function App() {
           <Route><Placeholder title="Página não encontrada" /></Route>
         </Switch>
       </Layout>
+      <CaptureHost />
+      <MissionSheetHost />
       <ToastHost />
     </>
   );

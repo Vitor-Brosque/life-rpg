@@ -2,7 +2,14 @@ import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 
-export interface SheetProps { open: boolean; onClose(): void; title: string; children?: ReactNode }
+export interface SheetProps {
+  open: boolean;
+  onClose(): void;
+  title: string;
+  children?: ReactNode;
+  /** 'top' anchors the sheet to the top on phones (inputs stay clear of the on-screen keyboard). */
+  placement?: 'bottom' | 'top';
+}
 
 const FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
@@ -17,7 +24,7 @@ function focusables(root: HTMLElement): HTMLElement[] {
  * Modal sheet: slides up from the bottom on phones, centred dialog from 768 px.
  * Esc and the backdrop close it; Tab is trapped inside; focus returns to the opener.
  */
-export function Sheet({ open, onClose, title, children }: SheetProps) {
+export function Sheet({ open, onClose, title, children, placement = 'bottom' }: SheetProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -62,7 +69,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
 
   return createPortal(
     <div
-      className="sheet-backdrop"
+      className={placement === 'top' ? 'sheet-backdrop sheet-backdrop--top' : 'sheet-backdrop'}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onCloseRef.current(); }}
     >
       <div

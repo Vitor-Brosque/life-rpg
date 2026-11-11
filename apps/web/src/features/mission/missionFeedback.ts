@@ -1,0 +1,74 @@
+import { navigate } from 'wouter/use-browser-location';
+import type { DayKey, MissionStatus } from '@life/shared';
+import { db } from '../../db/db';
+import {
+  completeMission, dropMission, shrinkMission, snoozeMission, splitMission, startMission, undoComplete,
+  updateMission, type CompletionResult,
+} from '../../domain/actions';
+import { formatDay } from '../../ui/format';
+import { useToast } from '../../ui/Toast';
+import type { PhraseCategory } from '../companion/phrases';
+import { useCompanion } from '../companion/store';
+
+// Mission actions plus their feedback (toast, companion), shared by Agora, the mission sheet
+// and the Painel (Task 11), so every entry point reacts the same way.
+
+export const UNDO_MS = 6000;
+
+const toast = (msg: string, action?: { label: string; run(): void }, ms?: number) =>
+  useToast.getState().show(msg, action, ms);
+const say = (cat: PhraseCategory) => void useCompanion.getState().say(cat);
+
+/** Completes; toast "Missão concluída · +N XP" with "Desfazer" for 6 s. A level-up rides in the same toast. */
+export async function completeWithFeedback(id: string): Promise<CompletionResult> {
+  const r = await completeMission(id);
+  if (r.xp > 0) {
+    const msg = r.leveledUp
+      ? `Missão concluída · +${r.xp} XP · Subiu para o nível ${r.newLevel}!`
+      : `Missão concluída · +${r.xp} XP`;
+    toast(msg, { label: 'Desfazer', run: () => { void undoComplete(id); } }, UNDO_MS);
+    say(r.leveledUp ? 'levelUp' : 'complete');
+  }
+  return r;
+}
+
+export async function startWithFeedback(id: string): Promise<void> {
+  const { xp } = await startMission(id);
+  if (xp > 0) toast(`Começou · +${xp} XP`);
+  say('start');
+}
+
+/** "Soltar" is a legitimate exit: no penalty, and it can be undone for a few seconds. */
+export async function dropWithFeedback(id: string, reason?: string): Promise<void> {
+  const prev: MissionStatus = (await db.missions.get(id))?.status ?? 'open';
+  await dropMission(id, reason);
+  toast('Missão solta. Tudo bem.', {
+    label: 'Desfazer',
+    run: () => { void updateMission(id, { status: prev === 'dropped' ? 'open' : prev, dropReason: undefined }); },
+  }, UNDO_MS);
+  say('drop');
+}
+
+/** Saves the 5-minute version as the first step (§6: firstStep, shrunk, durationMin 5). */
+export async function shrinkWithFeedback(id: string, firstStep: string): Promise<void> {
+  const { xp } = await shrinkMission(id, firstStep);
+  await updateMission(id, { durationMin: 5 });
+  toast(xp > 0 ? `Versão de 5 minutos salva · +${xp} XP` : 'Versão de 5 minutos salva');
+  say('shrink');
+}
+
+export async function snoozeWithFeedback(
+  id: string, option: 'later' | 'tomorrow' | { date: DayKey }, today: DayKey,
+): Promise<void> {
+  await snoozeMission(id, option);
+  toast(option === 'later' ? 'Ela volta em 3 horas.'
+    : option === 'tomorrow' ? 'Guardada para amanhã.'
+      : `Guardada para ${formatDay(option.date, today)}.`);
+  say('snooze');
+}
+
+/** Mission → journey (checklist items become its missions). */
+export async function splitWithFeedback(id: string): Promise<void> {
+  const j = await splitMission(id);
+  toast(`Virou a jornada “${j.title}”`, { label: 'Ver', run: () => navigate(`/jornadas/${j.id}`) });
+}
