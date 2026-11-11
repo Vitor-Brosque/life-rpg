@@ -57,6 +57,7 @@
   background: transparent;
   border: 0;
 }
+.status-strip__timer.btn { flex-shrink: 0; margin-right: calc(var(--space-2) * -1); color: var(--text-dim); }
 .sync-indicator--disabled { opacity: 0.6; }
 .sync-indicator--idle { color: var(--leaf); }
 .sync-indicator--syncing { color: var(--gold); }

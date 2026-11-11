@@ -17,7 +17,10 @@ let last: string | undefined;
 export const useCompanion = create<CompanionState>((set) => ({
   message: undefined,
   async say(cat) {
-    const [settings, profile] = await Promise.all([db.settings.get('settings'), db.profile.get('me')]);
+    // Callers fire and forget (`void say(...)`): a failed read must not become an unhandled rejection.
+    const loaded = await Promise.all([db.settings.get('settings'), db.profile.get('me')]).catch(() => undefined);
+    if (!loaded) return;
+    const [settings, profile] = loaded;
     if (settings?.companionMuted) return;
     const message = pickPhrase(cat, last, { name: profile?.name, companion: profile?.companionName });
     last = message;

@@ -8,6 +8,7 @@ import {
 } from '../../db/hooks';
 import { setEnergy, setHardDay } from '../../domain/actions';
 import { useSyncStatus, type SyncStatus } from '../../sync/status';
+import { useTimerSheet } from '../../timer/TimerSheet';
 import { Button } from '../../ui/Button';
 import { ENERGY_LEVEL_LABEL, formatDuration } from '../../ui/format';
 import { useToast } from '../../ui/Toast';
@@ -119,6 +120,11 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
             </>
           )}
         </p>
+        {/* The Painel has its own big timer card. */}
+        {!compact && (
+          <Button variant="ghost" size="sm" icon="timer" className="status-strip__timer" aria-label="Cronômetro"
+            aria-haspopup="dialog" onClick={() => useTimerSheet.getState().open()} />
+        )}
         <SyncIndicator />
       </div>
       <div className="status-strip__controls">

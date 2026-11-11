@@ -190,6 +190,10 @@ describe('startSync', () => {
       await new Promise((r) => { realSetTimeout(r, 3); });
     }
   };
+  /** Flushes in small steps until `cond` holds (Dexie reads need real time, which varies under load). */
+  const flushUntil = async (cond: () => boolean, tries = 100) => {
+    for (let i = 0; i < tries && !cond(); i++) await flush(10);
+  };
   const fake = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
   it('debounces local changes by 1s and stops everything on cleanup', async () => {
@@ -199,7 +203,7 @@ describe('startSync', () => {
     vi.stubGlobal('EventSource', FakeES);
     fake();
     const stop = startSync();
-    await flush(10);
+    await flushUntil(() => f.mock.calls.length > 0 && FakeES.instances.length > 0);
     const initial = f.mock.calls.length;
     expect(initial).toBe(1);
     expect(FakeES.instances).toHaveLength(1);
@@ -227,11 +231,11 @@ describe('startSync', () => {
     vi.stubGlobal('EventSource', FakeES);
     fake();
     const stop = startSync();
-    await flush(10);
+    await flushUntil(() => f.mock.calls.length >= 1);
     expect(f).toHaveBeenCalledTimes(1);
     // An ordinary trigger failing must not escalate the delay.
     window.dispatchEvent(new Event('online'));
-    await flush(10);
+    await flushUntil(() => f.mock.calls.length >= 2);
     expect(f).toHaveBeenCalledTimes(2);
     await flush(2100);
     expect(f).toHaveBeenCalledTimes(3); // first retry after 2s
@@ -248,7 +252,7 @@ describe('startSync', () => {
     vi.stubGlobal('EventSource', FakeES);
     fake();
     const stop = startSync();
-    await flush(10);
+    await flushUntil(() => FakeES.instances.length > 0);
     const es = FakeES.instances[0]!;
     es.readyState = 2;
     es.emit('error');
@@ -256,7 +260,7 @@ describe('startSync', () => {
     expect(FakeES.instances).toHaveLength(2);
     await setMeta('syncToken', 'tok2');
     window.dispatchEvent(new Event('life-rpg:token'));
-    await flush(10);
+    await flushUntil(() => FakeES.instances.length >= 3);
     expect(FakeES.instances).toHaveLength(3);
     expect(FakeES.instances[2]!.url).toContain('token=tok2');
     expect(FakeES.instances[1]!.closed).toBe(true);

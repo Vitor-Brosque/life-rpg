@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Companion } from '../art/Companion';
 import { Icon, type IconName } from '../art/icons';
+import { useCommitmentReminders } from '../features/reminders/reminders';
 
 interface NavItem { href: string; label: string; icon: IconName; also?: string[] }
 
@@ -36,6 +37,8 @@ function isActive(location: string, item: NavItem): boolean {
 export function Layout({ children, aboveNav, floating }: LayoutProps) {
   const [location] = useLocation();
   const dockRef = useRef<HTMLDivElement>(null);
+  // Commitment reminders (server push) follow commitments, settings and the day.
+  useCommitmentReminders();
 
   useEffect(() => {
     const dock = dockRef.current;

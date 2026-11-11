@@ -1,0 +1,147 @@
+/* Focus timer: the bar above the nav, the sheet (setup + active view), the big clock. */
+
+/* -------------------------------------------------------------------- bar */
+
+.timer-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 60px;
+  padding: 0 calc(var(--safe-right) + var(--space-2)) 0 calc(var(--safe-left) + var(--space-1));
+  color: var(--text);
+  background: var(--stone);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--outline),
+    0 calc(var(--px) * -2) 0 0 var(--gold-dark),
+    inset 0 var(--px) 0 0 #3e4365;
+}
+.timer-bar__main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 0 var(--space-2);
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+.timer-bar__main:focus-visible { outline-offset: -3px; }
+.timer-bar__icon { color: var(--gold); }
+.timer-bar__time {
+  flex-shrink: 0;
+  min-width: 3.1em;
+  color: var(--gold);
+  font-size: 1.625rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.timer-bar__info { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.25; }
+.timer-bar__phase, .timer-bar__mission { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Body font: at this size Pixelify's "c" reads like an "o" ("Fooo"). */
+.timer-bar__phase { color: var(--text-dim); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.01em; }
+.timer-bar__mission { font-size: 0.9375rem; font-weight: 600; }
+.timer-bar .btn--sm { flex-shrink: 0; }
+.timer-bar--paused .timer-bar__time, .timer-bar--paused .timer-bar__icon { color: var(--text-dim); }
+.timer-bar--attention { background: #3d3220; }
+.timer-bar--attention .timer-bar__phase { color: var(--gold); }
+@media (hover: hover) { .timer-bar__main:hover { background: rgba(255, 255, 255, 0.05); } }
+
+@media (min-width: 1200px) {
+  /* Desktop: a framed strip at the bottom-right of the content, under the "+". */
+  .timer-bar {
+    width: min(560px, calc(100% - var(--space-5) * 2));
+    margin: 0 var(--space-5) 0 auto;
+    padding-right: var(--space-2);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--outline), 0 var(--px) 0 0 var(--outline),
+      calc(var(--px) * -1) 0 0 0 var(--outline), var(--px) 0 0 0 var(--outline),
+      0 0 0 calc(var(--px) * 2) var(--gold-dark),
+      0 calc(var(--px) * 4) 0 0 rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* ------------------------------------------------------------------ setup */
+
+.timer-setup { display: flex; flex-direction: column; gap: var(--space-4); }
+.timer-setup__group { display: flex; flex-direction: column; gap: var(--space-2); }
+.timer-setup__hint { margin: 0; color: var(--text-dim); font-size: 0.9375rem; }
+.timer-setup__chips { gap: 10px; padding: 2px; }
+.timer-setup__start.btn { width: 100%; }
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--px);
+  padding: var(--px);
+  background: var(--outline);
+}
+.segmented__btn {
+  min-height: 48px;
+  padding: 0 var(--space-2);
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--bg-2);
+  border: 0;
+  box-shadow: inset 0 var(--px) 0 0 rgba(255, 255, 255, 0.06);
+}
+.segmented__btn[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--gold);
+  box-shadow: inset 0 var(--px) 0 0 #fbe39c, inset 0 calc(var(--px) * -1) 0 0 var(--gold-dark);
+}
+.segmented__btn:focus-visible { outline-offset: -4px; }
+@media (hover: hover) { .segmented__btn[aria-pressed='false']:hover { background: var(--stone-light); } }
+
+/* ----------------------------------------------------------------- active */
+
+.timer-active { display: flex; flex-direction: column; gap: var(--space-3); }
+.timer-active__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--gold);
+  /* Body font: it carries numbers ("Foco 2", "5 min") and Pixelify's 5 reads like an S. */
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.timer-clock {
+  margin: 0;
+  color: var(--gold);
+  /* Body font: Pixelify's 5 reads like an S, and a clock must read at a glance. */
+  font-size: clamp(3.5rem, 17vw, 4.75rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+.timer-clock--still { color: var(--text-dim); }
+.timer-active__msg { margin: 0; color: var(--gold); font-weight: 700; text-align: center; }
+.timer-active__msg:empty { display: none; }
+.timer-active__mission { margin: 0; font-size: 1.0625rem; font-weight: 600; text-align: center; overflow-wrap: anywhere; }
+.timer-active__buttons { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 3px; }
+.timer-active__buttons > .btn { flex: 1 1 0; min-width: max-content; }
+.timer-active__confirm { display: flex; flex-direction: column; gap: var(--space-3); }
+.timer-active__label { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.timer-active__reasons { display: flex; flex-wrap: wrap; gap: 10px; padding: 3px; }
+.timer-active__notes textarea { min-height: 64px; }
+.timer-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.timer-active--lg .timer-clock { font-size: clamp(4.5rem, 6.4vw, 6.5rem); }
+.timer-active--lg .timer-active__head { font-size: 1.25rem; }

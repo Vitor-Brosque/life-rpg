@@ -44,8 +44,9 @@ describe('AgoraScreen', () => {
     expect(await screen.findByText(/Nada pendente/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Desfazer' }));
-    const back = await mainCard();
-    expect(await within(back).findByText('Ler um capítulo')).toBeInTheDocument();
+    // Query the region afresh: the empty card is a different element than the mission card.
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Missão agora' }))
+      .getByText('Ler um capítulo')).toBeInTheDocument());
     expect(await xpBy('complete')).toBe(0);
   });
 
