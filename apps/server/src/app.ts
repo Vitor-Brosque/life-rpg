@@ -5,15 +5,28 @@ import { z } from 'zod';
 import { SYNC_TABLES, type SyncChange } from '@life/shared';
 import type { ServerConfig } from './config';
 import { Hub } from './hub';
+import { PushService } from './push';
 import { RecordStore } from './store';
 
 export interface BuildDeps {
   store?: RecordStore;
   hub?: Hub;
-  /** PushService is added in Task 7. */
-  push?: unknown;
+  push?: PushService;
   now?: () => number;
 }
+
+const subscribeBody = z.object({
+  endpoint: z.string().min(1).max(2048),
+  expirationTime: z.number().nullable().optional(),
+  keys: z.object({ p256dh: z.string().min(1).max(512), auth: z.string().min(1).max(512) }),
+});
+
+const scheduleBody = z.object({
+  tag: z.string().min(1).max(100),
+  at: z.number().int(),
+  title: z.string().max(120),
+  body: z.string().max(300),
+});
 
 const syncBody = z.object({
   deviceId: z.string().max(64),
@@ -38,6 +51,7 @@ const syncBody = z.object({
 export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise<FastifyInstance> {
   const store = deps.store ?? new RecordStore(cfg.dbPath);
   const hub = deps.hub ?? new Hub();
+  const push = deps.push ?? new PushService(store, cfg.dataDir);
   const app = Fastify({ bodyLimit: 5 * 1024 * 1024 });
 
   app.addHook('onClose', async () => {
@@ -65,6 +79,27 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
     const { accepted, rev } = store.apply(changes as SyncChange[]);
     if (accepted > 0) hub.publish(rev);
     return store.since(cursor);
+  });
+
+  app.get('/api/push/key', async () => ({ key: push.publicKey() }));
+
+  app.post('/api/push/subscribe', async (request, reply) => {
+    const parsed = subscribeBody.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_body' });
+    push.subscribe(parsed.data);
+    return reply.code(204).send();
+  });
+
+  app.post('/api/push/schedule', async (request, reply) => {
+    const parsed = scheduleBody.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_body' });
+    push.schedule(parsed.data);
+    return reply.code(204).send();
+  });
+
+  app.delete('/api/push/schedule/:tag', async (request, reply) => {
+    push.cancel((request.params as { tag: string }).tag);
+    return reply.code(204).send();
   });
 
   app.get('/api/stream', (request, reply) => {
