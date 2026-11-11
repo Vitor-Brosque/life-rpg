@@ -15,11 +15,11 @@ import { formatDuration } from '../../ui/format';
 export const isEssential = (m: Mission): boolean =>
   m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15;
 
-const coarsePointer = (): boolean =>
+export const coarsePointer = (): boolean =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function'
   && window.matchMedia('(pointer: coarse)').matches;
 
-function GripIcon() {
+export function GripIcon() {
   return (
     <svg width="12" height="20" viewBox="0 0 6 10" shapeRendering="crispEdges" aria-hidden="true" className="icon">
       {[1, 4, 7].flatMap((y) => [0, 3].map((x) => <rect key={`${x}-${y}`} x={x + 1} y={y} width="2" height="2" fill="currentColor" />))}

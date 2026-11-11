@@ -1,8 +1,11 @@
 import { Route, Switch } from 'wouter';
 import { AgoraScreen } from '../features/agora/AgoraScreen';
 import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
+import { JourneyDetail } from '../features/journeys/JourneyDetail';
+import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { PainelScreen } from '../features/painel/PainelScreen';
+import { PlanScreen } from '../features/plan/PlanScreen';
 import { TimerBar } from '../timer/TimerBar';
 import { TimerHost } from '../timer/TimerSheet';
 import { Panel } from '../ui/Panel';
@@ -27,9 +30,9 @@ export function App() {
       <Layout floating={<CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
-          <Route path="/planejar"><Placeholder title="Planejar" /></Route>
-          <Route path="/jornadas"><Placeholder title="Jornadas" /></Route>
-          <Route path="/jornadas/:id"><Placeholder title="Jornada" /></Route>
+          <Route path="/planejar"><PlanScreen /></Route>
+          <Route path="/jornadas"><JourneysScreen /></Route>
+          <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
           <Route path="/personagem"><Placeholder title="Personagem" /></Route>
           <Route path="/ajustes"><Placeholder title="Ajustes" /></Route>
           <Route path="/painel"><PainelScreen /></Route>
