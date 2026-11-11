@@ -65,6 +65,7 @@ function energyReason(current: EnergyLevel | undefined, m: Mission): Reason | un
   }
   if (need === have) return { code: 'energy', text: 'combina com sua energia', points: 10 };
   if (need < have) return { code: 'energy', text: 'leve para sua energia', points: 3 };
+  if (m.energy !== 'heavy') return undefined; // low energy × medium mission: no rule in §7
   if (current === 'medium') return { code: 'energy', text: 'pesada para agora', points: -5 };
   return { code: 'energy', text: 'pesada para agora', points: -20 };
 }

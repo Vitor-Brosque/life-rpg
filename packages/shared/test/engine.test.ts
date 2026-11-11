@@ -274,3 +274,12 @@ describe('todayList / needsReview', () => {
     expect(out[0]!.id).toBe('older');
   });
 });
+
+describe('energy edge cases', () => {
+  it('low energy × medium mission gets no energy reason', () => {
+    const medium = mk({ id: 'medium', energy: 'medium' });
+    const out = suggest(input({ missions: [medium], energy: 'low' }));
+    expect(out.primary!.reasons).toEqual([]);
+    expect(out.primary!.score).toBe(0);
+  });
+});
