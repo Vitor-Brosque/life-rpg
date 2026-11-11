@@ -41,3 +41,14 @@ export const DURATION_OPTIONS = [5, 15, 30, 60, 90];
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/** Elapsed time in PT-BR: "agora", "há 5 min", "há 3 h", "ontem", "há 4 dias". */
+export function relativeTime(at: number, now: number): string {
+  const min = Math.floor((now - at) / 60_000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `há ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'ontem' : `há ${days} dias`;
+}

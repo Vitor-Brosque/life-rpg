@@ -7,7 +7,8 @@ import type { Sprite } from './sprites';
 export type IconName =
   | 'agora' | 'plan' | 'journey' | 'character' | 'plus' | 'timer' | 'check' | 'skip' | 'shrink'
   | 'snooze' | 'play' | 'pause' | 'stop' | 'gear' | 'sync' | 'energy' | 'heart' | 'book' | 'hammer'
-  | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close';
+  | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
+  | 'bell' | 'chest';
 
 const ROWS: Record<IconName, string[]> = {
   // Sword: "what to do now".
@@ -427,6 +428,36 @@ const ROWS: Record<IconName, string[]> = {
     '.o....ooo.o.',
     '..o......o..',
     '...oooooo...',
+  ],
+  // Bell (notifications).
+  bell: [
+    '.....oo.....',
+    '....oooo....',
+    '...oo..oo...',
+    '..oo....oo..',
+    '..o......o..',
+    '..o......o..',
+    '..o......o..',
+    '.oo......oo.',
+    'oo........oo',
+    'oooooooooooo',
+    '.....oo.....',
+    '............',
+  ],
+  // Treasure chest (data export / import).
+  chest: [
+    '............',
+    '..oooooooo..',
+    '.o........o.',
+    'o..........o',
+    'oooooooooooo',
+    'o....oo....o',
+    'o...oooo...o',
+    'o....oo....o',
+    'o..........o',
+    'o..........o',
+    'oooooooooooo',
+    '............',
   ],
 };
 

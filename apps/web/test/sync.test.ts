@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mission, SyncRequest } from '@life/shared';
 import { db } from '../src/db/db';
-import { getMeta, newRecord, patch, put, setMeta } from '../src/db/repo';
+import { getMeta, importRecords, newRecord, patch, put, setMeta } from '../src/db/repo';
 import { setSyncToken, startSync, syncNow } from '../src/sync/client';
 import { useSyncStatus } from '../src/sync/status';
 
@@ -71,6 +71,22 @@ describe('sync client', () => {
     expect(f).toHaveBeenCalledTimes(2);
     expect(await db.missions.count()).toBe(5003);
     expect(await getMeta('cursor')).toBe(2);
+  }, 60000);
+
+  it('pushes a large outbox in batches the server accepts (≤ 2000 changes per request)', async () => {
+    await setMeta('syncToken', 'tok');
+    await importRecords(Array.from({ length: 1500 }, (_, i) => ({
+      table: 'missions' as const, record: { ...mk(), id: `m-${String(i).padStart(4, '0')}` },
+    })));
+    const sizes: number[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: { body: string }) => {
+      sizes.push((JSON.parse(init.body) as SyncRequest).changes.length);
+      return json({ cursor: 1, changes: [] });
+    }));
+    await syncNow();
+    expect(sizes).toEqual([1000, 500]);
+    expect(await db.outbox.count()).toBe(0);
+    expect(useSyncStatus.getState()).toMatchObject({ state: 'idle', pending: 0 });
   }, 60000);
 
   it('401 sets error status; network failure sets offline', async () => {

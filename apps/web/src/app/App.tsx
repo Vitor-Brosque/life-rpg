@@ -1,30 +1,53 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Route, Switch } from 'wouter';
+import { db } from '../db/db';
 import { AgoraScreen } from '../features/agora/AgoraScreen';
 import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
+import { CharacterScreen } from '../features/character/CharacterScreen';
 import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
+import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
 import { PlanScreen } from '../features/plan/PlanScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TimerBar } from '../timer/TimerBar';
 import { TimerHost } from '../timer/TimerSheet';
 import { Panel } from '../ui/Panel';
 import { ToastHost } from '../ui/Toast';
 import { Layout } from './Layout';
 
-/** Temporary screen until the feature tasks replace it. */
-function Placeholder({ title }: { title: string }) {
+function NotFound() {
   return (
     <section className="screen stack">
-      <h1>{title}</h1>
+      <h1>Página não encontrada</h1>
       <Panel variant="stone">
-        <p className="muted">Em construção.</p>
+        <p className="muted">Este caminho não existe. Use o menu para voltar.</p>
       </Panel>
     </section>
   );
 }
 
+/** undefined while loading; true without a profile (the seed failed), so the app still runs. */
+function useOnboarded(): boolean | undefined {
+  return useLiveQuery(async () => {
+    const p = await db.profile.get('me');
+    return !p || p.deleted ? true : p.onboarded;
+  });
+}
+
 export function App() {
+  const onboarded = useOnboarded();
+  // Render nothing until the profile is read, so the first access never flashes for an onboarded user.
+  if (onboarded === undefined) return null;
+  if (!onboarded) {
+    return (
+      <>
+        <Onboarding />
+        <ToastHost />
+      </>
+    );
+  }
   return (
     <>
       <Layout floating={<CaptureFab />} aboveNav={<TimerBar />}>
@@ -33,10 +56,10 @@ export function App() {
           <Route path="/planejar"><PlanScreen /></Route>
           <Route path="/jornadas"><JourneysScreen /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
-          <Route path="/personagem"><Placeholder title="Personagem" /></Route>
-          <Route path="/ajustes"><Placeholder title="Ajustes" /></Route>
+          <Route path="/personagem"><CharacterScreen /></Route>
+          <Route path="/ajustes"><SettingsScreen /></Route>
           <Route path="/painel"><PainelScreen /></Route>
-          <Route><Placeholder title="Página não encontrada" /></Route>
+          <Route><NotFound /></Route>
         </Switch>
       </Layout>
       <CaptureHost />

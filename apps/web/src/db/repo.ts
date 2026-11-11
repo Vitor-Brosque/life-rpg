@@ -92,6 +92,30 @@ export async function applyRemote(change: SyncChange): Promise<boolean> {
   });
 }
 
+/**
+ * Import (Ajustes → "Importar JSON"): writes each record as is, keeping its own updatedAt, when it
+ * is newer than the local copy (same rule as remote changes), and queues it for sync. One
+ * transaction for the whole file. Resolves with the number of records written.
+ */
+export async function importRecords(changes: SyncChange[]): Promise<number> {
+  const tables = [...new Set(changes.map((c) => c.table))].map(tableOf);
+  if (tables.length === 0) return 0;
+  const written = await db.transaction('rw', [...tables, db.outbox], async () => {
+    let n = 0;
+    for (const { table, record } of changes) {
+      const t = tableOf(table);
+      const local = (await t.get(record.id)) as BaseRecord | undefined;
+      if (!shouldAccept(record, local)) continue;
+      await t.put(record);
+      await db.outbox.put({ key: `${table}:${record.id}`, table, id: record.id, updatedAt: record.updatedAt });
+      n += 1;
+    }
+    return n;
+  });
+  if (written > 0) notify();
+  return written;
+}
+
 export async function getMeta<T>(key: string): Promise<T | undefined> {
   return (await db.meta.get(key))?.value as T | undefined;
 }

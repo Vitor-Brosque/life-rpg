@@ -88,6 +88,7 @@
     inset 0 var(--px) 0 0 var(--btn-lo);
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+a.btn { text-decoration: none; }
 
 .btn--primary { --btn-bg: var(--gold); --btn-fg: var(--ink); --btn-hi: #fbe39c; --btn-lo: var(--gold-dark); }
 .btn--secondary { /* defaults */ }
@@ -411,3 +412,20 @@
   background-position: center;
   background-repeat: no-repeat;
 }
+
+/* ------------------------------------------------------- Week dots (constância) */
+
+.week-dots { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.week-dots__day { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.week-dots__dot {
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 2px 0 0 rgba(0, 0, 0, 0.35);
+}
+.week-dots__day.is-on .week-dots__dot {
+  background: var(--gold);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 3px 0 0 #fbe39c, inset 0 -3px 0 0 var(--gold-dark);
+}
+.week-dots__label { color: var(--text-dim); font-size: 0.75rem; font-weight: 600; }
+.week-dots__day.is-today .week-dots__label { color: var(--gold); }

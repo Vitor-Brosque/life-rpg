@@ -71,6 +71,8 @@ export function useCompanionMoments(dayStartHour: number | undefined, primaryId:
   useEffect(() => {
     if (greeted || dayStartHour === undefined) return;
     greeted = true;
+    // The first-access introduction (Onboarding) is already showing: it is this session's greeting.
+    if (useCompanion.getState().message) return;
     void useCompanion.getState().say(greetingFor(new Date().getHours(), dayStartHour));
   }, [dayStartHour]);
 

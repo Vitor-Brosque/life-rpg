@@ -33,7 +33,8 @@ describe('WeekView', () => {
     render(<WeekView />);
     expect(await screen.findByText('Dentista')).toBeInTheDocument();
     expect(screen.getByText('15:00–16:00')).toBeInTheDocument();
-    expect(screen.getByText('Ler capítulo')).toBeInTheDocument();
+    // Missions come from their own live query, which can resolve after the commitments one.
+    expect(await screen.findByText('Ler capítulo')).toBeInTheDocument();
     expect(screen.queryByText('Outro dia')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /qui 12\/11/ }));
     expect(await screen.findByText('Outro dia')).toBeInTheDocument();

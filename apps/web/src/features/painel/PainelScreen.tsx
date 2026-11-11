@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Mission } from '@life/shared';
-import { addDays, dayKeyToDate, weekdayOf } from '@life/shared';
+import { dayKeyToDate } from '@life/shared';
 import { Companion, SpeechBubble } from '../../art/Companion';
 import { useCharacterStats, useProfile, useToday } from '../../db/hooks';
 import { reorderDay } from '../../domain/actions';
@@ -10,6 +10,7 @@ import { useTimer } from '../../timer/store';
 import { Button } from '../../ui/Button';
 import { WEEKDAY_ABBR } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
+import { WeekDots } from '../../ui/WeekDots';
 import { Alternatives } from '../agora/Alternatives';
 import { MainCard, MainCardEmpty } from '../agora/MainCard';
 import { ReviewSheet } from '../agora/ReviewSheet';
@@ -104,7 +105,7 @@ function PainelCompanion() {
   );
 }
 
-function WeekDots() {
+function ConstancyCard() {
   const stats = useCharacterStats();
   const today = useToday();
   if (!stats || !today) return null;
@@ -112,19 +113,7 @@ function WeekDots() {
   return (
     <Panel variant="stone" className="painel__week">
       <h2 className="painel__subheading">Constância</h2>
-      <ol className="week-dots" aria-label={`${count} de 7 dias com atividade`}>
-        {stats.week.map((on, i) => {
-          const day = addDays(today, i - 6);
-          const isToday = i === stats.week.length - 1;
-          return (
-            <li key={day} className={['week-dots__day', on && 'is-on', isToday && 'is-today'].filter(Boolean).join(' ')}>
-              <span className="week-dots__dot" aria-hidden="true" />
-              <span className="week-dots__label">{isToday ? 'hoje' : WEEKDAY_ABBR[weekdayOf(day)]}</span>
-              <span className="visually-hidden">{on ? 'com atividade' : 'sem atividade'}</span>
-            </li>
-          );
-        })}
-      </ol>
+      <WeekDots week={stats.week} today={today} />
       <p className="painel__week-text">{count} de 7 dias — um dia parado não apaga nada.</p>
     </Panel>
   );
@@ -218,7 +207,7 @@ export function PainelScreen() {
           {/* Esc leaves the field so the N / Space / C shortcuts work again. */}
           <CaptureForm onEscape={() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); }} />
         </Panel>
-        <WeekDots />
+        <ConstancyCard />
       </section>
 
       {today && (

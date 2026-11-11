@@ -5,6 +5,8 @@ import { applyRemote, getMeta, onLocalChange, setMeta } from '../db/repo';
 import { useSyncStatus } from './status';
 
 const PAGE_LIMIT = 5000;
+/** Outbox entries pushed per request (the server accepts at most 2000 changes per request). */
+const PUSH_LIMIT = 1000;
 const MAX_PAGES = 20;
 const BACKOFF_START = 2000;
 const BACKOFF_MAX = 5 * 60_000;
@@ -48,11 +50,12 @@ async function post(token: string, body: SyncRequest): Promise<SyncResponse> {
   return (await res.json()) as SyncResponse;
 }
 
-async function performSync(token: string): Promise<void> {
+/** One push + pull round. Resolves true when the outbox had more entries than one request carries. */
+async function performSync(token: string): Promise<boolean> {
   const deviceId = await getDeviceId();
   let cursor = (await getMeta<number>('cursor')) ?? 0;
 
-  const snapshot = await db.outbox.toArray();
+  const snapshot = await db.outbox.limit(PUSH_LIMIT).toArray();
   const changes: SyncChange[] = [];
   const stale: string[] = [];
   for (const entry of snapshot) {
@@ -80,6 +83,7 @@ async function performSync(token: string): Promise<void> {
     outgoing = [];
     if (res.changes.length < PAGE_LIMIT) break;
   }
+  return snapshot.length === PUSH_LIMIT;
 }
 
 let running: Promise<boolean> | undefined;
@@ -98,7 +102,8 @@ async function syncOnce(): Promise<boolean> {
       return true;
     }
     setStatus({ state: 'syncing' });
-    await performSync(token);
+    // A big outbox (e.g. after "Importar JSON") goes out over several rounds of the runSync loop.
+    if (await performSync(token)) rerun = true;
     setStatus({ state: 'idle', lastSync: Date.now(), error: undefined });
     return true;
   } catch (e) {

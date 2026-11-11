@@ -1,0 +1,153 @@
+/* Personagem: character card, attributes, constancy, recent XP, and the look editor. */
+
+.character { gap: var(--space-5); }
+.character__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.character__top h1 { margin: 0; }
+.character__top .btn { margin-right: calc(var(--space-2) * -1); color: var(--text-dim); }
+
+/* ----------------------------------------------------------------- card */
+
+.character__card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--space-4);
+  row-gap: var(--space-4);
+}
+.character__pedestal {
+  position: relative;
+  padding: 10px 10px 6px;
+  background:
+    radial-gradient(circle at 50% 60%, rgba(242, 193, 78, 0.35), rgba(242, 193, 78, 0) 70%),
+    var(--parchment-dark);
+  box-shadow:
+    0 -3px 0 0 var(--frame-wood), 0 3px 0 0 var(--frame-wood),
+    -3px 0 0 0 var(--frame-wood), 3px 0 0 0 var(--frame-wood),
+    inset 0 -8px 0 0 #c4aa7c;
+}
+.character__pedestal .avatar, .character__avatar-slot { display: block; width: 96px; height: 96px; }
+.character__identity { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.character__name { margin: 0; font-size: 1.5rem; overflow-wrap: anywhere; }
+.character__rank { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; }
+.character__title { color: var(--ember-ink); font-family: var(--font-pixel); font-size: 1.125rem; font-weight: 700; }
+.character__level {
+  padding: 1px 8px;
+  color: var(--ink);
+  background: var(--gold);
+  box-shadow: 0 -2px 0 0 var(--frame-wood), 0 2px 0 0 var(--frame-wood), -2px 0 0 0 var(--frame-wood), 2px 0 0 0 var(--frame-wood);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.character__edit.btn { margin-top: var(--space-1); }
+
+/* ----------------------------------------------------------- attributes */
+
+.attributes { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.attribute {
+  --px-hi: #3e4365;
+  --px-lo: #1c1f31;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  grid-template-areas: 'icon text level' 'icon bar bar';
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: 6px;
+  padding: var(--space-3);
+  background: var(--stone);
+}
+.attribute__icon {
+  grid-area: icon;
+  align-self: start;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--area-color, var(--gold));
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 2px var(--outline);
+}
+.attribute__text { grid-area: text; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); min-width: 0; }
+.attribute__name { font-family: var(--font-pixel); font-size: 1.0625rem; font-weight: 700; }
+.attribute__area { color: var(--text-dim); font-size: 0.875rem; }
+/* Numbers in the body font: Pixelify's digits (2, 5) are hard to tell apart at this size. */
+.attribute__level { grid-area: level; color: var(--gold); font-weight: 800; font-variant-numeric: tabular-nums; }
+.attribute__bar { grid-area: bar; min-width: 0; }
+.attribute .progress { flex-direction: row-reverse; align-items: center; gap: var(--space-3); }
+.attribute .progress__track { flex: 1; }
+.attribute .progress__label { flex-shrink: 0; min-width: 4.5em; text-align: right; font-size: 0.8125rem; }
+
+/* ------------------------------------------------------------ constancy */
+
+.constancy .section-title { margin-bottom: var(--space-4); }
+.constancy .week-dots { max-width: 360px; }
+.constancy__month { margin: var(--space-4) 0 0; font-weight: 600; }
+.constancy__note { margin: 2px 0 0; color: var(--text-dim); font-size: 0.875rem; }
+
+/* --------------------------------------------------------------- recent */
+
+.recent { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; background: var(--stone); box-shadow: 0 0 0 2px var(--outline); }
+.recent__item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'label xp' 'when xp';
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: 10px var(--space-4);
+}
+.recent__item + .recent__item { border-top: 2px solid rgba(0, 0, 0, 0.3); }
+.recent__label { grid-area: label; }
+.recent__when { grid-area: when; color: var(--text-dim); font-size: 0.8125rem; }
+.recent__xp { grid-area: xp; color: var(--gold); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------- look editor */
+
+.look-editor { display: flex; flex-direction: column; gap: var(--space-5); }
+.look-editor__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.look-fields { display: flex; flex-direction: column; gap: var(--space-4); }
+.look-fields__head { display: flex; align-items: center; gap: var(--space-4); }
+.look-fields__preview {
+  flex-shrink: 0;
+  padding: 8px 8px 4px;
+  background: radial-gradient(circle at 50% 60%, rgba(242, 193, 78, 0.25), rgba(242, 193, 78, 0) 70%), rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 2px var(--outline);
+}
+.look-fields__preview .avatar { display: block; }
+.look-fields__names { display: flex; flex: 1; flex-direction: column; gap: var(--space-3); min-width: 0; }
+
+.look-picker__options { display: flex; flex-wrap: wrap; gap: 6px 0; }
+/* 44 px tap target (padding included) around a 38 px swatch, so 7 colours fit one phone row. */
+.swatch { position: relative; display: inline-flex; padding: 3px; cursor: pointer; }
+.swatch__color {
+  width: 38px;
+  height: 38px;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--outline);
+}
+.swatch input:checked + .swatch__color { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 0 3px var(--gold), 0 0 0 5px var(--outline); }
+.swatch input:focus-visible + .swatch__color { outline: 3px solid var(--gold); outline-offset: 5px; }
+
+.look-picker__options--styles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; max-width: 400px; padding: 3px; }
+.look-style { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+.look-style__card {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 72px;
+  aspect-ratio: 1;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 2px var(--outline);
+}
+.look-style__card .avatar { display: block; }
+.look-style__name { color: var(--text-dim); font-size: 0.8125rem; line-height: 1.2; text-align: center; }
+.look-style input:checked + .look-style__card { background: rgba(242, 193, 78, 0.18); box-shadow: inset 0 0 0 3px var(--gold); }
+.look-style input:checked ~ .look-style__name { color: var(--gold); font-weight: 600; }
+.look-style input:focus-visible + .look-style__card { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+/* The look fields on parchment (first access). */
+.panel--parchment .look-fields__preview,
+.panel--parchment .look-style__card { background: rgba(90, 70, 50, 0.12); box-shadow: inset 0 0 0 2px var(--ink-soft); }
+.panel--parchment .look-style__name { color: var(--ink-soft); }
+.panel--parchment .look-style input:checked + .look-style__card { background: rgba(242, 193, 78, 0.4); box-shadow: inset 0 0 0 3px var(--gold-dark); }
+.panel--parchment .look-style input:checked ~ .look-style__name { color: var(--ink); }
+.panel--parchment .swatch input:checked + .swatch__color { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 0 3px var(--gold-dark), 0 0 0 5px var(--frame-wood); }
+.panel--parchment .swatch input:focus-visible + .swatch__color,
+.panel--parchment .look-style input:focus-visible + .look-style__card { outline-color: var(--ember-ink); }

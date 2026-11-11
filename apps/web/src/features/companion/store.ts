@@ -8,6 +8,8 @@ interface CompanionState {
   message?: string;
   /** Shows one phrase of the category (unless muted). Resolves once the message is set. */
   say(cat: PhraseCategory): Promise<void>;
+  /** Shows a specific message (unless muted), e.g. the introduction after the first access. */
+  announce(message: string, ms?: number): Promise<void>;
   clear(): void;
 }
 
@@ -27,6 +29,14 @@ export const useCompanion = create<CompanionState>((set) => ({
     clearTimeout(timer);
     set({ message });
     timer = setTimeout(() => set({ message: undefined }), COMPANION_MESSAGE_MS);
+  },
+  async announce(message, ms = COMPANION_MESSAGE_MS) {
+    const settings = await db.settings.get('settings').catch(() => undefined);
+    if (settings?.companionMuted) return;
+    last = message;
+    clearTimeout(timer);
+    set({ message });
+    timer = setTimeout(() => set({ message: undefined }), ms);
   },
   clear() {
     clearTimeout(timer);
