@@ -5,3 +5,4 @@ export * from './blockActions';
 export * from './checkinActions';
 export * from './weekActions';
 export * from './routineDefaults';
+export * from './studyActions';
