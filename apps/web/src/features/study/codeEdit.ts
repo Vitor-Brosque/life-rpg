@@ -3,7 +3,7 @@
 export const INDENT = '    ';
 export interface EditResult { value: string; start: number; end: number }
 
-const lineStartOf = (v: string, pos: number): number => v.lastIndexOf('\n', pos - 1) + 1;
+const lineStartOf = (v: string, pos: number): number => (pos === 0 ? 0 : v.lastIndexOf('\n', pos - 1) + 1);
 
 /** Tab: 4 spaces at a collapsed cursor, else indent every touched line. Shift+Tab: outdent them. */
 export function indentLines(value: string, start: number, end: number, outdent: boolean): EditResult {

@@ -15,6 +15,10 @@ describe('codeEdit', () => {
     expect(indentLines('      a\n  b\n\tc', 0, 14, true)).toEqual({ value: '  a\nb\nc', start: 0, end: 7 });
     expect(indentLines('    a', 5, 5, true)).toEqual({ value: 'a', start: 1, end: 1 });
   });
+  it('treats position 0 as the start of the first line even when it is empty', () => {
+    expect(indentLines('\nfoo', 0, 0, true)).toEqual({ value: '\nfoo', start: 0, end: 0 });
+    expect(indentLines('\nfoo', 0, 4, false)).toEqual({ value: '    \n    foo', start: 4, end: 12 });
+  });
   it('Enter keeps the indentation of the line', () => {
     expect(newlineIndent('    x = 1', 9, 9)).toEqual({ value: '    x = 1\n    ', start: 14, end: 14 });
   });
