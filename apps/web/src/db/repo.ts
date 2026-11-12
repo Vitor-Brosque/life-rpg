@@ -77,6 +77,21 @@ export async function patch<T extends BaseRecord>(
   return saved;
 }
 
+/** Patches several records of `table` in one transaction, so live queries see one change. */
+export async function patchMany<T extends BaseRecord>(
+  table: SyncTable, entries: Array<{ id: string; changes: Partial<T> }>,
+): Promise<void> {
+  if (entries.length === 0) return;
+  await db.transaction('rw', tableOf(table), db.outbox, async () => {
+    for (const { id, changes } of entries) {
+      const prev = (await tableOf(table).get(id)) as T | undefined;
+      if (!prev) throw new Error(`${table}:${id} not found`);
+      await writeInTx(table, { ...prev, ...changes, id } as T);
+    }
+  });
+  notify();
+}
+
 /**
  * Patches the live record `id`, or creates it from `defaults` + `changes` when it is missing or
  * soft-deleted (a deleted one is revived as a fresh record). One transaction.
@@ -97,9 +112,21 @@ export async function softDelete(table: SyncTable, id: string): Promise<void> {
   await patch(table, id, { deleted: true } as Partial<BaseRecord>);
 }
 
-/** Apply a record from the server (no outbox, no change notification). */
+const warnedTables = new Set<string>();
+
+/**
+ * Apply a record from the server (no outbox, no change notification). A table this version does
+ * not have (synced by a newer client) is skipped with one warning per table.
+ */
 export async function applyRemote(change: SyncChange): Promise<boolean> {
   const { table, record } = change;
+  if (!db.tables.some((x) => x.name === table)) {
+    if (!warnedTables.has(table)) {
+      warnedTables.add(table);
+      console.warn(`sync: skipping changes for unknown table "${table}"`);
+    }
+    return false;
+  }
   const t = tableOf(table);
   return db.transaction('rw', t, db.outbox, async () => {
     const pending = await db.outbox.get(`${table}:${record.id}`);

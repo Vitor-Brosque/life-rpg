@@ -8,7 +8,7 @@ import { createCommitment, createMission } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
 import { PainelScreen } from '../src/features/painel/PainelScreen';
-import { freeWindows, timelineRange } from '../src/features/painel/Timeline';
+import { dayBounds, freeWindows, timelineRange } from '../src/features/painel/Timeline';
 import { TIMER_IDLE, useTimer } from '../src/timer/store';
 import { ToastHost } from '../src/ui/Toast';
 
@@ -121,6 +121,12 @@ describe('PainelScreen', () => {
 describe('timeline helpers', () => {
   const occ = (title: string, start: number, end: number): CommitmentOccurrence => ({
     commitment: { id: title, title } as Commitment, date: '2026-11-11', startTs: start, endTs: end,
+  });
+
+  it('dayBounds: an end hour at or before the start hour ends on the next calendar day', () => {
+    expect(dayBounds('2026-11-11', 0, 0)).toEqual({ start: at(0), end: at(24) });
+    expect(dayBounds('2026-11-11', 4, 0)).toEqual({ start: at(4), end: at(24) });
+    expect(dayBounds('2026-11-11', 4, 23)).toEqual({ start: at(4), end: at(23) });
   });
 
   it('starts one hour before now (never before the day start) and ends at the day end', () => {

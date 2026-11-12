@@ -46,6 +46,23 @@ describe('sync client', () => {
     expect(st.lastSync).toBeDefined();
   });
 
+  it('skips changes for tables this version does not know (warning once per table) and applies the rest', async () => {
+    await setMeta('syncToken', 'tok');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const remote = { ...mk('remote'), id: 'remote1', updatedAt: 5000, createdAt: 5000 };
+    const future = (id: string) => ({ table: 'futureTable', record: { id, createdAt: 1, updatedAt: 1, deleted: false } });
+    vi.stubGlobal('fetch', vi.fn(async () => json({
+      cursor: 9, changes: [future('f1'), { table: 'missions', record: remote }, future('f2')],
+    })));
+    expect(await syncNow()).toBe(true);
+    expect(useSyncStatus.getState().state).toBe('idle');
+    expect((await db.missions.get('remote1'))!.title).toBe('remote');
+    expect(await getMeta('cursor')).toBe(9);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]![0])).toContain('futureTable');
+    warn.mockRestore();
+  });
+
   it('keeps a record edited during the request pending', async () => {
     await setMeta('syncToken', 'tok');
     const local = await put('missions', mk('a'));

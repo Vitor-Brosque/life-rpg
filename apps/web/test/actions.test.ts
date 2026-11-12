@@ -33,6 +33,37 @@ describe('captureLines', () => {
     expect(c.date).toBe('2026-11-12');
   });
 
+  it('a #tag matches an existing multi-word journey by its compacted title', async () => {
+    const base = { createdAt: 1, deleted: false, status: 'active' as const, order: 0 };
+    await db.journeys.bulkPut([
+      { ...base, id: 'j-tech', title: 'Tech News', updatedAt: 5 },
+      { ...base, id: 'j-old', title: 'Tech antigo', updatedAt: 2 },
+      { ...base, id: 'j-arch', title: 'Mudança', status: 'archived', updatedAt: 9 },
+      { ...base, id: 'j-del', title: 'Tech', deleted: true, updatedAt: 9 },
+    ]);
+    const out = (await captureLines('ler artigo #tech\nresumo #technews\nfonte #Tech-News\nlink #tech_news')) as Mission[];
+    expect(out.map((m) => m.journeyId)).toEqual(['j-tech', 'j-tech', 'j-tech', 'j-tech']);
+    // No match among live, non-archived journeys → a new one.
+    const [m] = (await captureLines('pintar quarto #mudança')) as Mission[];
+    expect(m!.journeyId).not.toBe('j-arch');
+    expect((await db.journeys.get(m!.journeyId!))).toMatchObject({ title: 'mudança', status: 'active' });
+    expect(await db.journeys.count()).toBe(5);
+  });
+
+  it('an exact compacted title wins over a prefix; among prefixes the most recently updated wins', async () => {
+    const base = { createdAt: 1, deleted: false, status: 'active' as const, order: 0 };
+    await db.journeys.bulkPut([
+      { ...base, id: 'j-a', title: 'Tech News', updatedAt: 5 },
+      { ...base, id: 'j-b', title: 'Tech pipeline', updatedAt: 8 },
+      { ...base, id: 'j-c', title: 'Tech', updatedAt: 1 },
+    ]);
+    const [exact] = (await captureLines('x #tech')) as Mission[];
+    expect(exact!.journeyId).toBe('j-c');
+    await db.journeys.update('j-c', { status: 'archived' });
+    const [prefix] = (await captureLines('y #tech')) as Mission[];
+    expect(prefix!.journeyId).toBe('j-b');
+  });
+
   it('creates a journey once for two lines', async () => {
     const out = await captureLines('pintar quarto #mudança\nembalar livros #Mudanca');
     const [a, b] = out as Mission[];
@@ -84,6 +115,30 @@ describe('completion', () => {
     await setHardDay(true);
     const m = await createMission({ title: 'a' });
     expect((await completeMission(m.id)).xp).toBe(13);
+  });
+
+  it('setHardDay sets the day mode (low / normal) and still logs the event', async () => {
+    await setHardDay(true);
+    expect(await db.dayState.get('2026-11-11')).toMatchObject({ mode: 'low', hardDay: true, startedAt: Date.now() });
+    await setHardDay(false);
+    expect(await db.dayState.get('2026-11-11')).toMatchObject({ mode: 'normal', hardDay: false });
+    expect((await db.events.toArray()).filter((e) => e.type === 'hardDay')).toHaveLength(2);
+  });
+
+  it('the hard-day completion bonus follows the day mode, not the old hardDay flag', async () => {
+    const base = { createdAt: 1, updatedAt: 1, deleted: false, reviewDone: false };
+    await db.dayState.put({ ...base, id: '2026-11-11', hardDay: true, mode: 'normal' });
+    const a = await createMission({ title: 'a' });
+    expect((await completeMission(a.id)).xp).toBe(8);
+    await db.dayState.put({ ...base, id: '2026-11-11', hardDay: false, mode: 'recovery' });
+    await db.xpEvents.clear();
+    const b = await createMission({ title: 'b' });
+    expect((await completeMission(b.id)).xp).toBe(13);
+    // A weekend with an old hardDay and no mode is a free day: no bonus.
+    vi.setSystemTime(new Date(2026, 10, 14, 10, 0));
+    await db.dayState.put({ ...base, id: '2026-11-14', hardDay: true });
+    const c = await createMission({ title: 'c' });
+    expect((await completeMission(c.id)).xp).toBe(8);
   });
 
   it('reports level up', async () => {

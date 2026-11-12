@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { liveQuery } from 'dexie';
 import type { Block, Commitment, DayState, Settings, XpEvent } from '@life/shared';
 import { formatHHmm } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { newRecord, patch, put } from '../src/db/repo';
+import { newRecord, onLocalChange, patch, put } from '../src/db/repo';
 import {
   useBlocks, useCharacterStats, useCurrentBlock, useDayMode, useDayPlan, useEngine, useNextBlock,
 } from '../src/db/hooks';
 import {
   applyRoutine, archiveBlock, copyBlockDays, createMission, defaultRoutine, endBlock, isFreeDayFor,
-  lastNextAction, reorderBlocks, saveBlock, saveNextAction, setBlockVersion, setDayMode, startBlock,
+  lastNextAction, reorderBlocks, saveBlock, saveNextAction, setBlockVersion, setDayMode, skipBlock, startBlock,
 } from '../src/domain/actions';
 
 const base = { createdAt: 1, updatedAt: 1, deleted: false };
@@ -79,6 +80,31 @@ describe('startBlock', () => {
     expect((await db.dayState.get('2026-11-11'))!.startedAt).toBe(at(11, 10).getTime());
   });
 
+  it('concurrent starts create one session and one block XP', async () => {
+    const results = await Promise.all([startBlock('b2'), startBlock('b2'), startBlock('b2')]);
+    expect(results.map((r) => r.xp).sort()).toEqual([0, 0, 5]);
+    expect(await db.blockSessions.count()).toBe(1);
+    expect((await xpOf()).map((x) => x.id)).toEqual(['xp-block-b2-2026-11-11']);
+  });
+
+  it('sets today to normal when the day type was not chosen, and keeps a chosen one', async () => {
+    await startBlock('b2');
+    expect(await db.dayState.get('2026-11-11')).toMatchObject({ mode: 'normal', hardDay: false, startedAt: at(11, 10).getTime() });
+    vi.setSystemTime(at(12, 10));
+    await setDayMode('low');
+    await startBlock('b2');
+    expect((await db.dayState.get('2026-11-12'))!.mode).toBe('low');
+  });
+
+  it('ignores archived and deleted blocks', async () => {
+    await db.blocks.update('b5', { archived: true });
+    await db.blocks.update('b4', { deleted: true });
+    expect(await startBlock('b5')).toEqual({ xp: 0, resumption: false });
+    expect(await startBlock('b4')).toEqual({ xp: 0, resumption: false });
+    expect(await db.blockSessions.count()).toBe(0);
+    expect(await xpOf()).toHaveLength(0);
+  });
+
   it('uses the minimum version on a low-energy day and keeps an earlier day start', async () => {
     vi.setSystemTime(at(11, 9));
     await setDayMode('low');
@@ -136,12 +162,40 @@ describe('end, version and next action', () => {
     expect(s!.nextAction).toBeUndefined();
   });
 
-  it('endBlock on a block that was never started closes it (startedAt = endedAt) and awards no XP', async () => {
+  it('skipBlock marks today\'s block as skipped without starting it, and awards no XP', async () => {
+    await skipBlock('b1');
+    const s = await db.blockSessions.get('bs-b1-2026-11-11');
+    expect(s).toMatchObject({ skipped: true, endedAt: at(11, 10).getTime(), version: 'normal' });
+    expect(s!.startedAt).toBeUndefined();
+    expect(await xpOf()).toHaveLength(0);
+    const { result } = renderHook(() => useDayPlan());
+    await waitFor(() => expect(result.current).toBeDefined());
+    const b1 = result.current!.find((o) => o.block.id === 'b1')!;
+    expect(b1).toMatchObject({ state: 'skipped', skipReason: 'pulado' });
+  });
+
+  it('endBlock on a block that was never started skips it (no start, no XP) and keeps the note', async () => {
     await endBlock('b1', 'começar pelo README');
     const s = await db.blockSessions.get('bs-b1-2026-11-11');
-    expect(s!.startedAt).toBe(at(11, 10).getTime());
-    expect(s!.endedAt).toBe(at(11, 10).getTime());
-    expect((await db.xpEvents.toArray()).filter((x) => !x.deleted)).toHaveLength(0);
+    expect(s!.startedAt).toBeUndefined();
+    expect(s).toMatchObject({ skipped: true, endedAt: at(11, 10).getTime(), nextAction: 'começar pelo README' });
+    expect(await xpOf()).toHaveLength(0);
+  });
+
+  it('skipBlock on a started block just ends it; starting a skipped block reopens it', async () => {
+    await startBlock('b1');
+    vi.setSystemTime(at(11, 10, 30));
+    await skipBlock('b1');
+    expect(await db.blockSessions.get('bs-b1-2026-11-11')).toMatchObject({ startedAt: at(11, 10).getTime(), endedAt: at(11, 10, 30).getTime() });
+    expect((await db.blockSessions.get('bs-b1-2026-11-11'))!.skipped).toBeFalsy();
+
+    await skipBlock('b2');
+    vi.setSystemTime(at(11, 12, 40));
+    await startBlock('b2');
+    const s = await db.blockSessions.get('bs-b2-2026-11-11');
+    expect(s!.startedAt).toBe(at(11, 12, 40).getTime());
+    expect(s!.endedAt).toBeUndefined();
+    expect(s!.skipped).toBeFalsy();
   });
 
   it('endBlock keeps the original start of a started block', async () => {
@@ -195,6 +249,24 @@ describe('block editing', () => {
     expect((await db.blocks.get('b1'))!.weekdays).toEqual([1, 2, 3, 4, 5, 6]);
     expect((await db.blocks.get('b4'))!.weekdays).toEqual([1]);       // not active on Wednesday
     expect((await db.blocks.get('b5'))!.weekdays).toEqual(WD);         // archived
+  });
+});
+
+describe('reorderBlocks', () => {
+  it('writes every new order in one transaction: one change notification, no half-reordered state', async () => {
+    let notified = 0;
+    const off = onLocalChange(() => { notified += 1; });
+    const seen: string[] = [];
+    const sub = liveQuery(() => db.blocks.orderBy('order').toArray())
+      .subscribe((bs) => { seen.push(bs.map((b) => b.id).join(',')); });
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    await reorderBlocks(['b5', 'b4', 'b3', 'b2', 'b1']);
+    await vi.waitFor(() => expect(seen.at(-1)).toBe('b5,b4,b3,b2,b1'));
+    sub.unsubscribe();
+    off();
+    expect(notified).toBe(1);
+    expect(seen).toEqual(['b1,b2,b3,b4,b5', 'b5,b4,b3,b2,b1']);
+    expect(await db.outbox.where('key').startsWith('blocks:').count()).toBe(4); // b3 kept its order
   });
 });
 

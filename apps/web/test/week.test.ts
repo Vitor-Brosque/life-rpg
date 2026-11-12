@@ -69,7 +69,21 @@ describe('weeks', () => {
     const { result } = renderHook(() => useWeek());
     await waitFor(() => expect(result.current?.id).toBe(WEEK));
     expect(result.current!.objectives).toHaveLength(1);
-    const other = renderHook(() => useWeek('2026-11-02'));
+    // useLiveQuery keeps the previous result until the new query answers, so switching a loaded
+    // hook to another week proves that week was read (and is missing), not just still loading.
+    const other = renderHook(({ id }) => useWeek(id), { initialProps: { id: WEEK } });
+    await waitFor(() => expect(other.result.current?.id).toBe(WEEK));
+    other.rerender({ id: '2026-11-02' });
     await waitFor(() => expect(other.result.current).toBeUndefined());
+  });
+
+  it('toggling the same objective concurrently (odd times) ends done with one live XP event', async () => {
+    await setObjectives(WEEK, [{ id: 'o1', blockId: 'b3', text: 'Lista 4', done: false }]);
+    const results = await Promise.all([toggleObjective(WEEK, 'o1'), toggleObjective(WEEK, 'o1'), toggleObjective(WEEK, 'o1')]);
+    expect(results.map((r) => r.xp)).toEqual([10, 0, 10]);
+    expect((await db.weeks.get(WEEK))!.objectives[0]!.done).toBe(true);
+    const xp = await liveXp();
+    expect(xp.map((x) => x.id)).toEqual(['xp-objective-o1']);
+    expect(await db.xpEvents.count()).toBe(1);
   });
 });

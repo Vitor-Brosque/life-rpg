@@ -1,5 +1,5 @@
 import type { Commitment, DayKey, DayMode, EnergyLevel, ID, Journey, Mission } from './types';
-import { addDays, dayKeyOf, diffDays, logicalTimestamp, timestampAt, weekdayOf } from './dates';
+import { addDays, dayEndTimestamp, dayKeyOf, diffDays, logicalTimestamp, timestampAt, weekdayOf } from './dates';
 
 export interface EngineInput {
   now: number;
@@ -37,7 +37,6 @@ export function isOfBlock(m: Mission, block: { id: ID; areaId?: ID; journeyId?: 
     (block.journeyId && m.journeyId === block.journeyId) || (block.areaId && m.areaId === block.areaId),
   );
 }
-const hh = (h: number): string => `${String(h).padStart(2, '0')}:00`;
 
 function occurrenceOf(c: Commitment, day: DayKey, dayStartHour: number): CommitmentOccurrence {
   const startTs = logicalTimestamp(day, c.start, dayStartHour);
@@ -144,8 +143,7 @@ export function suggest(input: EngineInput): EngineOutput {
   const occs = occurrencesOn(input.commitments, today, dayStartHour);
   const currentCommitment = occs.find((o) => o.startTs <= now && now < o.endTs);
   const nextCommitment = currentCommitment ? undefined : occs.find((o) => o.startTs > now);
-  const endDay = dayEndHour < dayStartHour ? addDays(today, 1) : today;
-  const dayEndTs = timestampAt(endDay, hh(dayEndHour));
+  const dayEndTs = dayEndTimestamp(today, dayStartHour, dayEndHour);
   let freeMinutes = 0;
   if (!currentCommitment) {
     const limit = nextCommitment ? Math.min(nextCommitment.startTs, dayEndTs) : dayEndTs;
@@ -181,11 +179,12 @@ export function suggest(input: EngineInput): EngineOutput {
         if (journeyHead.get(m.journeyId) !== m.id && !ownDateDue) return false;
       }
     }
-    if (hard && !(m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15)) {
+    // Inside a block you work on its missions for the time left, so they are never hidden by
+    // duration; on a hard day the block is already in its minimum version, so they skip that filter too.
+    const ofCurrentBlock = input.block !== undefined && isOfBlock(m, input.block);
+    if (hard && !ofCurrentBlock && !(m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15)) {
       return false;
     }
-    // Inside a block you work on its missions for the time left, so they are never hidden by duration.
-    const ofCurrentBlock = input.block !== undefined && isOfBlock(m, input.block);
     if (!ofCurrentBlock && freeMinutes > 0 && m.durationMin !== undefined && m.durationMin > freeMinutes) return false;
     return true;
   });

@@ -2,12 +2,13 @@ import type {
   Area, Commitment, DayKey, HHmm, Journey, LifeEvent, Mission, MissionStatus,
 } from '@life/shared';
 import {
-  addDays, completionXp, formatHHmm, levelFromXp, nextOccurrence, normalize, parseHHmm,
+  addDays, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, parseHHmm,
   parseLines, startXp, strategyXp, ulid,
 } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put, softDelete } from '../db/repo';
 import { awardXp, getToday, hasXp, logEvent, totalXp, withLock } from './common';
+import { matchJourney } from './routineDefaults';
 
 export interface CompletionResult { xp: number; leveledUp: boolean; newLevel: number; next?: Mission }
 
@@ -40,10 +41,10 @@ export async function convertCommitmentToMission(id: string): Promise<Mission> {
   return m;
 }
 
+/** The journey a #tag names (see `matchJourney`), created only when nothing matches. */
 async function resolveJourney(name: string): Promise<Journey> {
-  const key = normalize(name.trim());
   const all = await db.journeys.filter((j) => !j.deleted).toArray();
-  const found = all.find((j) => normalize(j.title) === key);
+  const found = matchJourney(all, name);
   if (found) return found;
   const order = all.reduce((mx, j) => Math.max(mx, j.order + 1), 0);
   return put('journeys', newRecord<Journey>({ title: name.trim(), status: 'active', order }));
@@ -149,8 +150,9 @@ async function completeMissionLocked(id: string): Promise<CompletionResult> {
     totalXp(),
     db.xpEvents.where('dayKey').equals(today).filter((x) => !x.deleted && x.reason === 'complete').count(),
   ]);
+  const mode = defaultDayMode(today, dayState && !dayState.deleted ? dayState : undefined);
   const { amount, resilience } = completionXp(m, {
-    completionsTodayBefore, hardDay: dayState && !dayState.deleted ? dayState.hardDay : false,
+    completionsTodayBefore, hardDay: mode === 'low' || mode === 'recovery',
   });
   const ref = { areaId: m.areaId, missionId: id };
   // Deterministic ids: the same completion on two devices merges; undo soft-deletes them and a

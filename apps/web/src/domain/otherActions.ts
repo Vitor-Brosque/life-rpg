@@ -3,6 +3,7 @@ import { focusXp, JOURNEY_XP, REVIEW_XP } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put } from '../db/repo';
 import { awardXp, getToday, logEvent, upsertDayState, withLock } from './common';
+import { setDayMode } from './blockActions';
 
 export const completeJourney = (id: string): Promise<{ xp: number }> =>
   withLock(`journey:${id}`, () => completeJourneyLocked(id));
@@ -25,9 +26,9 @@ export async function setEnergy(level: EnergyLevel): Promise<void> {
   await put('energyLogs', newRecord<EnergyLog>({ at: Date.now(), level }));
 }
 
+/** Old "dia difícil" toggle: the day mode is the single source (on → 'low', off → 'normal'). */
 export async function setHardDay(on: boolean): Promise<void> {
-  const today = await getToday();
-  await upsertDayState(today, { hardDay: on });
+  await setDayMode(on ? 'low' : 'normal');
   await logEvent('hardDay', undefined, { on });
 }
 

@@ -239,6 +239,11 @@ describe('suggest', () => {
   it('dayEndHour 0 means midnight after today', () => {
     expect(suggest(input({ dayEndHour: 0 })).freeMinutes).toBe(840);
   });
+
+  it('day start and end both at midnight leave the rest of the day free', () => {
+    expect(suggest(input({ dayStartHour: 0, dayEndHour: 0 })).freeMinutes).toBe(840);
+    expect(suggest(input({ dayStartHour: 4, dayEndHour: 23 })).freeMinutes).toBe(780);
+  });
 });
 
 describe('occurrencesOn', () => {
@@ -343,6 +348,16 @@ describe('current block boost', () => {
     expect(out.mode).toBe('manual');
     expect(out.primary!.mission.id).toBe('man');
   });
+  it('on a low or recovery day the current block\'s missions skip the light-mission filter', () => {
+    const tech = mk({ id: 'tech', journeyId: 'j-tech', durationMin: 90, energy: 'heavy' });
+    const plain = mk({ id: 'plain', durationMin: 30 });
+    const light = mk({ id: 'light', energy: 'light' });
+    for (const mode of ['low', 'recovery'] as const) {
+      const out = suggest(input({ missions: [tech, plain, light], journeys: [mkJourney({ id: 'j-tech' })], block, mode }));
+      expect(ids(out.ranked).sort(), mode).toEqual(['light', 'tech']);
+    }
+  });
+
   it('mode recovery applies the hard-day filter; mode wins over hardDay', () => {
     const plain = mk({ id: 'plain' });
     const light = mk({ id: 'light', energy: 'light' });

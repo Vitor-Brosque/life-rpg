@@ -25,6 +25,11 @@ export function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
+/** `normalize` without spaces, hyphens and underscores: "Tech-News" and "tech news" → "technews". */
+export function compactTitle(s: string): string {
+  return normalize(s).replace(/[\s_-]+/gu, '');
+}
+
 /** Per-character fold so the result has exactly the same length as `s` (which must be NFC). */
 function foldSameLength(s: string): string {
   let out = '';
@@ -55,6 +60,25 @@ const DATE_RE = new RegExp(
     B_AFTER,
   'gu',
 );
+
+/** Same alternatives as DATE_RE, matched only at `lastIndex` (is there a date token right here?). */
+const DATE_AT_RE = new RegExp(DATE_RE.source, 'uy');
+
+/** Weekday names that are also ordinals ("segunda fonte", "quinta lista"): weekdays only in context. */
+const AMBIGUOUS_WEEKDAYS = new Set(['segunda', 'quarta', 'quinta', 'sexta']);
+/** A previous word that makes an ambiguous name a weekday ("na sexta", "até segunda", "toda quarta"). */
+const WEEKDAY_CONTEXT = new Set(['na', 'no', 'nesta', 'nessa', 'esta', 'essa', 'ate', 'proxima', 'de', 'toda']);
+/** Previous words that only glue the weekday to the sentence: removed from the title with it. */
+const WEEKDAY_GLUE = new Set(['na', 'no', 'nesta', 'nessa', 'esta', 'essa', 'ate', 'proxima']);
+/** Nothing left but "!", #tags and @areas. */
+const ONLY_MARKERS_RE = /^(?:\s*(?:!+|[#@]\S*))*\s*$/u;
+const QUE_VEM_RE = /^\s+que\s+vem(?![\p{L}\p{N}-])/u;
+const PREV_WORD_RE = /(?<!\S)(\S+)\s+$/u;
+
+function dateTokenAt(n: string, index: number): boolean {
+  DATE_AT_RE.lastIndex = index;
+  return DATE_AT_RE.test(n);
+}
 
 const TIME_RE = new RegExp(
   B_BEFORE + String.raw`(?:(as)\s+)?(?:(\d{1,2}):(\d{2})|(\d{1,2})(h(\d{2})?)?)` + B_AFTER,
@@ -209,7 +233,28 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
   for (const m of n.matchAll(DATE_RE)) {
     const date = resolveDate(m, today);
     if (date === undefined) continue;
-    const sp = { start: m.index, end: m.index + m[0].length };
+    let sp = { start: m.index, end: m.index + m[0].length };
+    const weekday = m[9];
+    if (weekday !== undefined) {
+      const prev = PREV_WORD_RE.exec(n.slice(0, sp.start));
+      const after = n.slice(sp.end);
+      const queVem = QUE_VEM_RE.exec(after);
+      if (AMBIGUOUS_WEEKDAYS.has(weekday)) {
+        const gap = /^\s+/u.exec(after);
+        const next = gap ? sp.end + gap[0].length : -1; // where the next word starts
+        const inContext = (prev !== null && WEEKDAY_CONTEXT.has(prev[1]!))
+          || ONLY_MARKERS_RE.test(after)
+          || queVem !== null
+          || (next >= 0 && tokens.some((t) => (t.type === 'time' || t.type === 'duration') && t.start === next))
+          || (next >= 0 && dateTokenAt(n, next));
+        if (!inContext) continue;
+      }
+      const wide = {
+        start: prev !== null && WEEKDAY_GLUE.has(prev[1]!) ? prev.index : sp.start,
+        end: sp.end + (queVem?.[0].length ?? 0),
+      };
+      if (free(wide)) sp = wide;
+    }
     if (!free(sp)) continue;
     claim('date', sp.start, sp.end);
     result.date = date;

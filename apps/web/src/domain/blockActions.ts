@@ -3,7 +3,7 @@ import type {
 } from '@life/shared';
 import { BLOCK_XP, RESUMPTION_XP, defaultDayMode, isResumption, normalize } from '@life/shared';
 import { db } from '../db/db';
-import { newRecord, patch, put, upsert } from '../db/repo';
+import { newRecord, patch, patchMany, put, upsert } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, upsertDayState, withLock } from './common';
 import { createCommitment } from './missionActions';
 import { findTechJourney, hasClassCommitment, type RoutinePreview } from './routineDefaults';
@@ -102,11 +102,13 @@ export async function archiveBlock(id: ID): Promise<void> {
   await patch<Block>('blocks', id, { archived: true });
 }
 
+/** Sets `order` = position in `ids`, all in one transaction (the list updates once). */
 export async function reorderBlocks(ids: ID[]): Promise<void> {
-  for (const [order, id] of ids.entries()) {
-    const b = await db.blocks.get(id);
-    if (b && b.order !== order) await patch<Block>('blocks', id, { order });
-  }
+  const blocks = await db.blocks.bulkGet(ids);
+  await patchMany<Block>('blocks', ids.flatMap((id, order) => {
+    const b = blocks[order];
+    return b && b.order !== order ? [{ id, changes: { order } }] : [];
+  }));
 }
 
 /** Adds `toWeekdays` to every live block active on `fromWeekday` ("Copiar este dia para…"). */
@@ -135,15 +137,26 @@ export const startBlock = (blockId: ID): Promise<{ xp: number; resumption: boole
 async function startBlockLocked(blockId: ID): Promise<{ xp: number; resumption: boolean }> {
   const block = await db.blocks.get(blockId);
   if (!block) throw new Error(`block ${blockId} not found`);
+  if (block.deleted || block.archived) return { xp: 0, resumption: false };
   const today = await getToday();
   const now = Date.now();
 
+  // Just starting to work answers "Como está hoje?": a normal day (an old weekday hardDay stays low).
+  const ds = await db.dayState.get(today);
+  const state = ds && !ds.deleted ? ds : undefined;
+  const implied = defaultDayMode(today, state);
+  const dayChanges: Partial<DayState> = {
+    ...(state?.startedAt === undefined ? { startedAt: now } : {}),
+    ...(state?.mode === undefined ? { mode: implied === 'free' ? 'normal' : implied, hardDay: implied === 'low' } : {}),
+  };
+  if (Object.keys(dayChanges).length > 0) await upsertDayState(today, dayChanges);
+
   const session = await db.blockSessions.get(sessionId(blockId, today));
   if (!session || session.deleted || session.startedAt === undefined) {
-    await upsertSession(blockId, today, { startedAt: now });
+    // Starting a block skipped earlier today reopens it.
+    const reopen = session && !session.deleted && (session.skipped || session.endedAt !== undefined);
+    await upsertSession(blockId, today, { startedAt: now, ...(reopen ? { endedAt: undefined, skipped: undefined } : {}) });
   }
-  const ds = await db.dayState.get(today);
-  if (!ds || ds.deleted || ds.startedAt === undefined) await upsertDayState(today, { startedAt: now });
 
   // Resumption is decided from the days before today, before today's block XP is written.
   let resumption = false;
@@ -169,15 +182,31 @@ async function startBlockLocked(blockId: ID): Promise<{ xp: number; resumption: 
   return { xp, resumption };
 }
 
-/** Ends today's occurrence; a blank `nextAction` is not stored. Never starts an unstarted block. */
+async function isStartedToday(blockId: ID, today: DayKey): Promise<boolean> {
+  const s = await db.blockSessions.get(sessionId(blockId, today));
+  return !!s && !s.deleted && s.startedAt !== undefined;
+}
+
+/**
+ * Ends today's occurrence; a blank `nextAction` is not stored. A block that was never started is
+ * skipped instead (`skipBlock`): ending is not starting.
+ */
 export async function endBlock(blockId: ID, nextAction?: string): Promise<void> {
   const today = await getToday();
+  if (!(await isStartedToday(blockId, today))) return skipBlock(blockId, nextAction);
   const text = nextAction?.trim();
-  const now = Date.now();
-  // Ending a block that was never started still closes it (it becomes 'done', not 'current').
-  const existing = await db.blockSessions.get(sessionId(blockId, today));
-  const startedAt = existing && !existing.deleted && existing.startedAt !== undefined ? {} : { startedAt: now };
-  await upsertSession(blockId, today, { ...startedAt, endedAt: now, ...(text ? { nextAction: text } : {}) });
+  await upsertSession(blockId, today, { endedAt: Date.now(), ...(text ? { nextAction: text } : {}) });
+}
+
+/**
+ * "Pular hoje": today's session ends now without a start (`skipped`), so it is never counted as
+ * started and earns no XP. On a block already started it just ends it (`endBlock`).
+ */
+export async function skipBlock(blockId: ID, nextAction?: string): Promise<void> {
+  const today = await getToday();
+  if (await isStartedToday(blockId, today)) return endBlock(blockId, nextAction);
+  const text = nextAction?.trim();
+  await upsertSession(blockId, today, { endedAt: Date.now(), skipped: true, ...(text ? { nextAction: text } : {}) });
 }
 
 export async function setBlockVersion(blockId: ID, version: 'normal' | 'minimum'): Promise<void> {

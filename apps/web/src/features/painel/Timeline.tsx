@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { BlockOccurrence, CommitmentOccurrence, DayKey } from '@life/shared';
-import { addDays, formatHHmm, timestampAt } from '@life/shared';
+import { dayEndTimestamp, formatHHmm, timestampAt } from '@life/shared';
 import { formatDuration } from '../../ui/format';
 import { BlockBand, SkipMarker, clock, cutSpans, type Span } from './TimelineBlocks';
 
@@ -19,8 +19,7 @@ const hh = (h: number): string => formatHHmm(h * 60);
 
 /** Start and end of the user's day (dayStartHour … dayEndHour, which may be after midnight); same rule as the engine. */
 export function dayBounds(today: DayKey, dayStartHour: number, dayEndHour: number): TimeSpan {
-  const endDay = dayEndHour < dayStartHour ? addDays(today, 1) : today;
-  return { start: timestampAt(today, hh(dayStartHour)), end: timestampAt(endDay, hh(dayEndHour)) };
+  return { start: timestampAt(today, hh(dayStartHour)), end: dayEndTimestamp(today, dayStartHour, dayEndHour) };
 }
 
 /** From one hour ago (never before the day start) to the day end (at least one hour ahead). */

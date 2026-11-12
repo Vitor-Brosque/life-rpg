@@ -74,6 +74,34 @@ describe('defaultRoutine', () => {
     expect(p.blocks[3]!.areaId).toBe('a-fac');
   });
 
+  it('reuses a journey whose compacted title starts with "tech" (TechNews, Tech-news pipeline)', async () => {
+    for (const title of ['TechNews', 'Tech-news pipeline', 'tech']) {
+      const journey: Journey = { ...base, id: 'j-x', title, status: 'active', order: 0 };
+      const p = defaultRoutine('08:00', await ctx({ journeys: [journey] }));
+      expect(p.createJourney, title).toBeUndefined();
+      expect(p.blocks[1]!.journeyId, title).toBe('j-x');
+    }
+    const other: Journey = { ...base, id: 'j-y', title: 'Mudança', status: 'active', order: 0 };
+    expect(defaultRoutine('08:00', await ctx({ journeys: [other] })).createJourney).toBeDefined();
+  });
+
+  it('any weekly commitment overlapping the class window on a weekday counts as class time', async () => {
+    const weekly = (p: Partial<Commitment>): Commitment => ({ ...aula, id: 'c', title: 'Faculdade', ...p });
+    const noAula = async (c: Commitment) => (defaultRoutine('08:00', await ctx({ commitments: [c] }))).createCommitment;
+    expect(await noAula(weekly({ start: '19:30', end: '22:30', weekdays: [1, 2, 3, 4] }))).toBeUndefined();
+    expect(await noAula(weekly({ start: '20:00', end: '21:00', weekdays: [2] }))).toBeUndefined();
+    expect(await noAula(weekly({ start: '18:00', end: '20:00', weekdays: [1, 3] }))).toBeUndefined();
+    // Not class time: weekend only, outside the evening, expired, or a one-off event.
+    expect(await noAula(weekly({ weekdays: [6] }))).toBeDefined();
+    expect(await noAula(weekly({ start: '14:00', end: '18:00', weekdays: [1, 2, 3, 4, 5] }))).toBeDefined();
+    expect(await noAula(weekly({ untilDate: '2026-11-01' }))).toBeDefined();
+    expect(await noAula(weekly({ weekdays: undefined, date: '2026-11-12', start: '19:30', end: '21:00' }))).toBeDefined();
+    // applyRoutine re-checks the database the same way.
+    await db.commitments.put(weekly({ start: '19:30', end: '22:30', weekdays: [1, 2, 3, 4] }));
+    await applyRoutine(defaultRoutine('08:00', await ctx()));
+    expect(await db.commitments.count()).toBe(1);
+  });
+
   it('ignores a finished journey and a deleted commitment', async () => {
     const done: Journey = { ...base, id: 'j-old', title: 'Tech News', status: 'done', order: 0 };
     const p = defaultRoutine('08:00', await ctx({ journeys: [done], commitments: [{ ...aula, deleted: true }] }));
@@ -104,6 +132,8 @@ describe('defaultRoutine', () => {
   it('keeps a day end that already reaches past the last block', async () => {
     expect(defaultRoutine('08:00', await ctx({ dayEndHour: 2 })).dayEndHour).toBeUndefined();
     expect(defaultRoutine('08:00', await ctx({ dayEndHour: 22 })).dayEndHour).toBe(0);
+    // An end hour equal to the start hour is the next morning, past every block.
+    expect(defaultRoutine('08:00', await ctx({ dayEndHour: 4, dayStartHour: 4 })).dayEndHour).toBeUndefined();
   });
 });
 
@@ -143,6 +173,14 @@ describe('applyRoutine', () => {
     expect(await db.journeys.count()).toBe(1);
     expect(await db.commitments.count()).toBe(1);
     expect((await db.areas.toArray()).filter((a) => a.name === 'Faculdade')).toHaveLength(1);
+  });
+
+  it('links to an existing "TechNews" journey instead of creating another', async () => {
+    const p = defaultRoutine('08:00', await ctx());
+    await db.journeys.put({ ...base, id: 'j-compact', title: 'TechNews', status: 'active', order: 0 });
+    await applyRoutine(p);
+    expect(await db.journeys.count()).toBe(1);
+    expect((await db.blocks.toArray()).find((b) => b.name === 'Bloco 1 · Tech News')!.journeyId).toBe('j-compact');
   });
 
   it('links to a Tech News journey created after the preview instead of making a second one', async () => {

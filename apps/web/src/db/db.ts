@@ -3,6 +3,7 @@ import type {
   Area, Block, BlockSession, Checkin, Commitment, DayState, EnergyLog, FocusSession, Journey,
   LifeEvent, Mission, Profile, Settings, SyncTable, Week, XpEvent,
 } from '@life/shared';
+import { weekdayOf } from '@life/shared';
 
 export interface OutboxEntry { key: string; table: SyncTable; id: string; updatedAt: number } // key = `${table}:${id}`
 export interface MetaEntry { key: string; value: unknown }
@@ -44,16 +45,22 @@ export class LifeDB extends Dexie {
       outbox: 'key',
       meta: 'key',
     });
-    // v2 (Marco 2): routine blocks, lived block sessions, weeks and check-ins. The upgrade only
-    // adds `mode` to hard days (same meaning, so updatedAt is kept and nothing is re-synced).
+    // v2 (Marco 2): routine blocks, lived block sessions, weeks and check-ins. The upgrade adds
+    // `mode` to weekday hard days (same meaning, so updatedAt is kept and nothing is re-synced;
+    // weekends stay free) and restarts the sync cursor: records of the new tables that a v1
+    // client could not apply are pulled again (last-writer-wins makes the replay harmless).
     this.version(2).stores({
       blocks: 'id,order',
       blockSessions: 'id,day,blockId',
       weeks: 'id',
       checkins: 'id,at,kind',
-    }).upgrade((tx) => tx.table('dayState').toCollection().modify((d: DayState) => {
-      if (d.hardDay && !d.mode) d.mode = 'low';
-    }));
+    }).upgrade(async (tx) => {
+      await tx.table('dayState').toCollection().modify((d: DayState) => {
+        const wd = weekdayOf(d.id);
+        if (d.hardDay && !d.mode && wd !== 0 && wd !== 6) d.mode = 'low';
+      });
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
   }
 }
 

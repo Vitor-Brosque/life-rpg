@@ -159,6 +159,7 @@ export interface BlockSession extends BaseRecord {  // id = `bs-${blockId}-${day
   endedAt?: number;
   version: 'normal' | 'minimum';
   nextAction?: string;
+  skipped?: boolean;           // "Pular hoje": ended (endedAt) without being started
 }
 export interface WeekObjective { id: ID; blockId: ID; text: string; done: boolean }
 export interface WeekReview { worked: string; obstacle: string; adjustment: string; answeredAt: number }

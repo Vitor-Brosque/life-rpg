@@ -73,6 +73,51 @@ describe('weekStats', () => {
     expect(s.planned).toBe(5);
     expect(s.started).toBe(1);
   });
+  it('a block counts as planned only from its creation (routine created Thursday 10:00)', () => {
+    const thu10 = timestampAt('2026-11-12', '10:00');
+    const s = weekStats(input({ today: '2026-11-14', blocks: BLOCKS.map((b) => ({ ...b, createdAt: thu10 })) }));
+    // Mon–Wed: none; Thursday: the four blocks whose target is ≥ 10:00; Friday: all five.
+    expect(s.planned).toBe(4 + 5);
+  });
+
+  it('started comes from the plan: never above planned, nothing from free days or deleted blocks', () => {
+    const on = (day: string, blockId: string, start: string, end: string, version: 'normal' | 'minimum' = 'normal'): BlockSession => ({
+      id: `bs-${blockId}-${day}`, createdAt: 1, updatedAt: 1, deleted: false, blockId, day,
+      startedAt: timestampAt(day, start), endedAt: timestampAt(day, end), version,
+    });
+    const s = weekStats(input({
+      today: '2026-11-14',
+      blocks: [...BLOCKS, { ...BLOCKS[0]!, id: 'gone', deleted: true }],
+      dayStates: [free],
+      sessions: [
+        on(MON, 'b1', '09:00', '12:00', 'minimum'),
+        on('2026-11-10', 'b1', '09:00', '12:00'),          // Tuesday is free
+        on('2026-11-11', 'gone', '09:00', '10:00'),        // deleted block
+        { ...on('2026-11-12', 'b2', '12:30', '13:00'), deleted: true },
+        { ...on('2026-11-13', 'b3', '15:00', '15:30'), startedAt: undefined, skipped: true }, // "Pular hoje"
+      ],
+    }));
+    expect(s.started).toBe(1);
+    expect(s.minimumUsed).toBe(1);
+    expect(s.planned).toBe(4 * 5); // Mon, Wed, Thu, Fri; the skipped block was still planned
+    expect(s.started).toBeLessThanOrEqual(s.planned);
+  });
+
+  it('every counter uses only the days before today', () => {
+    const at = (day: string) => timestampAt(day, '10:00');
+    const s = weekStats(input({
+      checkins: [
+        checkin('c1', 'escape', []), { ...checkin('c2', 'escape', []), at: at('2026-11-11') },
+        checkin('c3', 'start', ['tédio']), { ...checkin('c4', 'start', ['ansiedade']), at: at('2026-11-11') },
+        { ...checkin('c5', 'start', ['ansiedade']), at: at('2026-11-11') },
+      ],
+      xpEvents: [xp('x1', MON, 'resumption'), xp('x2', '2026-11-11', 'resumption')],
+    }));
+    expect(s.escapes).toBe(1);
+    expect(s.resumptions).toBe(1);
+    expect(s.topFeeling).toBe('tédio');
+  });
+
   it('empty week gives zeros', () => {
     const s = weekStats(input({ today: MON }));
     expect(s).toEqual({

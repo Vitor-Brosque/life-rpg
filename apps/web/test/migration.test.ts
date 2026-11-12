@@ -75,9 +75,31 @@ describe('Dexie v1 → v2 migration', () => {
     expect(easy).not.toHaveProperty('mode');
 
     for (const [table, rows] of Object.entries(V1_ROWS)) {
-      if (table === 'dayState') continue;
+      if (table === 'dayState' || table === 'meta') continue;
       expect(await db.table(table).toArray(), table).toEqual(rows);
     }
+  });
+
+  it('restarts the sync cursor so records a v1 client could not apply are pulled again', async () => {
+    await createV1();
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+  });
+
+  it('leaves a weekend hard day without a mode (weekends stay free)', async () => {
+    await createV1([
+      { ...base, id: '2026-11-14', hardDay: true, reviewDone: false },
+      { ...base, id: '2026-11-15', hardDay: true, reviewDone: false },
+    ]);
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(await db.dayState.get('2026-11-14')).not.toHaveProperty('mode');
+    expect(await db.dayState.get('2026-11-15')).not.toHaveProperty('mode');
+    expect((await db.dayState.get('2026-11-09'))!.mode).toBe('low');
   });
 
   it('keeps a mode that is already set', async () => {

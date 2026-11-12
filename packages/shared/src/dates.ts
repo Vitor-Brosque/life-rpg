@@ -54,6 +54,14 @@ export function logicalTimestamp(day: DayKey, t: HHmm, dayStartHour: number): nu
   return timestampAt(parseHHmm(t) < dayStartHour * 60 ? addDays(day, 1) : day, t);
 }
 
+/**
+ * End of logical day `day`: `dayEndHour:00` on the same calendar day when it is after the start
+ * hour, else on the next calendar day (end 0 = midnight after `day`; start 0 / end 0 = 24 h).
+ */
+export function dayEndTimestamp(day: DayKey, dayStartHour: number, dayEndHour: number): number {
+  return timestampAt(dayEndHour <= dayStartHour ? addDays(day, 1) : day, formatHHmm(dayEndHour * 60));
+}
+
 export function daysInMonth(year: number, month1: number): number {
   return new Date(year, month1, 0).getDate();
 }
