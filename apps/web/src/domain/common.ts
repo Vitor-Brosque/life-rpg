@@ -1,11 +1,22 @@
-import type { DayKey, EventType, LifeEvent, Settings, XpEvent, XpReason } from '@life/shared';
+import type { DayKey, DayState, EventType, LifeEvent, Settings, XpEvent, XpReason } from '@life/shared';
 import { dayKeyOf } from '@life/shared';
 import { db } from '../db/db';
-import { newRecord, put } from '../db/repo';
+import { newRecord, put, upsert } from '../db/repo';
 
 export async function getToday(): Promise<DayKey> {
   const s: Settings | undefined = await db.settings.get('settings');
   return dayKeyOf(Date.now(), s?.dayStartHour ?? 4);
+}
+
+/** The DayState of `day` with `changes` applied (created, or revived, when missing). */
+export async function upsertDayState(day: DayKey, changes: Partial<DayState>): Promise<DayState> {
+  return upsert<DayState>('dayState', day, changes, { hardDay: false, reviewDone: false });
+}
+
+/** True when the xp event `id` exists and is not soft-deleted. */
+export async function hasLiveXp(id: string): Promise<boolean> {
+  const x = await db.xpEvents.get(id);
+  return !!x && !x.deleted;
 }
 
 export async function logEvent(

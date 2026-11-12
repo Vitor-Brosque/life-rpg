@@ -1,8 +1,8 @@
-import type { DayState, EnergyLevel, EnergyLog, FocusSession, Journey } from '@life/shared';
+import type { EnergyLevel, EnergyLog, FocusSession, Journey } from '@life/shared';
 import { focusXp, JOURNEY_XP, REVIEW_XP } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put } from '../db/repo';
-import { awardXp, getToday, logEvent, withLock } from './common';
+import { awardXp, getToday, logEvent, upsertDayState, withLock } from './common';
 
 export const completeJourney = (id: string): Promise<{ xp: number }> =>
   withLock(`journey:${id}`, () => completeJourneyLocked(id));
@@ -23,12 +23,6 @@ async function completeJourneyLocked(id: string): Promise<{ xp: number }> {
 
 export async function setEnergy(level: EnergyLevel): Promise<void> {
   await put('energyLogs', newRecord<EnergyLog>({ at: Date.now(), level }));
-}
-
-async function upsertDayState(day: string, changes: Partial<DayState>): Promise<DayState> {
-  const existing = await db.dayState.get(day);
-  if (existing) return patch<DayState>('dayState', day, changes);
-  return put('dayState', newRecord<DayState>({ id: day, hardDay: false, reviewDone: false, ...changes }));
 }
 
 export async function setHardDay(on: boolean): Promise<void> {

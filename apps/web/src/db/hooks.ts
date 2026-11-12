@@ -1,10 +1,13 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type {
-  Area, Commitment, DayKey, DayState, EnergyLevel, EngineOutput, Journey, LevelInfo, Mission,
-  Profile, Settings, XpEvent,
+  Area, Block, BlockOccurrence, Commitment, DayKey, DayMode, DayState, EnergyLevel, EngineOutput,
+  Journey, LevelInfo, Mission, Profile, Settings, Week, XpEvent,
 } from '@life/shared';
-import { activeDays, dayKeyOf, levelFromXp, suggest } from '@life/shared';
+import {
+  activeDays, activeWorkdays, dayKeyOf, defaultDayMode, levelFromXp, planDay, suggest, weekKey,
+} from '@life/shared';
+import { isFreeDayFor } from '../domain/blockActions';
 import { db } from './db';
 
 // ------------------------------------------------------------------ shared clock
@@ -110,6 +113,73 @@ export function useDayState(day?: DayKey): DayState | undefined {
   }, [key]);
 }
 
+// ------------------------------------------------------------------ blocks (Marco 2)
+
+/** Live routine blocks (not deleted, not archived), by order. */
+export function useBlocks(): Block[] {
+  return useLiveQuery(
+    async () => (await db.blocks.orderBy('order').toArray()).filter((b) => !b.deleted && !b.archived),
+  ) ?? (EMPTY as Block[]);
+}
+
+/** Type of `day` (default today): the recorded mode, else weekday default (§6). */
+export function useDayMode(day?: DayKey): DayMode {
+  const today = useToday();
+  const key = day ?? today;
+  const state = useDayState(key);
+  return key ? defaultDayMode(key, state) : 'normal';
+}
+
+/** Block occurrences of `day` (default today) from `planDay`, recomputed on every clock tick. */
+export function useDayPlan(day?: DayKey): BlockOccurrence[] | undefined {
+  const today = useToday();
+  const key = day ?? today;
+  const now = useNow();
+  const data = useLiveQuery(async () => {
+    if (!key) return undefined;
+    const settings = await db.settings.get('settings');
+    if (!settings || settings.deleted) return undefined;
+    const [blocks, commitments, sessions, dayState] = await Promise.all([
+      db.blocks.filter((b) => !b.deleted).toArray(),
+      db.commitments.filter((c) => !c.deleted).toArray(),
+      db.blockSessions.where('day').equals(key).filter((s) => !s.deleted).toArray(),
+      db.dayState.get(key),
+    ]);
+    return { key, settings, blocks, commitments, sessions, dayState: dayState && !dayState.deleted ? dayState : undefined };
+  }, [key]);
+  return useMemo(() => {
+    if (!data || data.key !== key) return undefined;
+    return planDay({
+      day: data.key, now,
+      dayStartHour: data.settings.dayStartHour, dayEndHour: data.settings.dayEndHour,
+      mode: defaultDayMode(data.key, data.dayState), dayStartedAt: data.dayState?.startedAt,
+      blocks: data.blocks, commitments: data.commitments, sessions: data.sessions,
+    });
+  }, [data, key, now]);
+}
+
+/** Today's 'current' occurrence (at most one). */
+export function useCurrentBlock(): BlockOccurrence | undefined {
+  return useDayPlan()?.find((o) => o.state === 'current');
+}
+
+/** Today's first upcoming occurrence that starts after now. */
+export function useNextBlock(): BlockOccurrence | undefined {
+  const now = useNow();
+  return useDayPlan()?.find((o) => o.state === 'upcoming' && o.start > now);
+}
+
+/** The week `weekId` (default: the week of today, keyed by its Monday). */
+export function useWeek(weekId?: DayKey): Week | undefined {
+  const today = useToday();
+  const key = weekId ?? (today ? weekKey(today) : undefined);
+  return useLiveQuery(async () => {
+    if (!key) return undefined;
+    const w = await db.weeks.get(key);
+    return w && !w.deleted ? w : undefined;
+  }, [key]);
+}
+
 export function useCurrentEnergy(): EnergyLevel | undefined {
   const settings = useSettings();
   const now = useNow();
@@ -124,6 +194,12 @@ export function useCurrentEnergy(): EnergyLevel | undefined {
 
 export function useEngine(skipIds?: string[]): EngineOutput | undefined {
   const now = useNow();
+  const mode = useDayMode();
+  const current = useCurrentBlock();
+  const blockId = current?.block.id;
+  const blockAreaId = current?.block.areaId;
+  const blockJourneyId = current?.block.journeyId;
+  const blockEnd = current?.end;
   const data = useLiveQuery(async () => {
     const settings = await db.settings.get('settings');
     if (!settings || settings.deleted) return undefined;
@@ -160,11 +236,15 @@ export function useEngine(skipIds?: string[]): EngineOutput | undefined {
       commitments: data.commitments,
       energy: data.energy,
       hardDay: data.hardDay,
+      mode,
+      block: blockId !== undefined && blockEnd !== undefined
+        ? { id: blockId, areaId: blockAreaId, journeyId: blockJourneyId, endTs: blockEnd }
+        : undefined,
       lastCompletionByArea: data.lastCompletionByArea,
       skipIds: skipKey ? skipKey.split(',') : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, now, skipKey]);
+  }, [data, now, skipKey, mode, blockId, blockAreaId, blockJourneyId, blockEnd]);
 }
 
 export interface CharacterStats {
@@ -172,6 +252,9 @@ export interface CharacterStats {
   byArea: Array<{ area: Area; info: LevelInfo; xp: number }>;
   week: boolean[];
   month: boolean[];
+  /** Constancy over workdays only (§9): free days are listed but not counted. */
+  weekWorkdays: ReturnType<typeof activeWorkdays>;
+  monthWorkdays: ReturnType<typeof activeWorkdays>;
   recent: XpEvent[];
 }
 
@@ -181,10 +264,12 @@ export function useCharacterStats(): CharacterStats | undefined {
     const settings = await db.settings.get('settings');
     if (!settings || settings.deleted) return undefined;
     const today = dayKeyOf(now, settings.dayStartHour);
-    const [xp, areas] = await Promise.all([
+    const [xp, areas, dayStates] = await Promise.all([
       db.xpEvents.filter((x) => !x.deleted).toArray(),
       db.areas.orderBy('order').toArray(),
+      db.dayState.toArray(),
     ]);
+    const isFree = isFreeDayFor(dayStates);
     let sum = 0;
     const perArea = new Map<string, number>();
     const days = new Set<DayKey>();
@@ -201,6 +286,8 @@ export function useCharacterStats(): CharacterStats | undefined {
       }),
       week: activeDays(days, today, 7),
       month: activeDays(days, today, 30),
+      weekWorkdays: activeWorkdays(days, today, 7, isFree),
+      monthWorkdays: activeWorkdays(days, today, 30, isFree),
       recent: xp.sort((a, b) => b.at - a.at).slice(0, 10),
     } satisfies CharacterStats;
   }, [now]);

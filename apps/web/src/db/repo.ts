@@ -77,6 +77,22 @@ export async function patch<T extends BaseRecord>(
   return saved;
 }
 
+/**
+ * Patches the live record `id`, or creates it from `defaults` + `changes` when it is missing or
+ * soft-deleted (a deleted one is revived as a fresh record). One transaction.
+ */
+export async function upsert<T extends BaseRecord>(
+  table: SyncTable, id: string, changes: Partial<T>, defaults: Omit<T, keyof BaseRecord>,
+): Promise<T> {
+  const saved = await db.transaction('rw', tableOf(table), db.outbox, async () => {
+    const prev = (await tableOf(table).get(id)) as T | undefined;
+    if (prev && !prev.deleted) return writeInTx(table, { ...prev, ...changes, id } as T);
+    return writeInTx(table, newRecord<T>({ ...defaults, ...changes, id } as Omit<T, keyof BaseRecord> & Partial<BaseRecord>));
+  });
+  notify();
+  return saved;
+}
+
 export async function softDelete(table: SyncTable, id: string): Promise<void> {
   await patch(table, id, { deleted: true } as Partial<BaseRecord>);
 }

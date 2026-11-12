@@ -82,6 +82,8 @@ describe('AgoraScreen', () => {
 
     await user.click(within(item).getByRole('button', { name: 'Hoje' }));
     await waitFor(async () => expect((await db.missions.get(m.id))!.date).toBe('2026-11-11'));
+    // The item counts as decided once the sheet marks it handled (after the reschedule resolves).
+    await within(review).findByRole('heading', { name: 'Revisão rápida — tudo em ordem' });
 
     await user.click(await within(review).findByRole('button', { name: 'Pronto' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: /Revisão rápida/ })).not.toBeInTheDocument());
