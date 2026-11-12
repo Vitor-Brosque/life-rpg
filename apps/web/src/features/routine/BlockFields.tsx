@@ -93,10 +93,11 @@ export interface LinkSelectProps {
   areas: Area[];
   journeys: Journey[];
   onChange(value: string): void;
+  hint?: string;
 }
 
 /** "Sem ligação", a (non-archived) area or an active journey: their missions come to the block. */
-export function LinkSelect({ value, areas, journeys, onChange }: LinkSelectProps) {
+export function LinkSelect({ value, areas, journeys, onChange, hint = 'As missões dessa área ou jornada aparecem no bloco.' }: LinkSelectProps) {
   const id = useId();
   const liveAreas = areas.filter((a) => !a.archived || value === `area:${a.id}`);
   const liveJourneys = journeys.filter((j) => j.status === 'active' || value === `journey:${j.id}`);
@@ -116,7 +117,7 @@ export function LinkSelect({ value, areas, journeys, onChange }: LinkSelectProps
           </optgroup>
         )}
       </select>
-      <p id={`${id}-hint`} className="block-form__hint">As missões dessa área ou jornada aparecem no bloco.</p>
+      <p id={`${id}-hint`} className="block-form__hint">{hint}</p>
     </div>
   );
 }

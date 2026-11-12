@@ -15,8 +15,8 @@ describe('Layout', () => {
     renderAt('/', <Layout><h1>Conteúdo</h1></Layout>);
     const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
     const links = within(nav).getAllByRole('link');
-    expect(links.map((l) => l.textContent?.trim())).toEqual(['Agora', 'Planejar', 'Jornadas', 'Personagem']);
-    for (const [name, href] of [['Agora', '/'], ['Planejar', '/planejar'], ['Jornadas', '/jornadas'], ['Personagem', '/personagem']]) {
+    expect(links.map((l) => l.textContent?.trim())).toEqual(['Agora', 'Planejar', 'Estudo', 'Jornadas', 'Personagem']);
+    for (const [name, href] of [['Agora', '/'], ['Planejar', '/planejar'], ['Estudo', '/estudo'], ['Jornadas', '/jornadas'], ['Personagem', '/personagem']]) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
     expect(screen.getByRole('main')).toHaveTextContent('Conteúdo');

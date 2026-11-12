@@ -127,7 +127,7 @@ textarea { resize: vertical; line-height: 1.4; }
 .app-nav__brand { display: none; }
 .app-nav__list {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: var(--nav-h);
   margin: 0;
   padding: 0;
