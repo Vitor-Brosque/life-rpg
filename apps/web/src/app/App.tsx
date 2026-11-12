@@ -12,6 +12,8 @@ import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
 import { PlanScreen } from '../features/plan/PlanScreen';
+import { DeckScreen } from '../features/study/DeckScreen';
+import { NoteEditor } from '../features/study/NoteEditor';
 import { StudyScreen } from '../features/study/StudyScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TimerBar } from '../timer/TimerBar';
@@ -58,6 +60,9 @@ export function App() {
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
           <Route path="/estudo"><StudyScreen /></Route>
+          <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
+          <Route path="/estudo/nota/nova"><NoteEditor /></Route>
+          <Route path="/estudo/nota/:id">{(params) => <NoteEditor key={params.id} id={params.id} />}</Route>
           <Route path="/jornadas"><JourneysScreen /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>

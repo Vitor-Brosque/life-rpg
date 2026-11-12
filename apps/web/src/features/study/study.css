@@ -84,3 +84,27 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 .forecast__min { font-size: 0.8125rem; }
 .forecast__label { color: var(--text-dim); font-size: 0.75rem; }
 .forecast__legend { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+
+/* ------------------------------------------------------------------ deck and note editor */
+
+.deck__back { color: var(--text-dim); text-decoration: none; }
+.deck-note__title { flex: 1 1 60%; min-width: 0; overflow-wrap: anywhere; }
+.deck-note__meta { color: var(--text-dim); font-size: 0.8125rem; }
+.note-editor__grid { display: grid; gap: var(--space-4); }
+@media (min-width: 900px) {
+  .note-editor__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .note-preview { position: sticky; top: var(--space-4); }
+}
+.note-types { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.note-type { display: inline-flex; align-items: center; gap: var(--space-1); padding: 6px 10px; background: var(--bg-2); cursor: pointer; }
+.note-editor__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.note-editor__form textarea { width: 100%; resize: vertical; }
+.note-editor__status { min-height: 1.25em; margin: 0; color: var(--gold); }
+.note-editor__danger { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3); border-top: 2px solid var(--outline); }
+.note-preview { display: flex; flex-direction: column; gap: var(--space-3); }
+.note-preview__card { display: flex; flex-direction: column; gap: var(--space-2); }
+.note-preview__card + .note-preview__card { padding-top: var(--space-3); border-top: 2px dashed var(--outline); }
+.note-preview__count { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+.note-preview__divider { width: 100%; margin: 0; border: 0; border-top: 2px solid var(--outline); }
+.note-preview__extra { color: var(--text-dim); font-size: 0.9375rem; }
+.note-preview__points { margin: 0; padding-left: 1.25em; }
