@@ -8,16 +8,16 @@ export function ForecastBars({ forecast, budgetMin }: { forecast: Array<{ day: D
   const top = Math.max(budgetMin, ...forecast.map((f) => f.min), 1);
   return (
     <div className="forecast">
-      <ul className="forecast__bars" aria-label={`Minutos previstos nos próximos dias de estudo; orçamento de ${budgetMin} min por dia`}>
-        <li className="forecast__line" aria-hidden="true" style={{ bottom: `calc(36px + (100% - 36px) * ${budgetMin / top})` }} />
+      <div className="forecast__chart" aria-hidden="true">
+        <span className="forecast__line" style={{ bottom: `${(budgetMin / top) * 100}%` }} />
+        {forecast.map((f) => <span key={f.day} className="forecast__bar" style={{ height: `${(f.min / top) * 100}%` }} />)}
+      </div>
+      <ul className="forecast__days" aria-label={`Minutos previstos nos próximos dias de estudo; orçamento de ${budgetMin} min por dia`}>
         {forecast.map((f) => {
           const min = Math.round(f.min);
           const name = WEEKDAY_ABBR[weekdayOf(f.day)]!;
           return (
-            <li key={f.day} className="forecast__day" aria-label={`${name}: cerca de ${min} min`}>
-              <span className="forecast__track" aria-hidden="true">
-                <span className="forecast__bar" style={{ height: `${(f.min / top) * 100}%` }} />
-              </span>
+            <li key={f.day} aria-label={`${name}: cerca de ${min} min`}>
               <span className="forecast__min" aria-hidden="true">{min}</span>
               <span className="forecast__label" aria-hidden="true">{name}</span>
             </li>

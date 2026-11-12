@@ -89,13 +89,13 @@ describe('StudyScreen', () => {
 
 describe('ForecastBars', () => {
   it('draws the budget line on the same scale as the bars', () => {
-    const days = ['2026-11-13', '2026-11-14', '2026-11-15', '2026-11-16', '2026-11-17'];
-    const { container } = render(<ForecastBars forecast={days.map((day) => ({ day, min: 15 }))} budgetMin={15} />);
-    expect(screen.getByLabelText('sex: cerca de 15 min')).toBeInTheDocument();
-    const bar = container.querySelector<HTMLElement>('.forecast__bar')!;
-    const line = container.querySelector<HTMLElement>('.forecast__line')!;
-    expect(bar.style.height).toBe('100%');
-    // ratio 1 (bar == budget): the line sits at the top of the bar area (jsdom folds calc(36px + (100% - 36px) * 1)).
-    expect(line.style.bottom).toBe('calc(100% + 0px)');
+    const days = ['2026-11-13', '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19'];
+    const mins = [10, 20, 5, 0, 15];
+    const { container } = render(<ForecastBars forecast={days.map((day, i) => ({ day, min: mins[i]! }))} budgetMin={10} />);
+    expect(screen.getByLabelText('sex: cerca de 10 min')).toBeInTheDocument();
+    expect(container.querySelector<HTMLElement>('.forecast__line')!.style.bottom).toBe('50%');
+    const bars = container.querySelectorAll<HTMLElement>('.forecast__bar');
+    expect(bars[0]!.style.height).toBe('50%');
+    expect(bars[1]!.style.height).toBe('100%');
   });
 });
