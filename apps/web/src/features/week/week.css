@@ -1,0 +1,118 @@
+/* Weekly cycle (§8): the "Nova semana" card and the line under the status strip.
+   The card sits on --stone: --text-dim is fine there (5.5), never on --stone-light. */
+
+/* ------------------------------------------------------------------- card */
+
+.week-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.week-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.week-card__title { margin: 0; color: var(--gold); font-size: 1.125rem; }
+.week-card__step { flex-shrink: 0; color: var(--text-dim); font-size: 0.8125rem; font-weight: 600; }
+.week-card__section { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.week-card__subtitle {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.week-card__note { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-dim); font-size: 0.875rem; line-height: 1.35; }
+.week-card__note + .week-card__note { margin-top: 0; }
+.week-card__question { color: var(--text); font-size: 0.9375rem; }
+.week-card__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 2px; }
+/* Content-sized: side by side when both fit, otherwise the primary takes its own row. */
+.week-card__actions .btn { flex: 1 1 auto; white-space: nowrap; }
+.week-card__actions .btn--primary { flex-grow: 2; }
+
+/* Observed numbers: facts in a plain grid, numbers in the body font (Pixelify's 5 reads like an S). */
+.week-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  background: var(--outline);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+.week-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; background: var(--bg-2); }
+.week-stat__label { color: var(--text-dim); font-size: 0.8125rem; font-weight: 600; line-height: 1.25; }
+.week-stat__value {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- objectives */
+
+.week-group { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.week-group__name {
+  margin-bottom: 2px;
+  color: var(--gold);
+  font-family: var(--font-pixel);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.week-carry { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.week-carry__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: 6px 6px 6px 12px;
+  background: var(--bg-2);
+  box-shadow: inset 4px 0 0 var(--gold-dark);
+}
+.week-carry__text { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+/* Let go: just quieter, never crossed out like a failure. */
+.week-carry__item.is-dropped .week-carry__text { color: var(--text-dim); }
+.week-carry__choice { display: flex; gap: 6px; padding: 2px; }
+.week-carry__btn {
+  min-width: 76px;
+  min-height: var(--touch);
+  padding: 0 10px;
+  color: var(--text);
+  font-weight: 700;
+  background: var(--stone);
+  border: 0;
+  box-shadow: 0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline), -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline);
+  cursor: pointer;
+}
+.week-carry__btn[aria-pressed='true'] { color: var(--ink); background: var(--gold); }
+.week-carry__btn:last-child[aria-pressed='true'] { color: var(--ink); background: var(--text-dim); }
+.week-carry__btn:active { transform: translateY(2px); }
+
+/* ------------------------------------------------- line under the status strip */
+
+.week-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px var(--space-3); margin-top: calc(var(--space-2) * -1); }
+.week-line__experiment {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  padding-left: 10px;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  box-shadow: inset 3px 0 0 var(--sky);
+  overflow-wrap: anywhere;
+}
+.week-line__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  color: var(--gold);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+@media (hover: hover) { .week-line__link:hover { color: var(--text); } }

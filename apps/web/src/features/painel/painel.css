@@ -109,6 +109,72 @@
 .timeline__block--now .timeline__block-time { color: var(--gold); }
 .timeline__block--past { opacity: 0.55; }
 
+/* Today's blocks (§10): warmer than commitments (ember bar), the current one framed in gold. */
+.timeline__band {
+  position: absolute;
+  z-index: 1;
+  min-height: 1.25em;
+  padding: 0 8px 0 12px;
+  overflow: hidden;
+  color: var(--text);
+  background: #302a3c;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  box-shadow: inset 4px 0 0 var(--ember);
+}
+.timeline__band-text { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
+.timeline__band-time { color: #f0a477; font-size: 0.875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.timeline__band-title { min-width: 0; max-width: 100%; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.timeline__band-check { color: var(--leaf); }
+.timeline__band--current {
+  z-index: 2;
+  background: #3d3220;
+  box-shadow: inset 4px 0 0 var(--gold), inset 0 0 0 2px var(--gold);
+}
+.timeline__band--current .timeline__band-time { color: var(--gold); }
+.timeline__band--done { opacity: 0.6; box-shadow: inset 4px 0 0 var(--leaf); }
+.timeline__band--done .timeline__band-time { color: var(--text-dim); }
+.timeline__band--missed { opacity: 0.45; }
+
+/* The cut part of a shrunk block: past, or under the entry that took it. */
+.timeline__cuts { position: absolute; inset: 0 0 0 60px; pointer-events: none; }
+.timeline__cut {
+  position: absolute;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(135deg, rgba(169, 163, 184, 0.16) 0 6px, transparent 6px 12px);
+  border: 2px dashed rgba(169, 163, 184, 0.7);
+}
+
+/* A block with no room today: thin line at its target time, label on the right. */
+.timeline__skip {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--text-dim);
+}
+/* Two short lines just under the line, on the right: what usually sits there (a commitment's
+   title, at its top left) stays readable. */
+.timeline__skip-label {
+  position: absolute;
+  right: 4px;
+  top: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 55%;
+  padding: 2px 6px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  background: var(--bg);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+.timeline__skip-name { max-width: 100%; overflow: hidden; color: var(--text); text-overflow: ellipsis; }
+
 .timeline__now { position: absolute; z-index: 2; left: 0; right: 0; height: 0; pointer-events: none; }
 .timeline__now::after {
   content: '';
@@ -137,6 +203,7 @@
 
 /* ---------------------------------------------------------------- apoio */
 
+.painel__resume { flex-shrink: 0; }
 .painel__timer { display: flex; flex-direction: column; gap: var(--space-3); }
 .painel__timer-idle { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
 .painel__hint { margin: 0; color: var(--text-dim); font-size: 0.875rem; }

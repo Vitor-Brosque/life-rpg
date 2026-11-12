@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { dayKeyToDate } from '@life/shared';
-import { Companion, SpeechBubble } from '../../art/Companion';
-import { useCharacterStats, useProfile, useToday } from '../../db/hooks';
 import { reorderDay } from '../../domain/actions';
-import { TimerActive, resumeTimer } from '../../timer/TimerControls';
-import { useTimerSheet } from '../../timer/TimerSheet';
+import { resumeTimer } from '../../timer/TimerControls';
 import { useTimer } from '../../timer/store';
-import { Button } from '../../ui/Button';
 import { WEEKDAY_ABBR } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
-import { WeekDots } from '../../ui/WeekDots';
 import { AgoraNow, showsMainCard } from '../agora/AgoraNow';
 import { pickDayMode } from '../agora/blockFeedback';
 import { DayTypeCard } from '../agora/DayTypeCard';
+import { ResumeNote, useResumeNote } from '../agora/ResumeNote';
 import { ReviewSheet } from '../agora/ReviewSheet';
 import { ShrinkDialog } from '../agora/ShrinkDialog';
 import { SnoozeDialog } from '../agora/SnoozeDialog';
@@ -24,8 +20,11 @@ import {
   useBlocksNow, useCompanionMoments, useDayReview, useDayType, useTodayData,
 } from '../agora/useAgoraData';
 import { CaptureForm } from '../capture/CaptureBar';
-import { useCompanion } from '../companion/store';
 import { useMissionSheet } from '../mission/MissionSheet';
+import { WeekCard } from '../week/WeekCard';
+import { useWeekCycle } from '../week/weekCycle';
+import { WeekLine } from '../week/WeekLine';
+import { ConstancyCard, PainelCompanion, PainelTimer } from './PainelParts';
 import { Timeline, dayBounds } from './Timeline';
 import '../agora/agora.css';
 import './painel.css';
@@ -74,58 +73,11 @@ function usePainelShortcuts(handlers: { capture(): void; complete(): void }): vo
   }, []);
 }
 
-function PainelTimer() {
-  const idle = useTimer((s) => s.status === 'idle');
-  return (
-    <Panel variant="stone" className="painel__timer px-border--gold">
-      {idle ? (
-        <div className="painel__timer-idle">
-          <p className="timer-clock timer-clock--still" aria-hidden="true">00:00</p>
-          <Button variant="primary" size="lg" icon="play" onClick={() => useTimerSheet.getState().open()}>
-            Iniciar foco
-          </Button>
-          <p className="painel__hint">Livre, Pomodoro ou regressivo — só começa quando você mandar.</p>
-        </div>
-      ) : (
-        <TimerActive size="lg" />
-      )}
-      <p className="painel__keys" aria-hidden="true"><kbd>Espaço</kbd> pausa/retoma · <kbd>C</kbd> conclui a missão</p>
-    </Panel>
-  );
-}
-
-function PainelCompanion() {
-  const message = useCompanion((s) => s.message);
-  const profile = useProfile();
-  return (
-    <div className="painel__companion">
-      <Companion scale={5} speaking={!!message} />
-      <div className="painel__companion-side">
-        <SpeechBubble message={message} className="painel__speech" />
-        {!message && <p className="painel__companion-name">{profile?.companionName || 'Faísca'}</p>}
-      </div>
-    </div>
-  );
-}
-
-function ConstancyCard() {
-  const stats = useCharacterStats();
-  const today = useToday();
-  if (!stats || !today) return null;
-  const count = stats.week.filter(Boolean).length;
-  return (
-    <Panel variant="stone" className="painel__week">
-      <h2 className="painel__subheading">Constância</h2>
-      <WeekDots week={stats.week} today={today} />
-      <p className="painel__week-text">{count} de 7 dias — um dia parado não apaga nada.</p>
-    </Panel>
-  );
-}
-
 /**
- * The Painel (§12): a 3-column layout for a secondary monitor — Agora (main card +
- * alternatives), Hoje (timeline + today's missions) and Apoio (timer, companion, capture,
- * constância). Large text, updates by itself (live queries fed by sync/SSE).
+ * The Painel (§12): a 3-column layout for a secondary monitor — Agora (block banner, main card +
+ * alternatives), Hoje (timeline of blocks and commitments + today's missions) and Apoio ("Onde
+ * você parou", timer, companion, capture, constância). Large text, updates by itself (live
+ * queries fed by sync/SSE).
  */
 export function PainelScreen() {
   const agora = useAgora();
@@ -134,6 +86,8 @@ export function PainelScreen() {
   const review = useDayReview(today, missions);
   const dayType = useDayType(today);
   const { plan, current, next } = useBlocksNow(now);
+  const cycle = useWeekCycle(today, dayType);
+  const note = useResumeNote(current?.block.id, today);
   const free = dayType.mode === 'free';
   const apoioRef = useRef<HTMLElement>(null);
 
@@ -156,7 +110,7 @@ export function PainelScreen() {
   });
 
   const ready = engine !== undefined && today !== undefined && settings !== undefined && dayType.loaded
-    && plan !== undefined;
+    && plan !== undefined && cycle.loaded;
   const listed = free ? todayMissions.filter((m) => m.status === 'doing' || m.date === today) : todayMissions;
   const bounds = ready ? dayBounds(today, settings.dayStartHour, settings.dayEndHour) : undefined;
   const date = today ? dayKeyToDate(today) : undefined;
@@ -169,7 +123,11 @@ export function PainelScreen() {
         {ready && (
           <>
             <StatusStrip engine={engine} compact />
+            <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
             {!dayType.asked && !dayType.weekend && <DayTypeCard onPick={pickDayMode} />}
+            {cycle.showCard && cycle.weekId && (
+              <WeekCard today={today} weekId={cycle.weekId} onLater={cycle.later} onDone={cycle.finish} />
+            )}
             {review.show && !free && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
             {/* "Onde você parou" belongs to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
@@ -186,7 +144,7 @@ export function PainelScreen() {
         {ready && bounds && (
           <>
             <div className="painel__timeline">
-              <Timeline occurrences={occurrences} now={now} dayStartTs={bounds.start} dayEndTs={bounds.end} />
+              <Timeline occurrences={occurrences} blocks={plan} now={now} dayStartTs={bounds.start} dayEndTs={bounds.end} />
             </div>
             <div className="painel__today">
               <TodayList
@@ -207,6 +165,7 @@ export function PainelScreen() {
       </section>
 
       <section className="painel__col painel__apoio" aria-label="Apoio" ref={apoioRef}>
+        <ResumeNote text={note} className="painel__resume" />
         <PainelTimer />
         <PainelCompanion />
         <Panel variant="stone" className="painel__capture">

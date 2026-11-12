@@ -4,12 +4,12 @@ import type { XpReason } from '@life/shared';
 import { titleForLevel } from '@life/shared';
 import { Avatar } from '../../art/Avatar';
 import { areaIcon, Icon } from '../../art/icons';
-import { useCharacterStats, useNow, useProfile, useToday } from '../../db/hooks';
+import { useCharacterStats, useNow, useProfile } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { relativeTime } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
-import { WeekDots } from '../../ui/WeekDots';
+import { WeekDots, workdaysText } from '../../ui/WeekDots';
 import { LookEditor } from './LookEditor';
 import './character.css';
 
@@ -30,13 +30,12 @@ export const XP_REASON_LABEL: Record<XpReason, string> = {
 const xpLabel = (into: number, needed: number) => `${into} / ${needed} XP`;
 
 /**
- * "Personagem" (§11): avatar, level and title, one attribute per life area, constancy without
- * streaks (a day off never resets anything) and the latest XP earned.
+ * "Personagem" (§11): avatar, level and title, one attribute per life area, constancy in workdays
+ * without streaks (a day off never resets anything, free days are not counted) and the latest XP earned.
  */
 export function CharacterScreen() {
   const profile = useProfile();
   const stats = useCharacterStats();
-  const today = useToday();
   const now = useNow();
   const [editing, setEditing] = useState(false);
 
@@ -90,13 +89,14 @@ export function CharacterScreen() {
 
       <Panel variant="stone" className="constancy" aria-labelledby="constancy-title" role="region">
         <h2 id="constancy-title" className="section-title">Constância</h2>
-        {stats && today && (
+        {stats && (
           <>
-            <WeekDots week={stats.week} today={today} />
-            <p className="constancy__month">{stats.month.filter(Boolean).length} de 30 dias ativos</p>
+            <WeekDots week={stats.weekWorkdays} />
+            <p className="constancy__count">{workdaysText(stats.weekWorkdays)}</p>
+            <p className="constancy__month">{`${workdaysText(stats.monthWorkdays)} nos últimos 30`}</p>
           </>
         )}
-        <p className="constancy__note">Um dia parado não apaga nada.</p>
+        <p className="constancy__note">Dias livres não entram na conta. Um dia parado não apaga nada.</p>
       </Panel>
 
       <section aria-labelledby="recent-title">

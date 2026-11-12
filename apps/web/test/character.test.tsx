@@ -68,14 +68,15 @@ describe('CharacterScreen', () => {
     expect(within(vigor).getByRole('progressbar', { name: '5 / 30 XP' })).toBeInTheDocument();
   });
 
-  it('shows constancy as 7 dots and 30-day count, never the word "sequência"', async () => {
+  it('shows constancy as 7 dots and workday counts, never the word "sequência"', async () => {
     await addXp(5, { dayKey: '2026-11-11' });
     await addXp(5, { dayKey: '2026-11-09', at: NOW - 2 * 86_400_000 });
     await addXp(5, { dayKey: '2026-10-20', at: NOW - 22 * 86_400_000 });
     renderCharacter();
-    const dots = await screen.findByRole('list', { name: '2 de 7 dias com atividade' });
+    const dots = await screen.findByRole('list', { name: '2 de 5 dias úteis com atividade' });
     expect(within(dots).getAllByRole('listitem')).toHaveLength(7);
-    expect(screen.getByText('3 de 30 dias ativos')).toBeInTheDocument();
+    expect(screen.getByText('2 de 5 dias úteis')).toBeInTheDocument();
+    expect(screen.getByText('3 de 22 dias úteis nos últimos 30')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sequ[eê]ncia/i);
   });
 

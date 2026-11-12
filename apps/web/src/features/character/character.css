@@ -80,7 +80,8 @@
 
 .constancy .section-title { margin-bottom: var(--space-4); }
 .constancy .week-dots { max-width: 360px; }
-.constancy__month { margin: var(--space-4) 0 0; font-weight: 600; }
+.constancy__count { margin: var(--space-4) 0 0; font-weight: 700; }
+.constancy__month { margin: 2px 0 0; font-weight: 600; }
 .constancy__note { margin: 2px 0 0; color: var(--text-dim); font-size: 0.875rem; }
 
 /* --------------------------------------------------------------- recent */

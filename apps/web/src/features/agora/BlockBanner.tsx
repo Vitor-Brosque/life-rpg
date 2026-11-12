@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { BlockOccurrence, Mission, Week } from '@life/shared';
+import type { BlockOccurrence, ID, Mission, Week } from '@life/shared';
 import { formatHHmm } from '@life/shared';
 import { Icon } from '../../art/icons';
 import { setBlockVersion } from '../../domain/actions';
@@ -21,8 +21,10 @@ export interface BlockBannerProps {
   /** Today's 'current' occurrence (`useCurrentBlock`). */
   occurrence: BlockOccurrence;
   now: number;
-  /** This week: objectives of the block and the week's experiment. */
+  /** This week: its objectives for the block (the experiment shows under the status strip). */
   week?: Week;
+  /** Blocks whose objectives count as this one's (same name on other weekdays); default: itself. */
+  blockIds?: ID[];
   /** Mission in focus (timer or main card): its next unchecked step prefills "Onde parou?". */
   focusMission?: Mission;
   /** Tighter variant (Painel column). */
@@ -33,12 +35,13 @@ export interface BlockBannerProps {
  * "Bloco 1 · Tech News · até 10:30": what this part of the day is for, how long is left (and
  * whether it shrank), the week's objective for it, and Começar / Versão mínima / Encerrar / Escapei.
  */
-export function BlockBanner({ occurrence, now, week, focusMission, compact }: BlockBannerProps) {
+export function BlockBanner({ occurrence, now, week, blockIds, focusMission, compact }: BlockBannerProps) {
   const { block, session, day } = occurrence;
   const [starting, setStarting] = useState(false);
   const started = session?.startedAt !== undefined && session.endedAt === undefined;
   const minimum = occurrence.version === 'minimum';
-  const objectives = week?.objectives.filter((o) => o.blockId === block.id) ?? [];
+  const ids = blockIds ?? [block.id];
+  const objectives = week?.objectives.filter((o) => ids.includes(o.blockId)) ?? [];
   // Before Começar, the minimum window is anchored at the target time: once it is over, switching
   // would just end the block, so the toggle waits for Começar (then it counts from the start).
   const minimumGone = !started && !minimum
@@ -90,11 +93,7 @@ export function BlockBanner({ occurrence, now, week, focusMission, compact }: Bl
           </ul>
         </div>
       )}
-      {block.kind === 'routine' ? (
-        <RoutineChecklist block={block} day={day} />
-      ) : week?.experiment && (
-        <p className="block-banner__experiment">{`Experimento da semana: ${week.experiment}`}</p>
-      )}
+      {block.kind === 'routine' && <RoutineChecklist block={block} day={day} />}
 
       <div className="block-banner__actions">
         {!started && (

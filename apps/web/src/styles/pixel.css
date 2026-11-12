@@ -432,3 +432,12 @@ a.btn { text-decoration: none; }
 }
 .week-dots__label { color: var(--text-dim); font-size: 0.75rem; font-weight: 600; }
 .week-dots__day.is-today .week-dots__label { color: var(--gold); }
+/* Free day: not counted, so no empty square to "fill" — a dashed outline instead. */
+.week-dots__day.is-free .week-dots__dot {
+  background: transparent;
+  box-shadow: none;
+  outline: 2px dashed rgba(169, 163, 184, 0.6);
+  outline-offset: -2px;
+}
+.week-dots__day.is-free.is-on .week-dots__dot { background: rgba(242, 193, 78, 0.55); }
+.week-dots__day.is-free .week-dots__label { font-style: italic; }

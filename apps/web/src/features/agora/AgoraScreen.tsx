@@ -5,6 +5,9 @@ import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
+import { WeekCard } from '../week/WeekCard';
+import { useWeekCycle } from '../week/weekCycle';
+import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
 import { pickDayMode } from './blockFeedback';
 import { DayTypeCard } from './DayTypeCard';
@@ -23,7 +26,10 @@ export function AgoraScreen() {
   return wide ? <PainelScreen /> : <AgoraView />;
 }
 
-/** The day type, the current block, one mission at a time (first step first), and today's list. */
+/**
+ * The day type, the weekly cycle (Monday), the current block, one mission at a time (first step
+ * first), and today's list.
+ */
 function AgoraView() {
   const agora = useAgora();
   const { engine, primary, dialog, closeDialog } = agora;
@@ -31,9 +37,10 @@ function AgoraView() {
   const review = useDayReview(today, missions);
   const dayType = useDayType(today);
   const { plan, current, next } = useBlocksNow(now);
+  const cycle = useWeekCycle(today, dayType);
   const free = dayType.mode === 'free';
 
-  const ready = engine !== undefined && today !== undefined && dayType.loaded && plan !== undefined;
+  const ready = engine !== undefined && today !== undefined && dayType.loaded && plan !== undefined && cycle.loaded;
   // "Empty" only once the empty card is on screen (and not where the main card is hidden).
   const empty = ready && !primary && !engine.currentCommitment
     && showsMainCard({ mode: dayType.mode, current, next, inCommitment: false });
@@ -51,8 +58,12 @@ function AgoraView() {
     <section className="screen agora" aria-labelledby="agora-title">
       <h1 id="agora-title" className="visually-hidden">Agora</h1>
       <StatusStrip engine={engine} />
+      <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
 
       {!dayType.asked && !dayType.weekend && <DayTypeCard onPick={pickDayMode} />}
+      {cycle.showCard && cycle.weekId && (
+        <WeekCard today={today} weekId={cycle.weekId} onLater={cycle.later} onDone={cycle.finish} />
+      )}
       {/* "Fim de semana sem cobrança": leftovers wait for the next workday. */}
       {review.show && !free && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
 

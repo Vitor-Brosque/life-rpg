@@ -163,7 +163,7 @@ describe('block banner', () => {
     await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
   });
 
-  it('shows the week objective of the block (checkable, +10 XP) and the week experiment', async () => {
+  it('shows the week objective of the block (checkable, +10 XP); the experiment sits above, once', async () => {
     const user = userEvent.setup();
     await setObjectives('2026-11-09', [
       { blockId: 'b1', text: 'Fechar a ingestão', done: false },
@@ -172,7 +172,9 @@ describe('block banner', () => {
     await saveWeekReview('2026-11-09', { worked: '', obstacle: '', adjustment: 'Começar pelo teste' });
     renderAgora();
     const b = await banner();
-    expect(await within(b).findByText('Experimento da semana: Começar pelo teste')).toBeInTheDocument();
+    expect(await screen.findByText('Experimento da semana: Começar pelo teste')).toBeInTheDocument();
+    expect(within(b).queryByText(/Experimento da semana/)).not.toBeInTheDocument();
+    expect(await within(b).findByRole('checkbox', { name: 'Fechar a ingestão' })).toBeInTheDocument();
     expect(within(b).queryByText('Treinar 4×')).not.toBeInTheDocument();
     await user.click(within(b).getByRole('checkbox', { name: 'Fechar a ingestão' }));
     await waitFor(async () => expect(await xpBy('objective')).toBe(10));

@@ -112,14 +112,6 @@
 .block-check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch); cursor: pointer; }
 .block-check__text { min-width: 0; overflow-wrap: anywhere; }
 .block-check__text.is-done { color: var(--text-dim); text-decoration: line-through; text-decoration-thickness: 2px; }
-.block-banner__experiment {
-  margin: 0;
-  padding: 8px 12px;
-  color: var(--text);
-  font-size: 0.875rem;
-  background: rgba(111, 179, 224, 0.12);
-  box-shadow: inset 4px 0 0 var(--sky);
-}
 .block-banner__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); padding: 2px; }
 .block-banner__actions .btn { flex: 1 1 140px; white-space: nowrap; }
 .block-banner__actions .block-banner__start { flex-basis: 100%; }

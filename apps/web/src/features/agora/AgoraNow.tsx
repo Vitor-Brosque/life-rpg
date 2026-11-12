@@ -1,7 +1,8 @@
 import type { Area, BlockOccurrence, DayKey, DayMode, Mission } from '@life/shared';
 import { isOfBlock } from '@life/shared';
-import { useWeek } from '../../db/hooks';
+import { useBlocks, useWeek } from '../../db/hooks';
 import { useTimer } from '../../timer/store';
+import { sameNameIds } from '../week/weekData';
 import { Alternatives } from './Alternatives';
 import { BetweenBlocks, fitsIn } from './BetweenBlocks';
 import { BlockBanner } from './BlockBanner';
@@ -48,6 +49,7 @@ export function AgoraNow({
 }: AgoraNowProps) {
   const { engine, primary, alternatives, actions, canSkip } = agora;
   const week = useWeek();
+  const blocks = useBlocks();
   const note = useResumeNote(current?.block.id, today);
   const timerMissionId = useTimer((s) => (s.status === 'idle' ? undefined : s.missionId));
 
@@ -78,7 +80,8 @@ export function AgoraNow({
     const focus = timerMission ?? (primary && isOfBlock(primary.mission, current.block) ? primary.mission : undefined);
     return (
       <>
-        <BlockBanner occurrence={current} now={now} week={week} focusMission={focus} compact={compact} />
+        <BlockBanner occurrence={current} now={now} week={week} blockIds={sameNameIds(blocks, current.block)}
+          focusMission={focus} compact={compact} />
         {showNote && <ResumeNote text={note} />}
         {current.block.kind !== 'routine' && main}
       </>
