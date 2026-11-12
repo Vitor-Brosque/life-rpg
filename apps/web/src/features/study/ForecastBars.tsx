@@ -9,7 +9,7 @@ export function ForecastBars({ forecast, budgetMin }: { forecast: Array<{ day: D
   return (
     <div className="forecast">
       <ul className="forecast__bars" aria-label={`Minutos previstos nos próximos dias de estudo; orçamento de ${budgetMin} min por dia`}>
-        <li className="forecast__line" aria-hidden="true" style={{ bottom: `${(budgetMin / top) * 100}%` }} />
+        <li className="forecast__line" aria-hidden="true" style={{ bottom: `calc(36px + (100% - 36px) * ${budgetMin / top})` }} />
         {forecast.map((f) => {
           const min = Math.round(f.min);
           const name = WEEKDAY_ABBR[weekdayOf(f.day)]!;

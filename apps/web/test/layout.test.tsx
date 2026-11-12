@@ -11,7 +11,7 @@ function renderAt(path: string, ui: React.ReactNode) {
 }
 
 describe('Layout', () => {
-  it('renders the 4 main nav links with accessible names', () => {
+  it('renders the 5 main nav links with accessible names', () => {
     renderAt('/', <Layout><h1>Conteúdo</h1></Layout>);
     const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
     const links = within(nav).getAllByRole('link');

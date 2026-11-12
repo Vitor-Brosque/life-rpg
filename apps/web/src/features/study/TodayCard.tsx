@@ -61,7 +61,7 @@ export function TodayCard({ plan, mode, restDay, hasDecks, hasCards, onReview, o
     body = (
       <>
         <p className="study-today__headline">Dia livre</p>
-        <p className="muted">Nada vence hoje.</p>
+        <p className="muted">{plan.dueCount > 0 ? `${plural(plan.dueCount, 'revisão esperando', 'revisões esperando')}, sem pressa.` : 'Nada vence hoje.'}</p>
         <div className="study-today__actions"><Button variant="ghost" onClick={onReview}>Revisar mesmo assim</Button></div>
       </>
     );

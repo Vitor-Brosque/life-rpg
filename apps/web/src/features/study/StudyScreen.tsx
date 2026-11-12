@@ -52,7 +52,7 @@ export function StudyScreen() {
           <h2 className="study__subtitle">Rascunhos para completar ({drafts.length})</h2>
           <ul className="study-list">
             {drafts.map((n) => (
-              <li key={n.id}><Link className="study-list__item" href={`/estudo/nota/${n.id}`}>{stripCloze(n.front)}</Link></li>
+              <li key={n.id}><Link className="study-list__item" href={`/estudo/nota/${n.id}`}>{stripCloze(n.front).trim() || '(sem texto)'}</Link></li>
             ))}
           </ul>
         </Panel>
