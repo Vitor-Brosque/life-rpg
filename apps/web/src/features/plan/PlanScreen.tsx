@@ -1,20 +1,26 @@
 import { useState, type KeyboardEvent } from 'react';
+import { tabKeyTarget } from '../../ui/tabKeys';
+import { RoutineScreen } from '../routine/RoutineScreen';
 import { BoardView } from './BoardView';
 import { WeekView } from './WeekView';
 import './plan.css';
 
-type Tab = 'week' | 'board';
+type Tab = 'week' | 'board' | 'routine';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'week', label: 'Semana' },
   { id: 'board', label: 'Quadro' },
+  { id: 'routine', label: 'Rotina' },
 ];
 const KEY = 'life-rpg.plan.tab';
 
 function readTab(): Tab {
-  try { return localStorage.getItem(KEY) === 'board' ? 'board' : 'week'; } catch { return 'week'; }
+  try {
+    const saved = localStorage.getItem(KEY);
+    return TABS.find((t) => t.id === saved)?.id ?? 'week';
+  } catch { return 'week'; }
 }
 
-/** Planejar: secondary views to arrange missions across days (week) or by state (board). */
+/** Planejar: missions across days (week) or by state (board), and the block routine. */
 export function PlanScreen() {
   const [tab, setTab] = useState<Tab>(readTab);
   const choose = (t: Tab) => {
@@ -23,12 +29,7 @@ export function PlanScreen() {
   };
   // Tab pattern: one stop in the Tab order; arrows (wrapping), Home and End switch views.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = TABS.findIndex((t) => t.id === tab);
-    const next = e.key === 'ArrowRight' ? (i + 1) % TABS.length
-      : e.key === 'ArrowLeft' ? (i - 1 + TABS.length) % TABS.length
-        : e.key === 'Home' ? 0
-          : e.key === 'End' ? TABS.length - 1
-            : -1;
+    const next = tabKeyTarget(e.key, TABS.findIndex((t) => t.id === tab), TABS.length);
     if (next < 0) return;
     e.preventDefault();
     const id = TABS[next]!.id;
@@ -47,7 +48,7 @@ export function PlanScreen() {
         ))}
       </div>
       <div id="plan-panel" role="tabpanel" aria-labelledby={`plan-tab-${tab}`}>
-        {tab === 'week' ? <WeekView /> : <BoardView />}
+        {tab === 'week' ? <WeekView /> : tab === 'board' ? <BoardView /> : <RoutineScreen />}
       </div>
     </section>
   );

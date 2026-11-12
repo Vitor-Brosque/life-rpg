@@ -16,6 +16,7 @@ import {
   backlogMissions, dayLabel, DRAG_INSTRUCTIONS, missionsOnDay, occurrencesOn, planCollision, recentlyDropped,
   usePlanData, usePlanSensors,
 } from './planShared';
+import { useWeekBlocks } from './weekBlocks';
 import { WeekStrip } from './WeekStrip';
 
 export const WIDE_QUERY = '(min-width: 1200px)';
@@ -45,7 +46,10 @@ function RecentlyDropped({ missions, onOpen }: { missions: Mission[]; onOpen(m: 
   );
 }
 
-/** "Semana": 7 days from today (strip + list on phones, 7 columns on wide screens) and the backlog. */
+/**
+ * "Semana": 7 days from today (strip + list on phones, 7 columns on wide screens), each with its
+ * routine blocks, commitments and missions, and the backlog.
+ */
 export function WeekView() {
   const { today, dayStartHour, missions, commitments, areas } = usePlanData();
   const now = useNow();
@@ -58,6 +62,7 @@ export function WeekView() {
   const start = today ? addDays(today, offset * 7) : undefined;
   const days = useMemo(() => (start ? Array.from({ length: 7 }, (_, i) => addDays(start, i)) : []), [start]);
   const selected = picked && days.includes(picked) ? picked : days[0];
+  const dayBlocks = useWeekBlocks(days);
 
   if (!today || !start || !selected) return <p className="muted">Carregando…</p>;
 
@@ -106,6 +111,8 @@ export function WeekView() {
       day={d}
       missions={lists.get(dayId(d)) ?? []}
       commitments={occurrences.get(d) ?? []}
+      blocks={dayBlocks?.get(d)?.occurrences}
+      freeDay={dayBlocks?.get(d)?.free}
       areas={areas}
       today={today}
       emptyText="Nada planejado."

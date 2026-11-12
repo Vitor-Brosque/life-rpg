@@ -52,3 +52,9 @@ export function relativeTime(at: number, now: number): string {
   const days = Math.floor(hours / 24);
   return days === 1 ? 'ontem' : `há ${days} dias`;
 }
+
+/** Local clock time of a timestamp: "09:05". */
+export function formatClock(ts: number): string {
+  const d = new Date(ts);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}

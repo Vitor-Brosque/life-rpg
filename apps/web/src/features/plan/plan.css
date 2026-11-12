@@ -67,6 +67,27 @@
 .day-box__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .day-box--backlog { padding-top: var(--space-4); border-top: 2px dashed var(--stone-light); }
 
+/* The day's routine blocks: compact rows, interleaved with the commitments by time. */
+.day-box__agenda { gap: 4px; }
+.day-block {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 6px var(--space-3);
+  color: var(--text);
+  font-size: 0.9375rem;
+  background: rgba(0, 0, 0, 0.2);
+  box-shadow: inset 4px 0 0 var(--stone-light);
+}
+.day-block__time { flex-shrink: 0; color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; }
+.day-block__name { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.day-block__note { flex-shrink: 0; margin-left: auto; color: var(--text-dim); font-size: 0.8125rem; }
+.day-block--skipped { color: var(--text-dim); }
+.day-block--skipped .day-block__time { color: var(--text-dim); }
+.day-block--free { align-items: center; color: var(--leaf); font-weight: 600; box-shadow: inset 4px 0 0 var(--leaf); }
+.day-box__agenda .commit-row__btn { min-height: 40px; }
+
 .commit-row--btn { padding: 0; }
 .commit-row__btn {
   display: flex;
@@ -140,6 +161,7 @@
   .week__columns .commit-row__btn { flex-wrap: wrap; gap: 2px var(--space-2); padding: var(--space-2); }
   .week__columns .commit-row__title { flex-basis: 100%; white-space: normal; }
   .week__columns .day-box__actions { flex-direction: column; }
+  .week__columns .day-block { gap: 6px; padding: 4px 6px 4px 10px; font-size: 0.8125rem; }
   .week__columns .day-box__actions .btn { justify-content: flex-start; }
   .day-box--backlog { max-width: 720px; }
 }

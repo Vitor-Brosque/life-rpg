@@ -131,6 +131,11 @@ export function useBlocks(): Block[] {
   ) ?? (EMPTY as Block[]);
 }
 
+/** Every block that is not deleted (archived ones included), by order; undefined while loading. */
+export function useRoutineBlocks(): Block[] | undefined {
+  return useLiveQuery(async () => (await db.blocks.orderBy('order').toArray()).filter((b) => !b.deleted));
+}
+
 /** Type of `day` (default today): the recorded mode, else weekday default (§6). */
 export function useDayMode(day?: DayKey): DayMode {
   const today = useToday();

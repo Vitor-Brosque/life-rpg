@@ -20,16 +20,30 @@ export function updateChecklist(missionId: string, change: (items: ChecklistItem
   });
 }
 
-/** Checklist: toggle, remove and add steps. Every change is saved right away. */
+/** A mission's checklist: toggle, remove and add steps. Every change is saved right away. */
 export function ChecklistEditor({ mission }: { mission: Mission }) {
+  return (
+    <ChecklistFields items={mission.checklist} checkable
+      onChange={(change) => safeRun(updateChecklist(mission.id, change))} />
+  );
+}
+
+export interface ChecklistFieldsProps {
+  items: ChecklistItem[];
+  /** Receives a change to apply to the current list (so quick taps never overwrite each other). */
+  onChange(change: (items: ChecklistItem[]) => ChecklistItem[]): void;
+  /** Done checkboxes and the count (a mission's steps); without it the steps are only listed (a template). */
+  checkable?: boolean;
+}
+
+/** Checklist fields: the steps (optionally checkable) with remove buttons, and a field to add one. */
+export function ChecklistFields({ items, onChange, checkable = false }: ChecklistFieldsProps) {
   const [text, setText] = useState('');
-  const items = mission.checklist;
-  const save = (change: (items: ChecklistItem[]) => ChecklistItem[]) => safeRun(updateChecklist(mission.id, change));
   const add = () => {
     const t = text.trim();
     if (!t) return;
     const item: ChecklistItem = { id: ulid(), text: t, done: false };
-    save((list) => [...list, item]);
+    onChange((list) => [...list, item]);
     setText('');
   };
   const done = items.filter((i) => i.done).length;
@@ -37,26 +51,30 @@ export function ChecklistEditor({ mission }: { mission: Mission }) {
   return (
     <fieldset className="checklist">
       <legend className="field__label">
-        Checklist{items.length > 0 && <span className="checklist__count"> · {done}/{items.length}</span>}
+        Checklist{checkable && items.length > 0 && <span className="checklist__count"> · {done}/{items.length}</span>}
       </legend>
       {items.length > 0 && (
         <ul className="checklist__list">
           {items.map((item) => (
-            <li key={item.id} className={item.done ? 'checklist__item checklist__item--done' : 'checklist__item'}>
-              <label className="checklist__check">
-                <input
-                  type="checkbox"
-                  className="px-checkbox"
-                  checked={item.done}
-                  onChange={() => save((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)))}
-                />
-                <span>{item.text}</span>
-              </label>
+            <li key={item.id} className={checkable && item.done ? 'checklist__item checklist__item--done' : 'checklist__item'}>
+              {checkable ? (
+                <label className="checklist__check">
+                  <input
+                    type="checkbox"
+                    className="px-checkbox"
+                    checked={item.done}
+                    onChange={() => onChange((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)))}
+                  />
+                  <span>{item.text}</span>
+                </label>
+              ) : (
+                <span className="checklist__check">{item.text}</span>
+              )}
               <button
                 type="button"
                 className="checklist__remove"
                 aria-label={`Remover passo ${item.text}`}
-                onClick={() => save((list) => list.filter((i) => i.id !== item.id))}
+                onClick={() => onChange((list) => list.filter((i) => i.id !== item.id))}
               >
                 <Icon name="close" size={12} />
               </button>
