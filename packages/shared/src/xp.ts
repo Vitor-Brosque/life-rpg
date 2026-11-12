@@ -11,6 +11,8 @@ export const BLOCK_XP = 5;
 export const RESUMPTION_XP = 10;
 export const CHECKIN_XP = 2;
 export const OBJECTIVE_XP = 10;
+export const STUDY_START_XP = 3;   // 5 reviews in the day (Marco 3)
+export const STUDY_GOAL_XP = 10;   // the day's review goal met
 
 function baseByDuration(durationMin: number | undefined): number {
   if (durationMin === undefined) return 8;
