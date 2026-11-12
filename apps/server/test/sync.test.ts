@@ -50,6 +50,24 @@ describe('sync API', () => {
     expect(b.json().changes[0].record).toMatchObject({ id: 'm1', title: 'x' });
   });
 
+  it('syncs a blocks record between devices', async () => {
+    const { app } = await make();
+    const block = {
+      table: 'blocks',
+      record: { id: 'b1', createdAt: 1, updatedAt: 10, deleted: false, name: 'Tech', weekdays: [1, 2] },
+    };
+    const a = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'A', cursor: 0, changes: [block] },
+    });
+    expect(a.statusCode).toBe(200);
+    const b = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'B', cursor: 0, changes: [] },
+    });
+    expect(b.json().changes[0]).toMatchObject({ table: 'blocks', record: { id: 'b1', name: 'Tech' } });
+  });
+
   it('rejects invalid table', async () => {
     const { app } = await make();
     const res = await app.inject({

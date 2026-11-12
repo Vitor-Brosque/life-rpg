@@ -46,6 +46,7 @@ export interface Mission extends BaseRecord {
   startedAt?: number;
   completedAt?: number;
   dropReason?: string;
+  blockId?: ID;           // explicit block assignment (wins over area/journey link)
 }
 
 export type JourneyStatus = 'active' | 'done' | 'archived';
@@ -101,7 +102,8 @@ export interface LifeEvent extends BaseRecord {
   data?: Record<string, unknown>;
 }
 
-export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience';
+export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience'
+  | 'block' | 'resumption' | 'checkin' | 'objective';
 export interface XpEvent extends BaseRecord {
   at: number;
   amount: number;
@@ -124,15 +126,63 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   pomodoro: { focusMin: number; breakMin: number };
   companionMuted: boolean;
   commitmentReminderMin: number; // 0 = off
+  checkinCard?: boolean;         // absent = true
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
   reviewDone: boolean;
+  mode?: DayMode;
+  startedAt?: number;   // when the day actually started
+}
+
+export type DayMode = 'normal' | 'low' | 'recovery' | 'free';
+export type BlockKind = 'focus' | 'body' | 'study' | 'light' | 'routine';
+
+export interface Block extends BaseRecord {
+  name: string;
+  weekdays: number[];          // 0 = Sunday
+  order: number;
+  targetStart: HHmm;
+  durationMin: number;         // normal duration (minutes)
+  minimumMin: number;          // minimum version (minutes), <= durationMin
+  areaId?: ID;
+  journeyId?: ID;
+  kind: BlockKind;
+  protected: boolean;
+  checklist: ChecklistItem[];  // used by 'routine' blocks
+  archived: boolean;
+}
+export interface BlockSession extends BaseRecord {  // id = `bs-${blockId}-${day}`
+  blockId: ID;
+  day: DayKey;
+  startedAt?: number;
+  endedAt?: number;
+  version: 'normal' | 'minimum';
+  nextAction?: string;
+}
+export interface WeekObjective { id: ID; blockId: ID; text: string; done: boolean }
+export interface WeekReview { worked: string; obstacle: string; adjustment: string; answeredAt: number }
+export interface Week extends BaseRecord {           // id = Monday DayKey
+  objectives: WeekObjective[];
+  review?: WeekReview;
+  experiment?: string;
+}
+export interface Checkin extends BaseRecord {
+  at: number;
+  kind: 'start' | 'escape';
+  feelings: string[];
+  thought?: string;
+  experimentMin?: number;
+  outcome?: 'continued' | 'stopped';
+  escapedTo?: string;
+  missionId?: ID;
+  blockId?: ID;
 }
 
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
   'events', 'xpEvents', 'profile', 'settings', 'dayState',
+  'blocks', 'blockSessions', 'weeks', 'checkins',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents'];

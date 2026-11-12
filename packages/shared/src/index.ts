@@ -6,3 +6,4 @@ export * from './parser';
 export * from './recurrence';
 export * from './xp';
 export * from './engine';
+export * from './planDay';
