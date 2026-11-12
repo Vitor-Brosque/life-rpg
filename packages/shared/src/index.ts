@@ -8,3 +8,4 @@ export * from './xp';
 export * from './engine';
 export * from './planDay';
 export * from './weekStats';
+export * from './scheduler';
