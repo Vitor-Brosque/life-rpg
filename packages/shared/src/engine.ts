@@ -1,4 +1,4 @@
-import type { Commitment, DayKey, EnergyLevel, ID, Journey, Mission } from './types';
+import type { Commitment, DayKey, DayMode, EnergyLevel, ID, Journey, Mission } from './types';
 import { addDays, dayKeyOf, diffDays, logicalTimestamp, timestampAt, weekdayOf } from './dates';
 
 export interface EngineInput {
@@ -10,6 +10,8 @@ export interface EngineInput {
   commitments: Commitment[];
   energy?: EnergyLevel;
   hardDay: boolean;
+  mode?: DayMode; // when present, decides the hard-day filter (low/recovery)
+  block?: { id: ID; areaId?: ID; journeyId?: ID; endTs: number };
   lastCompletionByArea: Record<ID, number>; // epoch ms of last completed mission per area
   skipIds?: ID[]; // ids the user pressed "Outra" on, moved to the end
 }
@@ -27,6 +29,14 @@ export interface EngineOutput {
 }
 
 const MINUTE = 60000;
+
+/** Mission belongs to the block: explicit blockId, else (when unassigned) shared journey/area. */
+export function isOfBlock(m: Mission, block: { id: ID; areaId?: ID; journeyId?: ID }): boolean {
+  if (m.blockId) return m.blockId === block.id;
+  return Boolean(
+    (block.journeyId && m.journeyId === block.journeyId) || (block.areaId && m.areaId === block.areaId),
+  );
+}
 const hh = (h: number): string => `${String(h).padStart(2, '0')}:00`;
 
 function occurrenceOf(c: Commitment, day: DayKey, dayStartHour: number): CommitmentOccurrence {
@@ -87,9 +97,10 @@ function deadlineReason(deadline: DayKey, today: DayKey): Reason | undefined {
 
 function scoreMission(m: Mission, ctx: {
   today: DayKey; freeMinutes: number; energy?: EnergyLevel;
-  lastCompletionByArea: Record<ID, number>; dayStartHour: number;
+  lastCompletionByArea: Record<ID, number>; dayStartHour: number; block?: EngineInput['block'];
 }): Suggestion {
   const reasons: Reason[] = [];
+  if (ctx.block && isOfBlock(m, ctx.block)) reasons.push({ code: 'block', text: 'do bloco atual', points: 40 });
   if (m.status === 'doing') reasons.push({ code: 'doing', text: 'você já começou', points: 30 });
   if (m.deadline !== undefined) {
     const r = deadlineReason(m.deadline, ctx.today);
@@ -139,6 +150,7 @@ export function suggest(input: EngineInput): EngineOutput {
   if (!currentCommitment) {
     const limit = nextCommitment ? Math.min(nextCommitment.startTs, dayEndTs) : dayEndTs;
     freeMinutes = Math.max(0, Math.floor((limit - now) / MINUTE));
+    if (input.block) freeMinutes = Math.min(freeMinutes, Math.max(0, Math.floor((input.block.endTs - now) / MINUTE)));
   }
 
   // Candidates
@@ -156,6 +168,7 @@ export function suggest(input: EngineInput): EngineOutput {
     }
   }
 
+  const hard = input.mode !== undefined ? input.mode === 'low' || input.mode === 'recovery' : input.hardDay;
   const candidates = live.filter((m) => {
     if (m.notBefore !== undefined && m.notBefore > today) return false;
     if (m.snoozedUntil !== undefined && m.snoozedUntil > now) return false;
@@ -168,7 +181,7 @@ export function suggest(input: EngineInput): EngineOutput {
         if (journeyHead.get(m.journeyId) !== m.id && !ownDateDue) return false;
       }
     }
-    if (input.hardDay && !(m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15)) {
+    if (hard && !(m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15)) {
       return false;
     }
     if (freeMinutes > 0 && m.durationMin !== undefined && m.durationMin > freeMinutes) return false;
@@ -177,7 +190,7 @@ export function suggest(input: EngineInput): EngineOutput {
 
   const ctx = {
     today, freeMinutes, energy: input.energy,
-    lastCompletionByArea: input.lastCompletionByArea, dayStartHour,
+    lastCompletionByArea: input.lastCompletionByArea, dayStartHour, block: input.block,
   };
   const scored = candidates.map((m) => scoreMission(m, ctx));
 

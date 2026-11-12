@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   completionXp, startXp, strategyXp, focusXp, levelFromXp, titleForLevel, activeDays,
   REVIEW_XP, JOURNEY_XP, RESILIENCE_XP, FOCUS_DAILY_CAP,
+  BLOCK_XP, RESUMPTION_XP, CHECKIN_XP, OBJECTIVE_XP, isResumption, activeWorkdays,
 } from '../src/xp';
 
 const ctx = { completionsTodayBefore: 0, hardDay: false };
@@ -63,5 +64,29 @@ describe('levels', () => {
 describe('activeDays', () => {
   it('oldest to newest', () => {
     expect(activeDays(new Set(['2026-11-11', '2026-11-09']), '2026-11-11', 3)).toEqual([true, false, true]);
+  });
+});
+
+describe('block xp rules', () => {
+  const isFree = (d: string): boolean => {
+    const wd = new Date(`${d}T12:00:00`).getDay();
+    return wd === 0 || wd === 6;
+  };
+  it('constants', () => {
+    expect([BLOCK_XP, RESUMPTION_XP, CHECKIN_XP, OBJECTIVE_XP]).toEqual([5, 10, 2, 10]);
+  });
+  it('isResumption', () => {
+    expect(isResumption('2026-11-11', new Set(['2026-11-09']), isFree)).toBe(false);
+    expect(isResumption('2026-11-11', new Set(['2026-11-06']), isFree)).toBe(true);
+    expect(isResumption('2026-11-11', new Set(['2026-11-05']), isFree)).toBe(true);
+    expect(isResumption('2026-11-11', new Set(), isFree)).toBe(false);
+  });
+  it('activeWorkdays', () => {
+    const r = activeWorkdays(new Set(['2026-11-09', '2026-11-11']), '2026-11-11', 7, isFree);
+    expect(r.active).toBe(2);
+    expect(r.total).toBe(5);
+    expect(r.days).toHaveLength(7);
+    expect(r.days[0]).toEqual({ day: '2026-11-05', active: false, free: false });
+    expect(r.days[2]).toEqual({ day: '2026-11-07', active: false, free: true });
   });
 });

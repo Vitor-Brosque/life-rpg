@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Commitment, Journey, Mission } from '../src/types';
-import { needsReview, occurrencesOn, suggest, todayList, type EngineInput } from '../src/engine';
+import { isOfBlock, needsReview, occurrencesOn, suggest, todayList, type EngineInput } from '../src/engine';
 
 let seq = 0;
 function mk(p: Partial<Mission> = {}): Mission {
@@ -306,5 +306,40 @@ describe('energy edge cases', () => {
     const out = suggest(input({ missions: [medium], energy: 'low' }));
     expect(out.primary!.reasons).toEqual([]);
     expect(out.primary!.score).toBe(0);
+  });
+});
+
+describe('current block boost', () => {
+  const block = { id: 'b1', journeyId: 'j-tech', endTs: NOW + 60 * 60000 };
+  it('boosts missions of the block and caps free time', () => {
+    const tech = mk({ id: 'tech', journeyId: 'j-tech' });
+    const imp = mk({ id: 'imp', important: true });
+    const out = suggest(input({ missions: [imp, tech], journeys: [mkJourney({ id: 'j-tech' })], block }));
+    expect(out.primary!.mission.id).toBe('tech');
+    expect(out.primary!.reasons).toContainEqual({ code: 'block', text: 'do bloco atual', points: 40 });
+    expect(out.freeMinutes).toBe(60);
+  });
+  it('explicit blockId counts; another blockId does not', () => {
+    const own = mk({ id: 'own', blockId: 'b1', areaId: 'x' });
+    const other = mk({ id: 'other', blockId: 'b9', journeyId: 'j-tech' });
+    const out = suggest(input({ missions: [own, other], journeys: [mkJourney({ id: 'j-tech' })], block }));
+    const r = (id: string) => out.ranked.find((s) => s.mission.id === id)!.reasons.map((x) => x.code);
+    expect(r('own')).toContain('block');
+    expect(r('other')).not.toContain('block');
+    expect(isOfBlock(other, block)).toBe(false);
+    expect(isOfBlock(mk({ areaId: 'a1' }), { id: 'b1', areaId: 'a1' })).toBe(true);
+  });
+  it('manual order still wins', () => {
+    const tech = mk({ id: 'tech', journeyId: 'j-tech' });
+    const man = mk({ id: 'man', date: TODAY, dayOrder: 0 });
+    const out = suggest(input({ missions: [tech, man], journeys: [mkJourney({ id: 'j-tech' })], block }));
+    expect(out.mode).toBe('manual');
+    expect(out.primary!.mission.id).toBe('man');
+  });
+  it('mode recovery applies the hard-day filter; mode wins over hardDay', () => {
+    const plain = mk({ id: 'plain' });
+    const light = mk({ id: 'light', energy: 'light' });
+    expect(ids(suggest(input({ missions: [plain, light], mode: 'recovery' })).ranked)).toEqual(['light']);
+    expect(ids(suggest(input({ missions: [plain, light], mode: 'normal', hardDay: true })).ranked)).toHaveLength(2);
   });
 });
