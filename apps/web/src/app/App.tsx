@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Route, Switch } from 'wouter';
+import { Route, Switch, useLocation } from 'wouter';
 import { db } from '../db/db';
 import { AgoraScreen } from '../features/agora/AgoraScreen';
 import { CheckinCardHost } from '../features/agora/CheckinCard';
@@ -14,6 +14,7 @@ import { PainelScreen } from '../features/painel/PainelScreen';
 import { PlanScreen } from '../features/plan/PlanScreen';
 import { DeckScreen } from '../features/study/DeckScreen';
 import { NoteEditor } from '../features/study/NoteEditor';
+import { ReviewSession } from '../features/study/ReviewSession';
 import { StudyScreen } from '../features/study/StudyScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TimerBar } from '../timer/TimerBar';
@@ -43,6 +44,7 @@ function useOnboarded(): boolean | undefined {
 
 export function App() {
   const onboarded = useOnboarded();
+  const [location] = useLocation();
   // Render nothing until the profile is read, so the first access never flashes for an onboarded user.
   if (onboarded === undefined) return null;
   if (!onboarded) {
@@ -55,12 +57,13 @@ export function App() {
   }
   return (
     <>
-      <Layout floating={<CaptureFab />} aboveNav={<TimerBar />}>
+      <Layout floating={location.startsWith('/estudo/revisar') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
           <Route path="/estudo"><StudyScreen /></Route>
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
+          <Route path="/estudo/revisar"><ReviewSession /></Route>
           <Route path="/estudo/nota/nova"><NoteEditor /></Route>
           <Route path="/estudo/nota/:id">{(params) => <NoteEditor key={params.id} id={params.id} />}</Route>
           <Route path="/jornadas"><JourneysScreen /></Route>
