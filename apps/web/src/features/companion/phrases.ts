@@ -5,7 +5,7 @@
 export type PhraseCategory =
   | 'greetMorning' | 'greetAfternoon' | 'greetNight' | 'start' | 'complete' | 'shrink' | 'snooze'
   | 'postponed' | 'hardDay' | 'focusDone' | 'levelUp' | 'empty' | 'review' | 'drop'
-  | 'dayFree' | 'blockStart' | 'resumption' | 'escape' | 'weekStart';
+  | 'dayFree' | 'blockStart' | 'blockSkip' | 'resumption' | 'escape' | 'weekStart';
 
 export const PHRASES: Record<PhraseCategory, string[]> = {
   greetMorning: [
@@ -109,6 +109,13 @@ export const PHRASES: Record<PhraseCategory, string[]> = {
     'Chama acesa para este bloco. Vai no seu ritmo.',
     'Pronto, bloco em andamento. O resto vem passo a passo.',
   ],
+  // "Pular hoje": a neutral acknowledgement, no praise and no regret.
+  blockSkip: [
+    'Combinado. Esse fica para outro dia.',
+    'Tudo bem. Hoje o dia tem outro formato.',
+    'Anotado, sem cobrança. O resto do dia segue.',
+    'Ok. Escolher o que cabe também é cuidar do dia.',
+  ],
   resumption: [
     'Que bom te ver de volta, {name}! Recomeçar é o que importa.',
     'Voltou! Nenhum dia parado apaga o caminho.',
@@ -119,7 +126,7 @@ export const PHRASES: Record<PhraseCategory, string[]> = {
     'Anotado. Acontece. O primeiro passo continua aqui.',
     'Tudo bem. Quando quiser voltar, é só um passo pequeno.',
     'Percebeu e registrou — isso já é útil.',
-    'Sem problema. O bloco espera por você.',
+    'Sem problema. Dá para retomar de onde parou.',
   ],
   weekStart: [
     'Semana nova! Vamos olhar a anterior com calma?',

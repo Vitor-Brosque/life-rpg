@@ -1,6 +1,6 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'wouter';
-import type { DayMode, EnergyLevel, EngineOutput } from '@life/shared';
+import type { BlockOccurrence, DayMode, EnergyLevel, EngineOutput } from '@life/shared';
 import { formatHHmm } from '@life/shared';
 import { Avatar } from '../../art/Avatar';
 import { Icon } from '../../art/icons';
@@ -11,6 +11,7 @@ import { setEnergy } from '../../domain/actions';
 import { useSyncStatus, type SyncStatus } from '../../sync/status';
 import { useTimerSheet } from '../../timer/TimerSheet';
 import { Button } from '../../ui/Button';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { ENERGY_LEVEL_LABEL, formatDuration } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
@@ -19,13 +20,18 @@ import { ModeButton, ModePicker } from './ModeChip';
 
 type FreeTimeInput = Pick<EngineOutput, 'freeMinutes' | 'currentCommitment' | 'nextCommitment'>;
 
-/** "1h40 livre até Dentista 15:00" / "livre até 23:00" / "Em compromisso: Dentista até 15:00". */
-export function freeTimeText(engine: FreeTimeInput, dayEndHour: number): string {
+/**
+ * "1h40 livre até Dentista 15:00" / "livre até 23:00" / "Em compromisso: Dentista até 15:00";
+ * inside a block (`blockLeftMin` > 0): "2h30 até o fim do bloco".
+ */
+export function freeTimeText(engine: FreeTimeInput, dayEndHour: number, blockLeftMin?: number): string {
   const end = formatHHmm((dayEndHour % 24) * 60);
   if (engine.currentCommitment) {
     const c = engine.currentCommitment.commitment;
     return `Em compromisso: ${c.title} até ${c.end}`;
   }
+  // Past the block's end the banner says so; the strip goes back to the day's free time.
+  if (blockLeftMin !== undefined && blockLeftMin > 0) return `${formatDuration(blockLeftMin)} até o fim do bloco`;
   if (engine.nextCommitment) {
     const c = engine.nextCommitment.commitment;
     return engine.freeMinutes > 0
@@ -89,12 +95,15 @@ function SyncIndicator() {
 
 export interface StatusStripProps {
   engine?: EngineOutput;
+  /** The current block: the strip then counts down to its end instead of the free time. */
+  block?: BlockOccurrence;
+  now?: number;
   /** Tighter variant (Painel column). */
   compact?: boolean;
 }
 
 /** Avatar + level · free time · sync, then energy and the day type (Normal / Baixa energia / …). */
-export function StatusStrip({ engine, compact }: StatusStripProps) {
+export function StatusStrip({ engine, block, now, compact }: StatusStripProps) {
   const profile = useProfile();
   const stats = useCharacterStats();
   const energy = useCurrentEnergy();
@@ -102,9 +111,34 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
   const settings = useSettings();
   const [picking, setPicking] = useState(false);
   const pickerId = useId();
+  const chipRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const level = stats?.total.level ?? 1;
+  const blockLeft = block && now !== undefined ? Math.max(0, Math.ceil((block.end - now) / 60_000)) : undefined;
 
-  const pick = (m: DayMode) => {
+  // Esc (focus back on the chip) and a tap outside the picker close it.
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setPicking(false);
+      chipRef.current?.focus();
+    };
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (t && (pickerRef.current?.contains(t) || chipRef.current?.contains(t))) return;
+      setPicking(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [picking]);
+
+  const pick = (m: DayMode, option: HTMLElement) => {
+    focusWhenGone(option);
     setPicking(false);
     if (m !== mode) pickDayMode(m);
   };
@@ -120,7 +154,7 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
           {engine && settings && (
             <>
               <Icon name="timer" size={12} className="status-strip__free-icon" />
-              {freeTimeText(engine, settings.dayEndHour)}
+              {freeTimeText(engine, settings.dayEndHour, blockLeft)}
             </>
           )}
         </p>
@@ -133,9 +167,9 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
       </div>
       <div className="status-strip__controls">
         <EnergyButton energy={energy} />
-        <ModeButton mode={mode} open={picking} pickerId={pickerId} onToggle={() => setPicking((v) => !v)} />
+        <ModeButton ref={chipRef} mode={mode} open={picking} pickerId={pickerId} onToggle={() => setPicking((v) => !v)} />
       </div>
-      {picking && <ModePicker id={pickerId} mode={mode} onPick={pick} />}
+      {picking && <ModePicker ref={pickerRef} id={pickerId} mode={mode} onPick={pick} />}
     </div>
   );
 }

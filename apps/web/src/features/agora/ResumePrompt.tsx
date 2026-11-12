@@ -21,7 +21,7 @@ export interface ResumeRequest {
   missionId?: ID;
   /** Editable prefill: the next unchecked step of the mission. */
   suggestion?: string;
-  /** "Encerrar bloco": Salvar and Pular also end the block; closing the sheet keeps it going. */
+  /** "Encerrar bloco": Salvar and "Encerrar sem anotar" end the block; closing the sheet keeps it going. */
   endsBlock?: boolean;
   /** Timer: the note also goes to the block current when saving, if the mission belongs to it. */
   linkCurrentBlock?: boolean;
@@ -46,6 +46,14 @@ export const useResumePrompt = create<ResumePromptStore>((set) => ({
 /** First unchecked checklist item ('' when there is none). */
 export function firstOpenStep(m?: { checklist: ChecklistItem[] }): string {
   return m?.checklist.find((c) => !c.done)?.text ?? '';
+}
+
+/**
+ * Prefill of "Onde parou?" when ending a block: the note already written today (e.g. after the
+ * timer), else the mission's first step, else its first unchecked checklist item.
+ */
+export function resumeSuggestion(sessionNote: string | undefined, m?: { firstStep?: string; checklist: ChecklistItem[] }): string {
+  return sessionNote?.trim() || m?.firstStep?.trim() || firstOpenStep(m);
 }
 
 /** The current block, when the mission belongs to it. */
@@ -98,7 +106,7 @@ function ResumeForm({ request, onDone }: { request: ResumeRequest; onDone(): voi
       <p className="resume-form__hint">Algo pequeno e concreto: da próxima vez você já começa por aqui.</p>
       <div className="resume-form__actions">
         <Button type="submit" variant="primary" icon="check">Salvar</Button>
-        <Button variant="ghost" onClick={() => finish(false)}>Pular</Button>
+        <Button variant="ghost" onClick={() => finish(false)}>{request.endsBlock ? 'Encerrar sem anotar' : 'Agora não'}</Button>
       </div>
     </form>
   );

@@ -4,13 +4,13 @@ import { reorderDay } from '../../domain/actions';
 import { resumeTimer } from '../../timer/TimerControls';
 import { useTimer } from '../../timer/store';
 import { WEEKDAY_ABBR } from '../../ui/format';
+import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { AgoraNow, showsMainCard } from '../agora/AgoraNow';
+import { MorningCard } from '../agora/MorningCard';
 import { pickDayMode } from '../agora/blockFeedback';
-import { DayTypeCard } from '../agora/DayTypeCard';
 import { ResumeNote, useResumeNote } from '../agora/ResumeNote';
-import { ReviewSheet } from '../agora/ReviewSheet';
 import { ShrinkDialog } from '../agora/ShrinkDialog';
 import { SnoozeDialog } from '../agora/SnoozeDialog';
 import { StatusStrip } from '../agora/StatusStrip';
@@ -21,7 +21,6 @@ import {
 } from '../agora/useAgoraData';
 import { CaptureForm } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
-import { WeekCard } from '../week/WeekCard';
 import { useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { ConstancyCard, PainelCompanion, PainelTimer } from './PainelParts';
@@ -117,18 +116,14 @@ export function PainelScreen() {
 
   return (
     <div className="painel">
-      <h1 className="visually-hidden">Painel</h1>
+      <h1 className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Painel</h1>
 
       <section className="painel__col painel__agora" aria-label="Agora" aria-busy={!ready}>
         {ready && (
           <>
-            <StatusStrip engine={engine} compact />
+            <StatusStrip engine={engine} block={current} now={now} compact />
             <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
-            {!dayType.asked && !dayType.weekend && <DayTypeCard onPick={pickDayMode} />}
-            {cycle.showCard && cycle.weekId && (
-              <WeekCard today={today} weekId={cycle.weekId} onLater={cycle.later} onDone={cycle.finish} />
-            )}
-            {review.show && !free && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
+            <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
             {/* "Onde você parou" belongs to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
               current={current} next={next} showNote={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />

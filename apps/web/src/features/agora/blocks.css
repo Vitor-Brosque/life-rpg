@@ -97,6 +97,20 @@
   font-variant-numeric: tabular-nums;
 }
 .block-banner__name { margin: calc(var(--space-2) * -1) 0 0; color: var(--text); font-size: 1.5rem; line-height: 1.2; overflow-wrap: anywhere; }
+.block-banner__name:focus { outline-offset: 4px; }
+/* Past its end: said plainly, in the banner's own colours (nothing alarming). */
+.block-banner__overrun {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--text);
+  font-weight: 700;
+  background: rgba(242, 193, 78, 0.12);
+  box-shadow: inset 4px 0 0 var(--gold);
+}
+.block-banner__overrun .icon { flex-shrink: 0; color: var(--gold); }
 .block-banner__tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px; }
 .block-banner__tags:empty { display: none; }
 .block-banner__group { display: flex; flex-direction: column; gap: 2px; }
@@ -115,6 +129,8 @@
 .block-banner__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); padding: 2px; }
 .block-banner__actions .btn { flex: 1 1 140px; white-space: nowrap; }
 .block-banner__actions .block-banner__start { flex-basis: 100%; }
+/* "Encerrar e seguir para Bloco 1 · Tech News" can be long: the primary may take two lines. */
+.block-banner__actions .btn--primary { padding-top: 8px; padding-bottom: 8px; white-space: normal; overflow-wrap: anywhere; }
 .block-banner__minimum[aria-pressed='true'] { --btn-bg: var(--sky); --btn-fg: var(--ink); --btn-hi: #a9d3ef; --btn-lo: #3f7fae; }
 .block-banner--compact .block-banner__name { font-size: 1.25rem; }
 
@@ -181,6 +197,16 @@
 .resume-note__icon { flex-shrink: 0; margin-left: 4px; color: var(--ember-ink); }
 .resume-note__body { min-width: 0; padding-top: 2px; }
 .resume-note__label { font-family: var(--font-pixel); font-weight: 700; }
+/* Inside the block banner, under its name: a quieter line on the banner's stone. */
+.resume-note--inline {
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 0.9375rem;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 4px 0 0 0 var(--gold-dark);
+}
+.resume-note--inline .resume-note__icon { width: 20px; height: 20px; margin-left: 2px; color: var(--gold); }
+.resume-note--inline .resume-note__label { color: var(--gold); }
 
 /* ------------------------------------------------------------ resume prompt */
 

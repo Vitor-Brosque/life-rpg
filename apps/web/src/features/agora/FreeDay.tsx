@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Area, DayKey, DayMode, Mission } from '@life/shared';
 import { Companion, SpeechBubble } from '../../art/Companion';
 import { Button } from '../../ui/Button';
-import { Chip } from '../../ui/Chip';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { formatDuration } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { useCompanion } from '../companion/store';
@@ -40,8 +40,11 @@ export function FreeDay({ light, areas, onOpen, onPickMode }: FreeDayProps) {
         <p className="free-day__text">Nenhuma missão precisa de você hoje.</p>
         {wantsSomething ? (
           <div className="free-day__modes" role="group" aria-label="Como você quer o dia?">
+            {/* Plain actions (not toggles): picking one turns the day into a workday. */}
             {(['normal', 'low'] as const).map((m) => (
-              <Chip key={m} onClick={() => onPickMode(m)}>{DAY_MODE_LABEL[m]}</Chip>
+              <Button key={m} size="sm" onClick={(e) => { focusWhenGone(e.currentTarget); onPickMode(m); }}>
+                {DAY_MODE_LABEL[m]}
+              </Button>
             ))}
           </div>
         ) : (

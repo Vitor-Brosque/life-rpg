@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { createMission, endBlock, setDayMode } from '../src/domain/actions';
+import { createMission, endBlock, setDayMode, startBlock } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { ResumePromptHost, firstOpenStep, useResumePrompt } from '../src/features/agora/ResumePrompt';
 import { useAgoraSession } from '../src/features/agora/useAgora';
@@ -53,6 +53,7 @@ describe('"Encerrar bloco"', () => {
   it('asks where you stopped, prefilled with the next step, and saving updates the mission', async () => {
     const user = userEvent.setup();
     await setDayMode('normal');
+    await startBlock('b1');
     const m = await createMission({ title: 'Parser de notícias', journeyId: 'j-tech', checklist: CHECKLIST });
     renderAgora();
     await within(await screen.findByRole('region', { name: 'Missão agora' })).findByText('Parser de notícias');
@@ -72,36 +73,38 @@ describe('"Encerrar bloco"', () => {
     expect(await screen.findByText('Próximo: Treino às 12:30 · 3h livres')).toBeInTheDocument();
   });
 
-  it('"Pular" ends the block without a note', async () => {
+  it('"Encerrar sem anotar" ends the block without a note', async () => {
     const user = userEvent.setup();
     await setDayMode('normal');
+    await startBlock('b1');
     renderAgora();
     await user.click(within(await banner()).getByRole('button', { name: 'Encerrar bloco' }));
     const dialog = await prompt();
     expect(field(dialog)).toHaveValue('');
-    await user.click(within(dialog).getByRole('button', { name: 'Pular' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Encerrar sem anotar' }));
     await waitFor(async () => expect((await db.blockSessions.get('bs-b1-2026-11-11'))?.endedAt).toBe(at(11, 9, 30)));
     expect((await db.blockSessions.get('bs-b1-2026-11-11'))?.nextAction).toBeUndefined();
   });
 
   it('closing the prompt keeps the block going', async () => {
     const user = userEvent.setup();
+    await startBlock('b1');
     renderAgora();
     await user.click(within(await banner()).getByRole('button', { name: 'Encerrar bloco' }));
     await user.click(within(await prompt()).getByRole('button', { name: 'Fechar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(await db.blockSessions.get('bs-b1-2026-11-11')).toBeUndefined();
+    expect((await db.blockSessions.get('bs-b1-2026-11-11'))?.endedAt).toBeUndefined();
     expect(within(await banner()).getByRole('heading', { name: 'Tech' })).toBeInTheDocument();
   });
 });
 
 describe('"Onde você parou"', () => {
-  it('the next day the note of the last session sits above the main card', async () => {
+  it('the next day the note of the last session sits in the block banner', async () => {
     await endBlock('b1', 'Escrever o teste do parser');
     vi.setSystemTime(at(12, 9, 30));
     await createMission({ title: 'Parser de notícias', journeyId: 'j-tech' });
     renderAgora();
-    const note = await screen.findByRole('note', { name: 'Onde você parou' });
+    const note = await within(await banner()).findByRole('note', { name: 'Onde você parou' });
     expect(note).toHaveTextContent('Onde você parou: Escrever o teste do parser');
   });
 

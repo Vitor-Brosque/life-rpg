@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CommitmentOccurrence, EngineOutput, Mission, Suggestion } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { completeMission, createCommitment, createMission, dropMission } from '../src/domain/actions';
+import { completeMission, createCommitment, createMission, dropMission, setDayMode } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { MainCard } from '../src/features/agora/MainCard';
 import { freeTimeText } from '../src/features/agora/StatusStrip';
@@ -23,6 +23,8 @@ beforeEach(async () => {
   await db.delete();
   await db.open();
   await ensureSeed();
+  // "Como está hoje?" answered: the quick review waits for the day type (one morning card at a time).
+  await setDayMode('normal');
   // App-session state; the greeting is marked as done so it stays out of the way.
   useAgoraSession.setState({ reviewDismissedDay: undefined, greetedDay: '2026-11-11', emptyDay: undefined });
   useMissionSheet.setState({ openId: undefined });
@@ -209,8 +211,9 @@ describe('day boundaries of the Agora moments', () => {
     expect(reviewRegion()).not.toBeInTheDocument();
     second.unmount();
 
-    // Next day: the mission is still behind, so the card comes back.
+    // Next day: the mission is still behind, so the card comes back (after the day type).
     vi.setSystemTime(new Date(2026, 10, 12, 10, 0));
+    await setDayMode('normal');
     renderAgora();
     expect(await screen.findByRole('region', { name: /Revisão rápida/ })).toBeInTheDocument();
   });

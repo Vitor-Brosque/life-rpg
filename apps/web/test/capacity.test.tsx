@@ -170,4 +170,17 @@ describe('MissionSheet "Bloco"', () => {
     await user.selectOptions(select, 'Automático — Treino');
     await waitFor(async () => expect((await db.missions.get(m.id))?.blockId).toBeUndefined());
   });
+
+  it('an archived block it is assigned to shows as "(arquivado)", selected; Automático clears it', async () => {
+    const user = userEvent.setup();
+    await db.blocks.put({ ...FIXTURE[4]!, id: 'b6', name: 'Leitura', order: 9, archived: true });
+    const m = await createMission({ title: 'Ler um capítulo', blockId: 'b6' });
+    render(<MissionSheet missionId={m.id} onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: 'Bloco' });
+    const archived = await within(select).findByRole('option', { name: 'Leitura (arquivado)' });
+    expect((archived as HTMLOptionElement).selected).toBe(true);
+    expect(select).toHaveValue('b6');
+    await user.selectOptions(select, 'Automático (pela área ou jornada)');
+    await waitFor(async () => expect((await db.missions.get(m.id))?.blockId).toBeUndefined());
+  });
 });

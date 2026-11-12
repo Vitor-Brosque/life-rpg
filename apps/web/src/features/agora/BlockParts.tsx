@@ -72,17 +72,30 @@ function writeTicks(key: string, day: DayKey, ticks: string[]): void {
   } catch { /* private mode / quota: the ticks just stay in memory */ }
 }
 
-/** A routine block's own checklist (no missions). Ticks are per device and per day. */
-export function RoutineChecklist({ block, day }: { block: Block; day: DayKey }) {
+export interface RoutineTicks {
+  ticks: string[];
+  toggle(id: string): void;
+  /** Every item of the block's checklist is ticked (and there is at least one). */
+  allDone: boolean;
+}
+
+/** Today's ticks of a routine block's checklist. Ticks are per device and per day. */
+export function useRoutineTicks(block: Block, day: DayKey): RoutineTicks {
   const key = routineKey(day, block.id);
   const [ticks, setTicks] = useState(() => readTicks(key));
   useEffect(() => setTicks(readTicks(key)), [key]);
-  if (block.checklist.length === 0) return null;
   const toggle = (id: string) => {
     const next = ticks.includes(id) ? ticks.filter((x) => x !== id) : [...ticks, id];
     setTicks(next);
     writeTicks(key, day, next);
   };
+  const allDone = block.checklist.length > 0 && block.checklist.every((c) => ticks.includes(c.id));
+  return { ticks, toggle, allDone };
+}
+
+/** A routine block's own checklist (no missions), fed by `useRoutineTicks`. */
+export function RoutineChecklist({ block, ticks, toggle }: { block: Block } & Pick<RoutineTicks, 'ticks' | 'toggle'>) {
+  if (block.checklist.length === 0) return null;
   const done = block.checklist.filter((c) => ticks.includes(c.id)).length;
   return (
     <div className="block-banner__group">

@@ -69,7 +69,7 @@ describe('start card trigger', () => {
     }
     expect(within(card).getByRole('textbox', { name: 'O que o pensamento diz?' }))
       .toHaveAttribute('placeholder', 'ex.: não sei por onde começar');
-    expect(within(card).getByText('Experimento: só 10 minutos para Abrir o modelo')).toBeInTheDocument();
+    expect(within(card).getByText('Experimento: só 10 minutos para abrir o modelo')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Começar 10 min' })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Só começar' })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Pular' })).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('start card trigger', () => {
 
     const card = await checkinCard();
     // Without a first step the experiment names the mission.
-    expect(within(card).getByText('Experimento: só 10 minutos para Estudar cálculo')).toBeInTheDocument();
+    expect(within(card).getByText('Experimento: só 10 minutos para estudar cálculo')).toBeInTheDocument();
     await user.click(within(card).getByRole('button', { name: 'Pular' }));
     await waitFor(async () => expect(await statusOf(m.id)).toBe('doing'));
     noCheckinCard();
@@ -116,6 +116,33 @@ describe('start card trigger', () => {
     await waitFor(noCheckinCard);
     expect(await statusOf(m.id)).toBe('open');
     expect(await db.checkins.count()).toBe(0);
+  });
+});
+
+describe('start card copy', () => {
+  const openCard = async (firstStep: string) => {
+    const m = await createMission({ title: 'Relatório', firstStep });
+    render(<CheckinCardHost />);
+    act(() => useCheckinCard.getState().open({ mission: m }));
+    return checkinCard();
+  };
+
+  it('the willingness line names the feeling that was picked', async () => {
+    const user = userEvent.setup();
+    const card = await openCard('Abrir o modelo');
+    const helper = () => within(card).getByText(/^(Nomear|Dá para)/);
+    await user.click(within(card).getByRole('button', { name: 'Medo de errar' }));
+    expect(helper()).toHaveTextContent('Dá para começar com o medo junto — errar faz parte do experimento.');
+    await user.click(within(card).getByRole('button', { name: 'Ansiedade' }));
+    expect(helper()).toHaveTextContent('Dá para começar com a ansiedade junto.');
+    await user.click(within(card).getByRole('button', { name: 'Ansiedade' }));
+    await user.click(within(card).getByRole('button', { name: 'Medo de errar' }));
+    expect(helper()).toHaveTextContent('Nomear ajuda a seguir.');
+  });
+
+  it('keeps a proper noun or acronym at the start of the first step', async () => {
+    expect(await within(await openCard('API do jornal: ler a doc'))
+      .findByText('Experimento: só 10 minutos para API do jornal: ler a doc')).toBeInTheDocument();
   });
 });
 

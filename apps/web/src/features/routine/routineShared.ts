@@ -47,6 +47,21 @@ export function mergeDayOrder(all: ID[], day: ID[]): ID[] {
   return all.map((id) => (inDay.has(id) ? next[i++]! : id));
 }
 
+const sameSet = (a: ID[], b: ID[]): boolean => a.length === b.length && a.every((id) => b.includes(id));
+
+/**
+ * What the editor shows: the order just dropped (`pending`) until the saved order (`ids`) catches
+ * up, so the list never jumps back while the write is on its way. When the set of blocks changes
+ * meanwhile (one added, removed, another weekday), the saved list wins.
+ */
+export function shownOrder(ids: ID[], pending: ID[] | undefined): ID[] {
+  return pending && sameSet(ids, pending) ? pending : ids;
+}
+
+/** The saved order reached the dropped one (or the list changed under it): stop holding it. */
+export const pendingSettled = (ids: ID[], pending: ID[]): boolean =>
+  !sameSet(ids, pending) || ids.every((id, i) => pending[i] === id);
+
 /**
  * Whole-routine order with block `id` moved before the first other block that starts later.
  * `planDay` places blocks in this order, so a new (or re-timed) block must not stay last.

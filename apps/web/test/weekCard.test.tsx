@@ -1,12 +1,13 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BlockSession, Checkin, DayState, Week, XpEvent } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { saveWeekReview, setDayMode, setObjectives } from '../src/domain/actions';
+import { createMission, saveWeekReview, setDayMode, setObjectives } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
+import { PHRASES, renderPhrase } from '../src/features/companion/phrases';
 import { useCompanion } from '../src/features/companion/store';
 import { PainelScreen } from '../src/features/painel/PainelScreen';
 import { useWeekSession } from '../src/features/week/weekCycle';
@@ -29,7 +30,7 @@ beforeEach(async () => {
   await ensureSeed();
   await seedBlocks();
   useAgoraSession.setState({ reviewDismissedDay: undefined, greetedDay: WEEK, emptyDay: undefined });
-  useWeekSession.setState({ dismissed: undefined, opened: undefined });
+  useWeekSession.setState({ dismissed: undefined, opened: undefined, started: undefined });
   useCompanion.getState().clear();
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -83,6 +84,7 @@ describe('Nova semana card', () => {
     await user.click(within(dayCard).getByRole('button', { name: /Normal/ }));
 
     const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
     expect(within(card).getByRole('heading', { name: 'Observado' })).toBeInTheDocument();
     expect(within(card).getByText('Números da semana passada, sem julgamento.')).toBeInTheDocument();
     expect(observed(card, 'Blocos iniciados')).toBe('4 de 20');
@@ -111,6 +113,7 @@ describe('Nova semana card', () => {
     await seedLastWeek();
     await setDayMode('normal');
     renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
     await user.click(within(await weekCard()).getByRole('button', { name: 'Salvar e continuar' }));
     await waitFor(async () => expect((await db.weeks.get(WEEK))?.review?.answeredAt).toBeDefined());
     expect((await db.weeks.get(WEEK))?.experiment).toBeUndefined();
@@ -137,6 +140,7 @@ describe('Nova semana card', () => {
 
     // No activity last week: nothing to observe, the card opens on the objectives.
     const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
     expect(within(card).getByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
     expect(within(card).queryByRole('heading', { name: 'Observado' })).not.toBeInTheDocument();
 
@@ -184,7 +188,7 @@ describe('Nova semana card', () => {
     first.unmount();
 
     // Next app open (fresh session state): it comes back.
-    useWeekSession.setState({ dismissed: undefined, opened: undefined });
+    useWeekSession.setState({ dismissed: undefined, opened: undefined, started: undefined });
     renderAgora();
     expect(await weekCard()).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nova semana' })).not.toBeInTheDocument();
@@ -249,5 +253,121 @@ describe('week experiment and objectives during the week', () => {
     renderAgora();
     const banner = await screen.findByRole('region', { name: 'Bloco atual' });
     expect(await within(banner).findByRole('checkbox', { name: 'Fechar a ingestão' })).toBeInTheDocument();
+  });
+});
+
+describe('one morning card at a time', () => {
+  const reviewCard = () => screen.queryByRole('region', { name: /Revisão rápida/ });
+
+  it('day type first, then the Nova semana card (collapsed), then the quick review', async () => {
+    const user = userEvent.setup();
+    await seedLastWeek();
+    await createMission({ title: 'Relatório antigo', date: '2026-11-12' });
+    renderAgora();
+    const dayCard = await screen.findByRole('region', { name: 'Como está hoje?' });
+    await screen.findByRole('region', { name: 'Bloco atual' });
+    expect(noWeekCard()).not.toBeInTheDocument();
+    expect(reviewCard()).not.toBeInTheDocument();
+    await user.click(within(dayCard).getByRole('button', { name: /Normal/ }));
+
+    const card = await weekCard();
+    expect(within(card).getByText('~2 min')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Começar' })).toBeInTheDocument();
+    expect(within(card).queryByRole('heading', { name: 'Observado' })).not.toBeInTheDocument();
+    expect(reviewCard()).not.toBeInTheDocument();
+
+    await user.click(within(card).getByRole('button', { name: 'Fazer depois' }));
+    expect(await screen.findByRole('region', { name: /Revisão rápida/ })).toBeInTheDocument();
+    expect(noWeekCard()).not.toBeInTheDocument();
+  });
+
+  it('"Começar" opens the steps; the "Nova semana" link opens them at once', async () => {
+    const user = userEvent.setup();
+    await seedLastWeek();
+    await setDayMode('normal');
+    renderAgora();
+    const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
+    expect(within(card).getByRole('heading', { name: 'Observado' })).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Fazer depois' }));
+    await user.click(await screen.findByRole('button', { name: 'Nova semana' }));
+    expect(within(await weekCard()).getByRole('heading', { name: 'Observado' })).toBeInTheDocument();
+  });
+
+  it('"Onde você parou" sits inside the block banner, under its name', async () => {
+    await setObjectives(WEEK, [{ blockId: 'b1', text: 'Fechar a ingestão', done: false }]);
+    await setDayMode('normal');
+    await db.blockSessions.put({ ...base, id: 'bs-b1-2026-11-13', blockId: 'b1', day: '2026-11-13', version: 'normal', nextAction: 'Rodar o teste' });
+    renderAgora();
+    const banner = await screen.findByRole('region', { name: 'Bloco atual' });
+    expect(await within(banner).findByRole('note', { name: 'Onde você parou' }))
+      .toHaveTextContent('Onde você parou: Rodar o teste');
+  });
+
+  it('the companion says a week-start line the first time the card shows each week', async () => {
+    await setDayMode('normal');
+    const first = renderAgora();
+    await weekCard();
+    const p = await db.profile.get('me');
+    const lines = PHRASES.weekStart.map((t) => renderPhrase(t, { name: p?.name, companion: p?.companionName }));
+    await waitFor(() => expect(lines).toContain(useCompanion.getState().message));
+    first.unmount();
+
+    useCompanion.getState().clear();
+    useWeekSession.setState({ dismissed: undefined, opened: undefined, started: undefined });
+    renderAgora();
+    await weekCard();
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(useCompanion.getState().message).toBeUndefined();
+  });
+});
+
+describe('week objectives stay reachable', () => {
+  it('a review without objectives: the link opens step 2, which has "Fazer depois" too', async () => {
+    const user = userEvent.setup();
+    await setDayMode('normal');
+    await saveWeekReview(WEEK, { worked: '', obstacle: '', adjustment: '' });
+    renderAgora();
+    await screen.findByRole('region', { name: 'Bloco atual' });
+    expect(noWeekCard()).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Nova semana' }));
+    const card = await weekCard();
+    expect(within(card).getByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Fazer depois' }));
+    await waitFor(() => expect(noWeekCard()).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Nova semana' })).toBeInTheDocument();
+  });
+
+  it('the review answers are kept as a draft through "Fazer depois" and navigation', async () => {
+    const user = userEvent.setup();
+    await seedLastWeek();
+    await setDayMode('normal');
+    const first = renderAgora();
+    const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
+    await user.type(within(card).getByLabelText('O que funcionou?'), 'Começar cedo');
+    await user.click(within(card).getByRole('button', { name: 'Fazer depois' }));
+    await user.click(await screen.findByRole('button', { name: 'Nova semana' }));
+    expect(within(await weekCard()).getByLabelText('O que funcionou?')).toHaveValue('Começar cedo');
+    first.unmount();
+
+    renderAgora();
+    expect(within(await weekCard()).getByLabelText('O que funcionou?')).toHaveValue('Começar cedo');
+  });
+
+  it('a carried objective with no choice is kept (Manter shown pressed)', async () => {
+    const user = userEvent.setup();
+    await setDayMode('normal');
+    await db.weeks.put({ ...base, id: LAST, objectives: [{ id: 'o1', blockId: 'b1', text: 'Publicar a edição 3', done: false }] });
+    renderAgora();
+    const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
+    const carried = within(card).getByRole('group', { name: 'Publicar a edição 3' });
+    expect(within(carried).getByRole('button', { name: 'Manter' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(carried).getByRole('button', { name: 'Soltar' })).toHaveAttribute('aria-pressed', 'false');
+    await user.click(within(card).getByRole('button', { name: 'Concluir' }));
+    await waitFor(async () => expect((await db.weeks.get(WEEK))?.objectives).toEqual([
+      expect.objectContaining({ blockId: 'b1', text: 'Publicar a edição 3', done: false }),
+    ]));
   });
 });

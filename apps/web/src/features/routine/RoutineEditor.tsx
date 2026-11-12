@@ -10,7 +10,7 @@ import { tabKeyTarget } from '../../ui/tabKeys';
 import { DRAG_INSTRUCTIONS, usePlanSensors } from '../plan/planShared';
 import { BlockCard } from './BlockCard';
 import {
-  WEEK_ORDER, WEEKDAY_IN, WEEKDAY_NAME, byPlanOrder, isWeekend, logicalMinutes, mergeDayOrder,
+  WEEK_ORDER, WEEKDAY_IN, WEEKDAY_NAME, byPlanOrder, isWeekend, logicalMinutes, mergeDayOrder, pendingSettled, shownOrder,
 } from './routineShared';
 
 export interface RoutineEditorProps {
@@ -36,10 +36,13 @@ export function RoutineEditor({
   const dayBlocks = useMemo(() => blocks.filter((b) => b.weekdays.includes(weekday)).sort(byPlanOrder), [blocks, weekday]);
   const ids = dayBlocks.map((b) => b.id);
   const idsKey = ids.join(',');
-  // Local order so a drop shows at once; the saved order comes back through the live query.
-  const [order, setOrder] = useState(ids);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => setOrder(ids), [idsKey]);
+  // The dropped order shows at once and stays until the live query has the whole new order.
+  const [pending, setPending] = useState<string[]>();
+  const order = shownOrder(ids, pending);
+  useEffect(() => {
+    if (pending && pendingSettled(ids, pending)) setPending(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, pending]);
   const byId = new Map(dayBlocks.map((b) => [b.id, b]));
   const shown = order.map((id) => byId.get(id)).filter((b): b is Block => b !== undefined);
 
@@ -55,8 +58,11 @@ export function RoutineEditor({
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const next = arrayMove(order, order.indexOf(String(active.id)), order.indexOf(String(over.id)));
-    setOrder(next);
-    safeRun(reorderBlocks(mergeDayOrder([...blocks].sort(byPlanOrder).map((b) => b.id), next)));
+    setPending(next);
+    safeRun(reorderBlocks(mergeDayOrder([...blocks].sort(byPlanOrder).map((b) => b.id), next)).catch((e: unknown) => {
+      setPending(undefined); // not saved: show the stored order again
+      throw e;
+    }));
   };
   const nameOf = (id: UniqueIdentifier) => byId.get(String(id))?.name ?? 'bloco';
   const pos = (id: UniqueIdentifier) => order.indexOf(String(id)) + 1;
@@ -87,6 +93,7 @@ export function RoutineEditor({
       </div>
 
       <div id="routine-day-panel" role="tabpanel" aria-labelledby={`routine-day-${weekday}`} className="routine__panel">
+        {shown.length > 1 && <p className="routine__hint muted">A ordem vale para todos os dias que têm estes blocos.</p>}
         {shown.length === 0 ? (
           <p className="day-box__empty">
             Nenhum bloco {WEEKDAY_IN[weekday]}.

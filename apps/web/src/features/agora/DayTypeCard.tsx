@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import type { DayMode } from '@life/shared';
 import { Icon, type IconName } from '../../art/icons';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import './blocks.css';
 
@@ -24,7 +25,10 @@ export interface DayTypeCardProps {
   modes?: DayMode[];
 }
 
-/** "Como está hoje?" — the first question of a workday; it decides the shape of the day's blocks. */
+/**
+ * "Como está hoje?" — the first question of a workday; it decides the shape of the day's blocks.
+ * Once answered the card goes away and focus moves to the block heading (or the screen's).
+ */
 export function DayTypeCard({ onPick, modes = ['normal', 'low', 'recovery'] }: DayTypeCardProps) {
   const headingId = useId();
   return (
@@ -33,7 +37,8 @@ export function DayTypeCard({ onPick, modes = ['normal', 'low', 'recovery'] }: D
       <p className="day-type__intro">Sem resposta certa. Dá para trocar depois, no topo da tela.</p>
       <div className="day-type__options">
         {modes.map((m) => (
-          <button key={m} type="button" className={`day-type__option day-type__option--${m}`} onClick={() => onPick(m)}>
+          <button key={m} type="button" className={`day-type__option day-type__option--${m}`}
+            onClick={(e) => { focusWhenGone(e.currentTarget); onPick(m); }}>
             <Icon name={DAY_MODE_ICON[m]} size={24} className="day-type__icon" />
             <span className="day-type__text">
               <span className="day-type__label">{DAY_MODE_LABEL[m]}</span>

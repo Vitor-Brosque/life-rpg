@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import type { Mission } from '@life/shared';
 import { dayKeyOf } from '@life/shared';
 import { db } from '../../db/db';
-import { useAreas, useBlocks, useJourneys, useToday } from '../../db/hooks';
+import { useAreas, useJourneys, useRoutineBlocks, useToday } from '../../db/hooks';
 import { deleteMission, updateMission } from '../../domain/actions';
 import { Button } from '../../ui/Button';
 import { safeRun } from '../../ui/safeRun';
@@ -64,7 +64,8 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
   const today = useToday() ?? dayKeyOf(Date.now(), 4);
   const areas = useAreas().filter((a) => !a.archived || a.id === mission.areaId);
   const journeys = useJourneys();
-  const blocks = useBlocks();
+  // Archived blocks too: a mission still assigned to one must show it (and be able to leave it).
+  const blocks = useRoutineBlocks() ?? [];
   const startTimer = useTimerBridge((s) => s.start);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hintId = useId();

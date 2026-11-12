@@ -123,7 +123,10 @@ export function MissionAttributes({ mission, areas, journeys, today, blocks = []
   );
 }
 
-/** "Bloco": automatic (by area/journey, naming the block it lands in) or one block explicitly. */
+/**
+ * "Bloco": automatic (by area/journey, naming the block it lands in) or one block explicitly. An
+ * archived block is listed only while the mission is assigned to it, as "Nome (arquivado)".
+ */
 function BlockSelect({ mission, blocks, onChange }: {
   mission: Mission; blocks: Block[]; onChange(blockId: string | undefined): void;
 }) {
@@ -135,7 +138,7 @@ function BlockSelect({ mission, blocks, onChange }: {
       <span className="field__label">Bloco</span>
       <select value={mission.blockId ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">{auto ? `Automático — ${auto.name}` : 'Automático (pela área ou jornada)'}</option>
-        {live.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        {live.map((b) => <option key={b.id} value={b.id}>{b.archived ? `${b.name} (arquivado)` : b.name}</option>)}
       </select>
     </label>
   );

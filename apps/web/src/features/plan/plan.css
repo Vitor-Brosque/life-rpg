@@ -86,7 +86,7 @@
 .day-block--skipped { color: var(--text-dim); }
 .day-block--skipped .day-block__time { color: var(--text-dim); }
 .day-block--free { align-items: center; color: var(--leaf); font-weight: 600; box-shadow: inset 4px 0 0 var(--leaf); }
-.day-box__agenda .commit-row__btn { min-height: 40px; }
+.day-box__agenda .commit-row__btn { min-height: var(--touch); }
 
 .commit-row--btn { padding: 0; }
 .commit-row__btn {

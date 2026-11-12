@@ -25,7 +25,19 @@ export const FEELINGS: Array<{ value: string; label: string }> = [
   { value: 'outro', label: 'Outro' },
 ];
 export const EXPERIMENT_MIN = 10;
-const WILLINGNESS = new Set(['ansiedade', 'medo de errar']);
+
+/** Willingness (ACT): the line names the feeling that was picked, else "Nomear ajuda a seguir.". */
+export function helperText(feelings: string[]): string | undefined {
+  if (feelings.includes('ansiedade')) return 'Dá para começar com a ansiedade junto.';
+  if (feelings.includes('medo de errar')) return 'Dá para começar com o medo junto — errar faz parte do experimento.';
+  return undefined;
+}
+
+/** "Abrir o modelo" → "abrir o modelo" inside a sentence; "API do jornal" keeps its capitals. */
+export function inSentence(step: string): string {
+  const [first, second] = step;
+  return first && second && second !== second.toUpperCase() ? first.toLowerCase() + step.slice(1) : step;
+}
 
 const toast = (msg: string) => useToast.getState().show(msg);
 const checkinLead = (xp: number) => (xp > 0 ? `Check-in · +${xp} XP` : undefined);
@@ -65,8 +77,8 @@ function CheckinForm({ request, onDone }: { request: CheckinRequest; onDone(): v
   const [feelings, setFeelings] = useState<string[]>([]);
   const [thought, setThought] = useState('');
   const thoughtId = useId();
-  const willing = feelings.some((f) => WILLINGNESS.has(f));
-  const step = mission.firstStep || mission.title;
+  const willing = helperText(feelings);
+  const step = inSentence(mission.firstStep || mission.title);
 
   const toggle = (value: string) =>
     setFeelings((list) => (list.includes(value) ? list.filter((f) => f !== value) : [...list, value]));
@@ -88,7 +100,7 @@ function CheckinForm({ request, onDone }: { request: CheckinRequest; onDone(): v
           ))}
         </div>
         <p className={willing ? 'checkin__helper checkin__helper--warm' : 'checkin__helper'} aria-live="polite">
-          {willing ? 'Dá para começar com a ansiedade junto.' : 'Nomear ajuda a seguir.'}
+          {willing ?? 'Nomear ajuda a seguir.'}
         </p>
       </fieldset>
 

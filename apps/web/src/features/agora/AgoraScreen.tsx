@@ -1,17 +1,16 @@
 import type { Mission } from '@life/shared';
 import { reorderDay } from '../../domain/actions';
+import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
-import { WeekCard } from '../week/WeekCard';
 import { useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
 import { pickDayMode } from './blockFeedback';
-import { DayTypeCard } from './DayTypeCard';
-import { ReviewSheet } from './ReviewSheet';
+import { MorningCard } from './MorningCard';
 import { ShrinkDialog } from './ShrinkDialog';
 import { SnoozeDialog } from './SnoozeDialog';
 import { StatusStrip } from './StatusStrip';
@@ -56,16 +55,10 @@ function AgoraView() {
 
   return (
     <section className="screen agora" aria-labelledby="agora-title">
-      <h1 id="agora-title" className="visually-hidden">Agora</h1>
-      <StatusStrip engine={engine} />
+      <h1 id="agora-title" className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Agora</h1>
+      <StatusStrip engine={engine} block={current} now={now} />
       <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
-
-      {!dayType.asked && !dayType.weekend && <DayTypeCard onPick={pickDayMode} />}
-      {cycle.showCard && cycle.weekId && (
-        <WeekCard today={today} weekId={cycle.weekId} onLater={cycle.later} onDone={cycle.finish} />
-      )}
-      {/* "Fim de semana sem cobrança": leftovers wait for the next workday. */}
-      {review.show && !free && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
+      <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
 
       <AgoraNow
         agora={agora}

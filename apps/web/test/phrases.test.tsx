@@ -9,7 +9,7 @@ const CATEGORIES = Object.keys(PHRASES) as PhraseCategory[];
 describe('phrases', () => {
   it('covers every category with at least 4 phrases and no guilt words', () => {
     expect(CATEGORIES.sort()).toEqual([
-      'blockStart', 'complete', 'dayFree', 'drop', 'empty', 'escape', 'focusDone', 'greetAfternoon', 'greetMorning',
+      'blockSkip', 'blockStart', 'complete', 'dayFree', 'drop', 'empty', 'escape', 'focusDone', 'greetAfternoon', 'greetMorning',
       'greetNight', 'hardDay', 'levelUp', 'postponed', 'resumption', 'review', 'shrink', 'snooze', 'start', 'weekStart',
     ]);
     for (const cat of CATEGORIES) {
@@ -18,6 +18,10 @@ describe('phrases', () => {
         expect(p.toLowerCase(), `${cat}: ${p}`).not.toMatch(/deveria|falhou|atrasad/);
       }
     }
+  });
+
+  it('the escape line works outside a block too (never mentions "bloco")', () => {
+    for (const p of PHRASES.escape) expect(p.toLowerCase(), p).not.toMatch(/bloco/);
   });
 
   it('pickPhrase never repeats the last phrase', () => {

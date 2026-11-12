@@ -7,6 +7,7 @@ import { ensureSeed } from '../src/db/seed';
 import { PlanScreen } from '../src/features/plan/PlanScreen';
 import { WeekView } from '../src/features/plan/WeekView';
 import { RoutineScreen } from '../src/features/routine/RoutineScreen';
+import { shownOrder } from '../src/features/routine/routineShared';
 import { ToastHost, useToast } from '../src/ui/Toast';
 import { at, seedBlocks } from './blockFixture';
 
@@ -169,6 +170,23 @@ describe('routine editor', () => {
     });
     expect(leitura.checklist.map((c) => c.text)).toEqual(['Alongar']);
     await waitFor(async () => expect(await orderOf()).toEqual(['Tech', 'Leitura', 'Treino', 'Facul', 'Tecnico', 'Compl']));
+  });
+
+  it('says above the list that the order is shared by every day with these blocks', async () => {
+    await seedBlocks();
+    render(<RoutineScreen />);
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('A ordem vale para todos os dias que têm estes blocos.')).toBeInTheDocument();
+  });
+
+  it('keeps the dropped order on screen until the saved order matches it', () => {
+    const dropped = ['b2', 'b1', 'b3'];
+    // The live query still has the old order (or a half-written one): the drop stays.
+    expect(shownOrder(['b1', 'b2', 'b3'], dropped)).toEqual(dropped);
+    expect(shownOrder(['b2', 'b1', 'b3'], dropped)).toEqual(dropped);
+    // A block added or removed meanwhile: the saved list wins.
+    expect(shownOrder(['b1', 'b2', 'b3', 'b4'], dropped)).toEqual(['b1', 'b2', 'b3', 'b4']);
+    expect(shownOrder(['b1', 'b2', 'b3'], undefined)).toEqual(['b1', 'b2', 'b3']);
   });
 
   it('dragging a card reorders the blocks and the order persists', async () => {

@@ -7,6 +7,10 @@
 .week-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .week-card__title { margin: 0; color: var(--gold); font-size: 1.125rem; }
 .week-card__step { flex-shrink: 0; color: var(--text-dim); font-size: 0.8125rem; font-weight: 600; }
+/* Collapsed (before "Começar"): one header line, the buttons wrap under it on a phone. */
+.week-card--collapsed .week-card__head { flex-wrap: wrap; align-items: center; justify-content: flex-start; row-gap: var(--space-2); }
+.week-card__head-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; padding: 2px; }
+.week-card__subtitle:focus { outline-offset: 4px; }
 .week-card__section { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .week-card__subtitle {
   margin: 0;

@@ -89,16 +89,23 @@ export function useDayType(today: DayKey | undefined): DayType {
   };
 }
 
-/** Today's block plan with its current and next occurrence (one live query for both). */
+/**
+ * Today's block plan with its current and next occurrence (one live query for both). Next is the
+ * first upcoming block after now — or, during a block, the one after it (which may be placed to
+ * start right now when the current block runs past its time).
+ */
 export function useBlocksNow(now: number): {
   plan?: BlockOccurrence[]; current?: BlockOccurrence; next?: BlockOccurrence;
 } {
   const plan = useDayPlan();
-  return useMemo(() => ({
-    plan,
-    current: plan?.find((o) => o.state === 'current'),
-    next: plan?.find((o) => o.state === 'upcoming' && o.start > now),
-  }), [plan, now]);
+  return useMemo(() => {
+    const current = plan?.find((o) => o.state === 'current');
+    return {
+      plan,
+      current,
+      next: plan?.find((o) => o.state === 'upcoming' && (current !== undefined || o.start > now)),
+    };
+  }, [plan, now]);
 }
 
 function greetingFor(hour: number, dayStartHour: number): PhraseCategory {

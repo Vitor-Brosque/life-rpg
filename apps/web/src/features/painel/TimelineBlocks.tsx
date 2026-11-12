@@ -66,13 +66,13 @@ export function BlockBand({ occ, style, textStyle }: BlockBandProps) {
   );
 }
 
-/** A block with no room today: a thin marker at its target time. */
+/** A block with no room today, or skipped by the user ("Pular hoje"): a thin marker at its target time. */
 export function SkipMarker({ occ, top }: { occ: BlockOccurrence; top: string }) {
   return (
     <li className="timeline__skip" style={{ top }} data-state="skipped">
       <span className="timeline__skip-label">
         <span className="timeline__skip-name">{occ.block.name}</span>
-        <span className="timeline__skip-text">sem tempo hoje</span>
+        <span className="timeline__skip-text">{occ.skipReason === 'pulado' ? 'pulado hoje' : 'sem tempo hoje'}</span>
       </span>
     </li>
   );

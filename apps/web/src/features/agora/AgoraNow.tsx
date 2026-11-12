@@ -8,7 +8,7 @@ import { BetweenBlocks, fitsIn } from './BetweenBlocks';
 import { BlockBanner } from './BlockBanner';
 import { FreeDay, lightMissions } from './FreeDay';
 import { MainCard, MainCardEmpty } from './MainCard';
-import { ResumeNote, useResumeNote } from './ResumeNote';
+import { useResumeNote } from './ResumeNote';
 import type { AgoraState } from './useAgora';
 import './blocks.css';
 
@@ -21,7 +21,7 @@ export interface AgoraNowProps {
   mode: DayMode;
   current?: BlockOccurrence;
   next?: BlockOccurrence;
-  /** The Painel shows "Onde você parou" in its Apoio column instead. */
+  /** "Onde você parou" in the block banner; the Painel shows it in its Apoio column instead. */
   showNote?: boolean;
   compact?: boolean;
   onCapture(): void;
@@ -41,7 +41,7 @@ export function showsMainCard(s: {
 
 /**
  * The "what now" part of the Agora (phone) and of the Painel's Agora column: the free day, the
- * current block (banner, note, then its mission — or a routine's checklist), the gap before the
+ * current block (banner with its note, then its mission — or a routine's checklist), the gap before the
  * next block, or the Marco 1 main card when there are no blocks around.
  */
 export function AgoraNow({
@@ -80,9 +80,8 @@ export function AgoraNow({
     const focus = timerMission ?? (primary && isOfBlock(primary.mission, current.block) ? primary.mission : undefined);
     return (
       <>
-        <BlockBanner occurrence={current} now={now} week={week} blockIds={sameNameIds(blocks, current.block)}
-          focusMission={focus} compact={compact} />
-        {showNote && <ResumeNote text={note} />}
+        <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
+          blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
         {current.block.kind !== 'routine' && main}
       </>
     );
@@ -91,7 +90,12 @@ export function AgoraNow({
   if (next && !engine.currentCommitment) {
     const freeMinutes = Math.min(engine.freeMinutes, Math.floor((next.start - now) / 60_000));
     const items = engine.ranked.filter(fitsIn(freeMinutes)).slice(0, 3);
-    return <BetweenBlocks next={next} freeMinutes={freeMinutes} items={items} areas={areas} onPick={actions.open} />;
+    const c = engine.nextCommitment;
+    const commitment = c && c.startTs < next.start ? { title: c.commitment.title, startTs: c.startTs } : undefined;
+    return (
+      <BetweenBlocks next={next} commitment={commitment} freeMinutes={freeMinutes} items={items} areas={areas}
+        onPick={actions.open} />
+    );
   }
 
   return main;
