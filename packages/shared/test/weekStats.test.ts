@@ -63,6 +63,16 @@ describe('weekStats', () => {
     expect(s.escapes).toBe(1);
     expect(s.topFeeling).toBe('ansiedade');
   });
+  it('routine blocks (checklists like "Início do dia") count neither as planned nor as started', () => {
+    const routine = blk({ id: 'r1', order: -1, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' });
+    const s = weekStats(input({
+      blocks: [routine, ...BLOCKS],
+      dayStates: [free],
+      sessions: [sess('r1', 'normal', '08:30', '09:00'), sess('b1', 'normal', '09:00', '12:00')],
+    }));
+    expect(s.planned).toBe(5);
+    expect(s.started).toBe(1);
+  });
   it('empty week gives zeros', () => {
     const s = weekStats(input({ today: MON }));
     expect(s).toEqual({

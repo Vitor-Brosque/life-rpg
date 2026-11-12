@@ -50,11 +50,13 @@ export function weekStats(input: WeekStatsInput): WeekStats {
       blocks: input.blocks, commitments: input.commitments,
       sessions: input.sessions.filter((s) => s.day === day && !s.deleted),
     });
-    planned += occs.filter((o) => o.state !== 'skipped').length;
+    // Routine blocks are checklists (start of day, wind-down), not work blocks: they don't count.
+    planned += occs.filter((o) => o.state !== 'skipped' && o.block.kind !== 'routine').length;
   }
 
+  const routineIds = new Set(input.blocks.filter((b) => b.kind === 'routine').map((b) => b.id));
   const started = input.sessions.filter(
-    (s) => !s.deleted && s.startedAt !== undefined && past.includes(s.day),
+    (s) => !s.deleted && s.startedAt !== undefined && past.includes(s.day) && !routineIds.has(s.blockId),
   );
   const xpDays = new Set(input.xpEvents.filter((e) => !e.deleted).map((e) => e.dayKey));
   const checkinDay = (c: Checkin): DayKey => dayKeyOf(c.at, dayStartHour);
