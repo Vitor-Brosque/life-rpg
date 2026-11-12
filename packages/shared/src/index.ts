@@ -9,3 +9,5 @@ export * from './engine';
 export * from './planDay';
 export * from './weekStats';
 export * from './scheduler';
+export * from './cloze';
+export * from './noteCards';
