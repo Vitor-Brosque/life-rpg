@@ -13,3 +13,4 @@ apps/server/data/
 .DS_Store
 Thumbs.db
 .claude/
+.worktrees/
