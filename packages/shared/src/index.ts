@@ -12,3 +12,5 @@ export * from './scheduler';
 export * from './cloze';
 export * from './noteCards';
 export * from './studyPlan';
+export * from './markdown';
+export * from './highlight';
