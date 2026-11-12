@@ -184,7 +184,9 @@ export function suggest(input: EngineInput): EngineOutput {
     if (hard && !(m.important || m.energy === 'light' || (m.durationMin ?? Infinity) <= 15)) {
       return false;
     }
-    if (freeMinutes > 0 && m.durationMin !== undefined && m.durationMin > freeMinutes) return false;
+    // Inside a block you work on its missions for the time left, so they are never hidden by duration.
+    const ofCurrentBlock = input.block !== undefined && isOfBlock(m, input.block);
+    if (!ofCurrentBlock && freeMinutes > 0 && m.durationMin !== undefined && m.durationMin > freeMinutes) return false;
     return true;
   });
 

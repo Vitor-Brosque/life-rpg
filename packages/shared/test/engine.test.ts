@@ -329,6 +329,13 @@ describe('current block boost', () => {
     expect(isOfBlock(other, block)).toBe(false);
     expect(isOfBlock(mk({ areaId: 'a1' }), { id: 'b1', areaId: 'a1' })).toBe(true);
   });
+  it('a long mission of the current block is not hidden by the remaining block time', () => {
+    const big = mk({ id: 'big', journeyId: 'j-tech', durationMin: 180 });
+    const outsider = mk({ id: 'outsider', durationMin: 180 });
+    const out = suggest(input({ missions: [big, outsider], journeys: [mkJourney({ id: 'j-tech' })], block }));
+    expect(out.ranked.map((s) => s.mission.id)).toEqual(['big']);
+    expect(out.primary!.reasons.map((r) => r.code)).not.toContain('fits');
+  });
   it('manual order still wins', () => {
     const tech = mk({ id: 'tech', journeyId: 'j-tech' });
     const man = mk({ id: 'man', date: TODAY, dayOrder: 0 });
