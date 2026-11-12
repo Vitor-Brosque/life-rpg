@@ -1,0 +1,46 @@
+/* Spaced repetition (Marco 3). Cards sit on --stone panels: --text-dim reads fine there (5.5),
+   never on --stone-light. Cloze marks use --gold, never red (no "late" colour anywhere). */
+
+/* ------------------------------------------------------------------ rich text */
+
+.rich { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.rich p, .rich ul, .rich ol { margin: 0; }
+.rich ul, .rich ol { padding-left: 1.25em; }
+.rich__code { padding: 0 4px; background: var(--bg-2); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.9em; }
+.rich__pre {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  background: var(--bg);
+  box-shadow: 0 0 0 2px var(--outline);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  tab-size: 4;
+  white-space: pre;
+}
+.tok--keyword { color: #c792ea; }
+.tok--string { color: #c3e88d; }
+.tok--comment { color: var(--text-dim); font-style: italic; }
+.tok--number { color: #f78c6c; }
+.rich__math--block { overflow-x: auto; text-align: center; }
+.rich__math-src { font-family: ui-monospace, Consolas, monospace; }
+mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-weight: 700; box-shadow: inset 0 -2px 0 var(--gold-dark); }
+
+/* ------------------------------------------------------------------ code editor */
+
+.code-editor__tools { display: flex; gap: var(--space-2); }
+.code-editor__tool { min-width: 44px; min-height: 36px; font-size: 1.125rem; }
+.code-editor__input {
+  width: 100%;
+  min-height: 9em;
+  padding: var(--space-3);
+  resize: vertical;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  tab-size: 4;
+  white-space: pre;
+  overflow-x: auto;
+}
+.code-editor__hint { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
