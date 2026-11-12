@@ -8,6 +8,7 @@ import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { getMeta, importRecords, newRecord, put } from '../src/db/repo';
 import { parseImport } from '../src/features/settings/importData';
+import { FocusSection } from '../src/features/settings/PreferenceSections';
 import { SettingsScreen } from '../src/features/settings/SettingsScreen';
 import { useSyncStatus } from '../src/sync/status';
 import { ToastHost } from '../src/ui/Toast';
@@ -86,6 +87,17 @@ describe('SettingsScreen', () => {
         dayEndHour: 0, pomodoro: { focusMin: 50, breakMin: 10 }, companionMuted: true, commitmentReminderMin: 0,
       });
     });
+  });
+
+  it('two quick Pomodoro changes both stick, even from a stale render', async () => {
+    const user = userEvent.setup();
+    // The live query may not have re-rendered between two changes: the section must not save stale values.
+    const stale = (await db.settings.get('settings'))!;
+    render(<FocusSection settings={stale} />);
+    await user.selectOptions(screen.getByLabelText('Minutos de foco'), '50');
+    await waitFor(async () => expect((await db.settings.get('settings'))?.pomodoro.focusMin).toBe(50));
+    await user.selectOptions(screen.getByLabelText('Minutos de pausa'), '10');
+    await waitFor(async () => expect((await db.settings.get('settings'))?.pomodoro).toEqual({ focusMin: 50, breakMin: 10 }));
   });
 
   it('renames an area, adds one and archives another', async () => {

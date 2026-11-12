@@ -34,6 +34,8 @@ export interface TimerData {
   ready: boolean;
   /** When the end of a countdown was handled, so its chime never fires twice. */
   endedNotifiedAt?: number;
+  /** Start card check-in whose "só 10 minutos" experiment this countdown is (its outcome is asked at the end). */
+  checkinId?: string;
 }
 
 export interface PhaseEnd {
@@ -47,7 +49,7 @@ export interface PhaseEnd {
 }
 
 export interface TimerState extends TimerData {
-  start(mode: TimerMode, opts?: { missionId?: string; targetMin?: number }): void;
+  start(mode: TimerMode, opts?: { missionId?: string; targetMin?: number; checkinId?: string }): void;
   pause(): void;
   resume(): void;
   finish(opts?: { notes?: string; completeMission?: boolean }): Promise<{ xp: number }>;
@@ -78,6 +80,7 @@ export const TIMER_IDLE: TimerData = {
   pomodoroCount: 0,
   ready: false,
   endedNotifiedAt: undefined,
+  checkinId: undefined,
 };
 
 // Pomodoro lengths come from settings (Dexie, async); the TimerHost keeps this copy current.
@@ -225,6 +228,7 @@ export function createTimerStore(): TimerStore {
           segmentStartedAt: now,
           targetMs: targetMin !== undefined ? Math.max(1, targetMin) * MIN : undefined,
           missionId: opts.missionId,
+          checkinId: mode === 'countdown' ? opts.checkinId : undefined,
         });
         schedulePhasePush(get(), now);
       },

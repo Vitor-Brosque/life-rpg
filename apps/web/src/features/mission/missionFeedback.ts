@@ -51,9 +51,11 @@ export async function reopenMission(id: string): Promise<void> {
   }
 }
 
-export async function startWithFeedback(id: string): Promise<void> {
+/** `lead` rides in front of the start toast (e.g. "Check-in · +2 XP"), so neither replaces the other. */
+export async function startWithFeedback(id: string, lead?: string): Promise<void> {
   const { xp } = await startMission(id);
-  if (xp > 0) toast(`Começou · +${xp} XP`);
+  const msg = [lead, xp > 0 ? `Começou · +${xp} XP` : undefined].filter(Boolean).join(' · ');
+  if (msg) toast(msg);
   say('start');
 }
 

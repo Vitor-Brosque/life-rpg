@@ -8,7 +8,7 @@ export type IconName =
   | 'agora' | 'plan' | 'journey' | 'character' | 'plus' | 'timer' | 'check' | 'skip' | 'shrink'
   | 'snooze' | 'play' | 'pause' | 'stop' | 'gear' | 'sync' | 'energy' | 'heart' | 'book' | 'hammer'
   | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
-  | 'bell' | 'chest';
+  | 'bell' | 'chest' | 'door';
 
 const ROWS: Record<IconName, string[]> = {
   // Sword: "what to do now".
@@ -457,6 +457,21 @@ const ROWS: Record<IconName, string[]> = {
     'o..........o',
     'o..........o',
     'oooooooooooo',
+    '............',
+  ],
+  // Doorway with an arrow walking out: "Escapei".
+  door: [
+    '............',
+    '.oooooo.....',
+    '.o....o.....',
+    '.o....o..o..',
+    '.o.......oo.',
+    '.o..oooooooo',
+    '.o.......oo.',
+    '.o....o..o..',
+    '.o....o.....',
+    '.oooooo.....',
+    '............',
     '............',
   ],
 };

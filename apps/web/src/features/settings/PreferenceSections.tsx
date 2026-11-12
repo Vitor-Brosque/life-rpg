@@ -1,6 +1,6 @@
 import type { Profile, Settings } from '@life/shared';
 import { EditableField } from '../mission/EditableField';
-import { hourLabel, saveProfile, saveSettings, SettingsSection } from './SettingsSection';
+import { hourLabel, savePomodoro, saveProfile, saveSettings, SettingsSection } from './SettingsSection';
 
 // Ajustes → Dia, Foco and Companheiro: small preferences saved as soon as they change.
 
@@ -55,11 +55,19 @@ export function FocusSection({ settings }: { settings?: Settings }) {
     <SettingsSection title="Foco" icon="timer">
       <div className="settings-row">
         <NumberSelect label="Minutos de foco" value={pomodoro?.focusMin} options={withCurrent(FOCUS_MINUTES, pomodoro?.focusMin)}
-          format={(n) => `${n} min`} onChange={(focusMin) => pomodoro && saveSettings({ pomodoro: { ...pomodoro, focusMin } })} />
+          format={(n) => `${n} min`} onChange={(focusMin) => savePomodoro({ focusMin })} />
         <NumberSelect label="Minutos de pausa" value={pomodoro?.breakMin} options={withCurrent(BREAK_MINUTES, pomodoro?.breakMin)}
-          format={(n) => `${n} min`} onChange={(breakMin) => pomodoro && saveSettings({ pomodoro: { ...pomodoro, breakMin } })} />
+          format={(n) => `${n} min`} onChange={(breakMin) => savePomodoro({ breakMin })} />
       </div>
       <p className="settings-hint">Usados no modo Pomodoro do cronômetro. A pausa só começa quando você tocar.</p>
+      <label className="settings-check">
+        <input type="checkbox" className="px-checkbox" checked={settings?.checkinCard !== false} disabled={!settings}
+          onChange={(e) => saveSettings({ checkinCard: e.target.checked })} />
+        <span>Card de início ao começar algo adiado</span>
+      </label>
+      <p className="settings-hint">
+        Para missões adiadas ou pesadas: nomear o que aparece e tentar só 10 minutos. Sempre dá para pular.
+      </p>
     </SettingsSection>
   );
 }

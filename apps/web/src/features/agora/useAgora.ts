@@ -5,12 +5,12 @@ import { useEngine } from '../../db/hooks';
 import { skipMission } from '../../domain/actions';
 import { safeRun } from '../../ui/safeRun';
 import { useMissionSheet } from '../mission/MissionSheet';
-import {
-  completeWithFeedback, dropWithFeedback, splitWithFeedback, startWithFeedback,
-} from '../mission/missionFeedback';
+import { completeWithFeedback, dropWithFeedback, splitWithFeedback } from '../mission/missionFeedback';
+import { startWithCheckin } from './startWithCheckin';
 
 /** What the main card and the alternatives can do. Every handler gets the mission it acts on. */
 export interface AgoraActions {
+  /** "Começar": the start card first for an avoided mission (§6), then the mission sheet. */
   start(m: Mission): void;
   /** Opens the mission sheet ("Continuar", tapping a row). */
   open(m: Mission): void;
@@ -67,7 +67,7 @@ export function useAgora() {
   const actions = useMemo<AgoraActions>(() => {
     const openSheet = (m: Mission) => useMissionSheet.getState().open(m.id);
     return {
-      start: guard(async (m) => { await startWithFeedback(m.id); openSheet(m); }),
+      start: guard((m) => startWithCheckin(m.id, () => openSheet(m))),
       open: openSheet,
       complete: guard((m) => completeWithFeedback(m.id)),
       other: (m) => {

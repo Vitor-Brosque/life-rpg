@@ -9,11 +9,12 @@ import { deleteMission, updateMission } from '../../domain/actions';
 import { Button } from '../../ui/Button';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
+import { startWithCheckin } from '../agora/startWithCheckin';
 import { ChecklistEditor } from './ChecklistEditor';
 import { EditableField } from './EditableField';
 import { MissionAttributes } from './MissionAttributes';
 import {
-  completeWithFeedback, dropWithFeedback, reopenMission, splitWithFeedback, startWithFeedback,
+  completeWithFeedback, dropWithFeedback, reopenMission, splitWithFeedback,
 } from './missionFeedback';
 import { useTimerBridge } from './timerBridge';
 import './mission.css';
@@ -97,7 +98,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
       {live && (
         <div className="mission-sheet__actions">
           {mission.status === 'open' && (
-            <Button variant="primary" icon="play" onClick={run(() => startWithFeedback(mission.id))}>Começar</Button>
+            <Button variant="primary" icon="play" onClick={run(() => startWithCheckin(mission.id))}>Começar</Button>
           )}
           <Button icon="check" onClick={run(() => completeWithFeedback(mission.id), true)}>Concluir</Button>
           {startTimer && (

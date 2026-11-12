@@ -3,12 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Mission } from '@life/shared';
 import { Icon } from '../art/icons';
 import { db } from '../db/db';
+import { setCheckinOutcome } from '../domain/actions';
 import { firstOpenStep, useResumePrompt } from '../features/agora/ResumePrompt';
 import { useCompanion } from '../features/companion/store';
 import { Button } from '../ui/Button';
 import { formatDuration, plural } from '../ui/format';
 import { useToast } from '../ui/Toast';
 import { clockText, isTimeUp, primeChime, timerIcon, useTimerNow } from './clock';
+import { ExperimentEnd, type NextMode } from './ExperimentEnd';
 import { isFocusing, remainingMs, useTimer, type TimerData } from './store';
 import './timer.css';
 
@@ -25,15 +27,17 @@ export function useTimerMission(id: string | undefined): Mission | undefined {
   }, [id]);
 }
 
+const targetMin = (t: TimerData): number => Math.round((t.targetMs ?? 0) / 60_000);
+
 function headLabel(t: TimerData): string {
   if (t.mode === 'pomodoro') return t.phase === 'break' ? 'Pausa' : `Foco ${t.pomodoroCount + 1}`;
   if (t.mode === 'free') return 'Cronômetro livre';
-  return `Regressivo · ${formatDuration(Math.round((t.targetMs ?? 0) / 60_000))}`;
+  return `${t.checkinId ? 'Experimento' : 'Regressivo'} · ${formatDuration(targetMin(t))}`;
 }
 
 function phaseMessage(t: TimerData, timeUp: boolean): string | undefined {
   if (t.ready) return t.phase === 'break' ? 'Fim do foco — hora de uma pausa.' : 'Pausa terminada.';
-  if (timeUp) return 'Tempo esgotado.';
+  if (timeUp) return t.checkinId ? `Experimento feito: ${targetMin(t)} minutos.` : 'Tempo esgotado.';
   return undefined;
 }
 
@@ -78,6 +82,8 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
   const canComplete = !!mission && mission.status !== 'done' && mission.status !== 'dropped';
   const message = phaseMessage(t, timeUp);
   const remaining = remainingMs(t, now);
+  // The start card's 10-minute experiment reached zero: its outcome replaces Concluir/Interromper.
+  const experimentId = t.mode === 'countdown' && timeUp ? t.checkinId : undefined;
 
   const end = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -112,6 +118,24 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
     askWhereStopped(mission);
   });
 
+  const stopExperiment = (checkinId: string) => end(async () => {
+    await setCheckinOutcome(checkinId, 'stopped');
+    const { xp } = await useTimer.getState().finish();
+    toast(xp > 0 ? `Experimento feito · +${xp} XP` : 'Experimento feito');
+    void useCompanion.getState().say('focusDone');
+    askWhereStopped(mission);
+  });
+
+  const continueAs = (mode: NextMode) => {
+    primeChime();
+    void end(async () => {
+      const { xp } = await useTimer.getState().finish();
+      useTimer.getState().start(mode, { missionId: t.missionId });
+      const next = mode === 'pomodoro' ? 'seguindo no Pomodoro.' : 'seguindo no cronômetro livre.';
+      toast(xp > 0 ? `Experimento feito · +${xp} XP — ${next}` : `Experimento feito — ${next}`);
+    });
+  };
+
   const big = size === 'lg';
 
   return (
@@ -133,7 +157,10 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
         </p>
       )}
 
-      {step === 'main' && (
+      {experimentId ? (
+        <ExperimentEnd key={experimentId} checkinId={experimentId} busy={busy}
+          onStop={() => { void stopExperiment(experimentId); }} onContinue={continueAs} />
+      ) : step === 'main' && (
         <div className="timer-active__buttons">
           {t.ready ? (
             <Button variant="primary" icon="play" disabled={busy} onClick={resumeTimer}>
@@ -153,7 +180,7 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
         </div>
       )}
 
-      {step === 'finish' && (
+      {!experimentId && step === 'finish' && (
         <div className="timer-active__confirm" role="group" aria-label="Concluir">
           {canComplete && (
             <label className="timer-check">
@@ -175,7 +202,7 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
         </div>
       )}
 
-      {step === 'interrupt' && (
+      {!experimentId && step === 'interrupt' && (
         <div className="timer-active__confirm" role="group" aria-label="Interromper">
           <p className="timer-active__label">Motivo (opcional):</p>
           <div className="timer-active__reasons">

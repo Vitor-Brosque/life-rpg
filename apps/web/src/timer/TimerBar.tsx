@@ -1,15 +1,16 @@
 import { Icon } from '../art/icons';
+import { EscapeButton } from '../features/agora/EscapeButton';
 import { Button } from '../ui/Button';
 import { clockText, isTimeUp, phaseLabel, timerIcon, useTimerNow } from './clock';
 import { resumeTimer, useTimerMission } from './TimerControls';
 import { useTimerSheet } from './TimerSheet';
-import { useTimer, type TimerState } from './store';
+import { isFocusing, useTimer, type TimerState } from './store';
 import './timer.css';
 
 function statusText(t: TimerState, timeUp: boolean): string | undefined {
   if (t.ready) return t.phase === 'break' ? 'hora da pausa' : 'pausa terminada';
   if (t.status === 'paused') return 'pausado';
-  if (timeUp) return 'tempo esgotado';
+  if (timeUp) return t.checkinId ? 'feito' : 'tempo esgotado';
   return undefined;
 }
 
@@ -38,7 +39,7 @@ function ActiveTimerBar() {
         <Icon name={timerIcon(t)} size={24} className="timer-bar__icon" />
         <span className="timer-bar__time">{clockText(t, now)}</span>
         <span className="timer-bar__info">
-          <span className="timer-bar__phase">{phaseLabel(t)}{status ? ` · ${status}` : ''}</span>
+          <span className="timer-bar__phase">{t.checkinId ? 'Experimento' : phaseLabel(t)}{status ? ` · ${status}` : ''}</span>
           {mission && <span className="timer-bar__mission">{mission.title}</span>}
         </span>
       </button>
@@ -50,7 +51,10 @@ function ActiveTimerBar() {
       ) : (
         <Button variant="primary" size="sm" icon="play" aria-label="Retomar" onClick={resumeTimer} />
       )}
-      <Button size="sm" icon="stop" aria-label="Parar" onClick={() => useTimerSheet.getState().open('finish')} />
+      {isFocusing(t) && !timeUp && <EscapeButton compact mission={mission} />}
+      {/* At the end of the experiment the sheet opens on its outcome (Continuar / Parar aqui). */}
+      <Button size="sm" icon="stop" aria-label="Parar"
+        onClick={() => useTimerSheet.getState().open(t.checkinId && timeUp ? undefined : 'finish')} />
     </div>
   );
 }

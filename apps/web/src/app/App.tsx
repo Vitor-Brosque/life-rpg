@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Route, Switch } from 'wouter';
 import { db } from '../db/db';
 import { AgoraScreen } from '../features/agora/AgoraScreen';
+import { CheckinCardHost } from '../features/agora/CheckinCard';
 import { ResumePromptHost } from '../features/agora/ResumePrompt';
 import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
 import { CharacterScreen } from '../features/character/CharacterScreen';
@@ -67,6 +68,7 @@ export function App() {
       <MissionSheetHost />
       <TimerHost />
       <ResumePromptHost />
+      <CheckinCardHost />
       <ToastHost />
     </>
   );

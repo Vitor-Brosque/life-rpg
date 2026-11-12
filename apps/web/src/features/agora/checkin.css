@@ -1,0 +1,97 @@
+/* Start card ("Antes de começar") and "Escapei" sheets. Both sit on --stone (the sheet):
+   --text-dim is fine there (5.5), never on --stone-light. */
+
+/* ---------------------------------------------------------------- start card */
+
+.checkin { display: flex; flex-direction: column; gap: var(--space-4); }
+.checkin__mission {
+  margin: 0;
+  color: var(--gold);
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.checkin__intro { margin: 0; color: var(--text-dim); font-size: 0.9375rem; }
+.checkin__mission + .checkin__intro { margin-top: calc(var(--space-3) * -1); }
+.checkin__group { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin: 0; padding: 0; border: 0; }
+.checkin__question {
+  padding: 0;
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.checkin__chips { gap: 10px; padding: 2px; }
+.checkin__helper { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.checkin__helper--warm {
+  padding: 6px 10px;
+  color: var(--text);
+  font-weight: 600;
+  background: rgba(123, 201, 111, 0.12);
+  box-shadow: inset 4px 0 0 var(--leaf);
+}
+.checkin__experiment {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+  background: rgba(242, 193, 78, 0.1);
+  box-shadow: inset 4px 0 0 var(--gold);
+  overflow-wrap: anywhere;
+}
+.checkin__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 2px; }
+.checkin__actions .btn { flex: 1 1 120px; white-space: nowrap; }
+.checkin__actions .checkin__go { flex-basis: 100%; }
+.checkin__off {
+  align-self: center;
+  min-height: var(--touch);
+  padding: 0 var(--space-2);
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+@media (hover: hover) { .checkin__off:hover { color: var(--text); } }
+
+/* ------------------------------------------------------------------ Escapei */
+
+.escape { display: flex; flex-direction: column; gap: var(--space-4); }
+.escape__intro { margin: 0; color: var(--text-dim); font-size: 0.9375rem; }
+.escape__places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); padding: 2px; }
+.escape__companion { display: flex; align-items: center; gap: var(--space-4); min-height: 48px; }
+.escape__companion .speech { position: static; flex: 1; min-width: 0; }
+/* Bubble to the right of the companion, tail pointing left (as on the Painel). */
+.escape__speech .speech__bubble::after {
+  top: calc(50% - var(--px) * 1.5);
+  left: calc(var(--px) * -1);
+  right: auto;
+  width: var(--px);
+  height: calc(var(--px) * 3);
+  box-shadow: 0 calc(var(--px) * -1) 0 0 var(--px-c), 0 var(--px) 0 0 var(--px-c);
+}
+.escape__speech .speech__bubble::before {
+  top: calc(50% - var(--px) * 0.5);
+  left: calc(var(--px) * -2);
+  right: auto;
+  width: var(--px);
+  height: var(--px);
+  box-shadow: 0 calc(var(--px) * -1) 0 0 var(--px-c), 0 var(--px) 0 0 var(--px-c), calc(var(--px) * -1) 0 0 0 var(--px-c);
+}
+.escape__step {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+  background: rgba(242, 193, 78, 0.1);
+  box-shadow: inset 4px 0 0 var(--gold);
+  overflow-wrap: anywhere;
+}
+.escape__back { align-self: stretch; }
+/* In the banner it stays a quiet extra, not a fourth big button. */
+.block-banner__actions .escape-btn { flex: 0 1 auto; }

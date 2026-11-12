@@ -8,6 +8,7 @@ import { formatDuration } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { startBlockWithFeedback, toggleObjectiveWithFeedback } from './blockFeedback';
 import { RoutineChecklist, TimeLeft, versionMinutes } from './BlockParts';
+import { EscapeButton } from './EscapeButton';
 import { firstOpenStep, useResumePrompt } from './ResumePrompt';
 import './blocks.css';
 
@@ -30,7 +31,7 @@ export interface BlockBannerProps {
 
 /**
  * "Bloco 1 · Tech News · até 10:30": what this part of the day is for, how long is left (and
- * whether it shrank), the week's objective for it, and Começar / Versão mínima / Encerrar.
+ * whether it shrank), the week's objective for it, and Começar / Versão mínima / Encerrar / Escapei.
  */
 export function BlockBanner({ occurrence, now, week, focusMission, compact }: BlockBannerProps) {
   const { block, session, day } = occurrence;
@@ -108,6 +109,8 @@ export function BlockBanner({ occurrence, now, week, focusMission, compact }: Bl
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={end}>Encerrar bloco</Button>
+        {/* A routine block (morning, wind-down) has nothing to escape from. */}
+        {block.kind !== 'routine' && <EscapeButton blockId={block.id} mission={focusMission} />}
       </div>
     </section>
   );

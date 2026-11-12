@@ -159,6 +159,11 @@ function announcePhaseEnd(end: PhaseEnd): void {
         console.error('timer: focus not recorded', e);
         toast('Não foi possível salvar o foco.');
       });
+  } else if (end.kind === 'countdown' && useTimer.getState().checkinId) {
+    // The start card's experiment: its outcome (Continuar / Parar aqui) waits in the timer sheet.
+    useToast.getState().show('Experimento feito. Continuar ou parar aqui?', {
+      label: 'Abrir', run: () => useTimerSheet.getState().open(),
+    }, 8000);
   } else {
     toast(end.kind === 'break' ? 'Pausa terminada.' : 'Tempo esgotado.');
   }
