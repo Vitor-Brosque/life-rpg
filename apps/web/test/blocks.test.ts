@@ -136,6 +136,22 @@ describe('end, version and next action', () => {
     expect(s!.nextAction).toBeUndefined();
   });
 
+  it('endBlock on a block that was never started closes it (startedAt = endedAt) and awards no XP', async () => {
+    await endBlock('b1', 'começar pelo README');
+    const s = await db.blockSessions.get('bs-b1-2026-11-11');
+    expect(s!.startedAt).toBe(at(11, 10).getTime());
+    expect(s!.endedAt).toBe(at(11, 10).getTime());
+    expect((await db.xpEvents.toArray()).filter((x) => !x.deleted)).toHaveLength(0);
+  });
+
+  it('endBlock keeps the original start of a started block', async () => {
+    await startBlock('b1');
+    vi.setSystemTime(new Date(at(11, 10).getTime() + 30 * 60000));
+    await endBlock('b1');
+    const s = await db.blockSessions.get('bs-b1-2026-11-11');
+    expect(s!.startedAt).toBe(at(11, 10).getTime());
+  });
+
   it('setBlockVersion switches the version without starting the block', async () => {
     await setBlockVersion('b1', 'minimum');
     expect(await db.blockSessions.get('bs-b1-2026-11-11')).toMatchObject({ version: 'minimum' });

@@ -173,7 +173,11 @@ async function startBlockLocked(blockId: ID): Promise<{ xp: number; resumption: 
 export async function endBlock(blockId: ID, nextAction?: string): Promise<void> {
   const today = await getToday();
   const text = nextAction?.trim();
-  await upsertSession(blockId, today, { endedAt: Date.now(), ...(text ? { nextAction: text } : {}) });
+  const now = Date.now();
+  // Ending a block that was never started still closes it (it becomes 'done', not 'current').
+  const existing = await db.blockSessions.get(sessionId(blockId, today));
+  const startedAt = existing && !existing.deleted && existing.startedAt !== undefined ? {} : { startedAt: now };
+  await upsertSession(blockId, today, { ...startedAt, endedAt: now, ...(text ? { nextAction: text } : {}) });
 }
 
 export async function setBlockVersion(blockId: ID, version: 'normal' | 'minimum'): Promise<void> {
