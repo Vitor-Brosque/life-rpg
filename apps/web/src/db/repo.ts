@@ -55,6 +55,19 @@ export async function put<T extends BaseRecord>(table: SyncTable, record: T): Pr
   return saved;
 }
 
+/**
+ * Writes records of several tables in ONE transaction (each with the usual outbox entry and
+ * updatedAt bump), then notifies once: a review, its card and its XP land together or not at all.
+ */
+export async function putAll(entries: Array<{ table: SyncTable; record: BaseRecord }>): Promise<void> {
+  if (entries.length === 0) return;
+  const tables = [...new Set(entries.map((e) => e.table))].map(tableOf);
+  await db.transaction('rw', [...tables, db.outbox], async () => {
+    for (const { table, record } of entries) await writeInTx(table, record);
+  });
+  notify();
+}
+
 /** Writes a seed record with createdAt = updatedAt = 1 (loses to any real edit) and queues it for sync. */
 export async function putSeed<T extends BaseRecord>(table: SyncTable, record: T): Promise<void> {
   const seeded = { ...record, createdAt: 1, updatedAt: 1 };

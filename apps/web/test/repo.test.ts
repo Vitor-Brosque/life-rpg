@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Mission } from '@life/shared';
+import type { Deck, Mission, Note } from '@life/shared';
 import { db } from '../src/db/db';
-import { applyRemote, newRecord, patch, put, getMeta, setMeta, onLocalChange } from '../src/db/repo';
+import { applyRemote, newRecord, patch, put, getMeta, setMeta, onLocalChange, putAll } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 
 beforeEach(async () => { await db.delete(); await db.open(); });
@@ -84,5 +84,24 @@ describe('repo', () => {
     expect((await db.profile.get('me'))!.onboarded).toBe(true);
     const edited = await patch<typeof seeded>('profile', 'me', { name: 'Bia' });
     expect(edited.updatedAt).toBeGreaterThan(1);
+  });
+
+  it('putAll writes several tables in one transaction and notifies once', async () => {
+    let calls = 0;
+    const off = onLocalChange(() => { calls++; });
+    const deck = newRecord<Deck>({ name: 'SQL', order: 0, archived: false });
+    const note = newRecord<Note>({ deckId: deck.id, type: 'basic', front: 'a', back: 'b', draft: false });
+    await putAll([{ table: 'decks', record: deck }, { table: 'notes', record: note }]);
+    off();
+    expect(calls).toBe(1);
+    expect(await db.decks.get(deck.id)).toMatchObject({ name: 'SQL' });
+    expect(await db.notes.get(note.id)).toMatchObject({ front: 'a' });
+    expect(await db.outbox.get(`decks:${deck.id}`)).toBeDefined();
+    expect(await db.outbox.get(`notes:${note.id}`)).toBeDefined();
+  });
+
+  it('putAll with an empty list does nothing', async () => {
+    await putAll([]);
+    expect(await db.outbox.count()).toBe(0);
   });
 });

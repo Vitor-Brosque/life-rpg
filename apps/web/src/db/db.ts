@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  Area, Block, BlockSession, Checkin, Commitment, DayState, EnergyLog, FocusSession, Journey,
-  LifeEvent, Mission, Profile, Settings, SyncTable, Week, XpEvent,
+  Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, Journey,
+  LifeEvent, Mission, Note, Profile, Review, Settings, SyncTable, Week, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
@@ -24,6 +24,10 @@ export class LifeDB extends Dexie {
   blockSessions!: Table<BlockSession, string>;
   weeks!: Table<Week, string>;
   checkins!: Table<Checkin, string>;
+  decks!: Table<Deck, string>;
+  notes!: Table<Note, string>;
+  cards!: Table<Card, string>;
+  reviews!: Table<Review, string>;
   outbox!: Table<OutboxEntry, string>;
   meta!: Table<MetaEntry, string>;
 
@@ -59,6 +63,17 @@ export class LifeDB extends Dexie {
         const wd = weekdayOf(d.id);
         if (d.hardDay && !d.mode && wd !== 0 && wd !== 6) d.mode = 'low';
       });
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v3 (Marco 3): spaced repetition. Restart the sync cursor like v2 did, so study records a v2
+    // client skipped (unknown tables) are pulled again; last-writer-wins makes the replay harmless.
+    this.version(3).stores({
+      decks: 'id,order',
+      notes: 'id,deckId',
+      cards: 'id,noteId,deckId,due',
+      reviews: 'id,cardId,day,at',
+    }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
   }

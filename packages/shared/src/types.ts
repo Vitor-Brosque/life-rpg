@@ -103,7 +103,7 @@ export interface LifeEvent extends BaseRecord {
 }
 
 export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience'
-  | 'block' | 'resumption' | 'checkin' | 'objective';
+  | 'block' | 'resumption' | 'checkin' | 'objective' | 'study';
 export interface XpEvent extends BaseRecord {
   at: number;
   amount: number;
@@ -127,6 +127,7 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   companionMuted: boolean;
   commitmentReminderMin: number; // 0 = off
   checkinCard?: boolean;         // absent = true
+  study?: StudySettings;           // Marco 3; absent = DEFAULT_STUDY (see studySettingsOf)
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
@@ -151,6 +152,7 @@ export interface Block extends BaseRecord {
   protected: boolean;
   checklist: ChecklistItem[];  // used by 'routine' blocks
   archived: boolean;
+  reviews?: boolean;               // "Revisão espaçada neste bloco"; absent → kind === 'light'
 }
 export interface BlockSession extends BaseRecord {  // id = `bs-${blockId}-${day}`
   blockId: ID;
@@ -180,13 +182,89 @@ export interface Checkin extends BaseRecord {
   blockId?: ID;
 }
 
+// ------------------------------------------------------------------ study (Marco 3)
+
+export type NoteType = 'basic' | 'reversible' | 'cloze' | 'code' | 'topic';
+export type CodeLang = 'python' | 'sql' | 'javascript' | 'bash' | 'text';
+export type CardState = 'new' | 'learning' | 'review' | 'relearning';
+/** 1 Errei · 2 Difícil · 3 Bom · 4 Fácil. */
+export type Rating = 1 | 2 | 3 | 4;
+
+export interface Deck extends BaseRecord {
+  name: string;
+  journeyId?: ID;
+  areaId?: ID;          // absent → the journey's area → 'area-intelecto'
+  order: number;
+  archived: boolean;
+}
+
+export interface Note extends BaseRecord {
+  deckId?: ID;          // absent only on inbox drafts
+  type: NoteType;
+  front: string;        // Markdown · cloze: text with {{N::…}} · code: the prompt
+  back: string;         // Markdown · cloze: '' · code: reference solution (plain code) · topic: key points, one per line
+  extra?: string;       // "Por quê?": the explanation / intuition, shown after reveal
+  language?: CodeLang;  // code notes
+  draft: boolean;       // drafts have no cards
+}
+
+export interface CardSchedule {
+  state: CardState;
+  due: number;
+  stability: number;
+  difficulty: number;
+  reps: number;
+  lapses: number;
+  learningSteps: number;
+  scheduledDays: number;
+  lastReview?: number;
+}
+
+export interface Card extends BaseRecord, CardSchedule {  // id = `${noteId}-${ord}`
+  noteId: ID;
+  deckId?: ID;          // copy of note.deckId (indexed)
+  ord: number;          // basic/code/topic 0 · reversible 0 front→back, 1 back→front · cloze: group N
+  topic?: boolean;      // copy of note.type === 'topic': own time cost, no short steps
+  suspended: boolean;
+  introducedDay?: DayKey;
+}
+
+export interface Review extends BaseRecord {  // append-only: created or soft-deleted, never edited
+  cardId: ID;
+  noteId: ID;
+  deckId?: ID;
+  at: number;
+  day: DayKey;
+  rating: Rating;
+  durationMs: number;   // capped at 5 min
+  wrote: boolean;
+  coverage?: { covered: number; total: number };  // topic cards: key points ticked
+  before: CardSchedule;
+  after: CardSchedule;
+}
+
+export interface StudySettings {
+  budgetMin: number;
+  maxNewPerDay: number;
+  retention: number;
+  restDays: number[];   // 0 = Sunday; at least one study day remains
+}
+
+export const DEFAULT_STUDY: StudySettings = { budgetMin: 15, maxNewPerDay: 10, retention: 0.9, restDays: [0, 6] };
+
+/** `settings.study` with every missing field taken from DEFAULT_STUDY. */
+export function studySettingsOf(s?: { study?: Partial<StudySettings> }): StudySettings {
+  return { ...DEFAULT_STUDY, ...(s?.study ?? {}) };
+}
+
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
   'events', 'xpEvents', 'profile', 'settings', 'dayState',
   'blocks', 'blockSessions', 'weeks', 'checkins',
+  'decks', 'notes', 'cards', 'reviews',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
-export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents'];
+export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews'];
 
 export interface SyncChange { table: SyncTable; record: BaseRecord & Record<string, unknown> }
 export interface SyncRequest { deviceId: string; cursor: number; changes: SyncChange[] }

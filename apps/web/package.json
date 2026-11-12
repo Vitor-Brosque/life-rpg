@@ -10,6 +10,7 @@
     "@life/shared": "*",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
+    "katex": "0.19.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "wouter": "^3.13.0",

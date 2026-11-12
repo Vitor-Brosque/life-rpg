@@ -66,7 +66,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -121,5 +121,43 @@ describe('Dexie v1 → v2 migration', () => {
     await db.blockSessions.put({ ...base, id: 'bs-b1-2026-11-11', blockId: 'b1', day: '2026-11-11', version: 'normal' });
     expect(await db.blockSessions.where('day').equals('2026-11-11').count()).toBe(1);
     expect(await db.checkins.where('kind').equals('escape').count()).toBe(0);
+  });
+});
+
+// Frozen copy of the v2 additions that are already in the user's browser: never edit it.
+const V2_ADDED = {
+  blocks: 'id,order',
+  blockSessions: 'id,day,blockId',
+  weeks: 'id',
+  checkins: 'id,at,kind',
+};
+
+describe('Dexie v2 → v3 migration', () => {
+  async function createV2(): Promise<void> {
+    const v2 = new Dexie(NAME);
+    v2.version(1).stores(V1);
+    v2.version(2).stores(V2_ADDED);
+    await v2.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v2.table(table).bulkPut(rows);
+    await v2.table('blocks').put({ ...base, id: 'b1', name: 'Complementos', weekdays: [1], order: 0, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light', protected: false, checklist: [], archived: false });
+    v2.close();
+  }
+
+  it('keeps every v2 row, adds the four study tables and restarts the cursor', async () => {
+    await createV2();
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(3);
+    expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    for (const t of ['decks', 'notes', 'cards', 'reviews']) expect(await db.table(t).count(), t).toBe(0);
+    await db.cards.put({ ...base, id: 'n1-0', noteId: 'n1', deckId: 'd1', ord: 0, suspended: false, state: 'new', due: 5, stability: 0, difficulty: 0, reps: 0, lapses: 0, learningSteps: 0, scheduledDays: 0 });
+    expect(await db.cards.where('noteId').equals('n1').count()).toBe(1);
+    expect(await db.cards.where('due').below(10).count()).toBe(1);
+    await db.reviews.put({ ...base, id: 'r1', cardId: 'n1-0', noteId: 'n1', at: 5, day: '2026-11-12', rating: 3, durationMs: 1000, wrote: false, before: {} as never, after: {} as never });
+    expect(await db.reviews.where('day').equals('2026-11-12').count()).toBe(1);
   });
 });

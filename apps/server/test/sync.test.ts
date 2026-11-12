@@ -217,4 +217,25 @@ describe('SSE stream', () => {
     expect(closed).toBe(true);
     expect(Date.now() - started).toBeLessThan(1000);
   });
+
+  it('syncs the study tables (decks, notes, cards, reviews) including a soft-deleted review', async () => {
+    const { app } = await make();
+    const rec = (table: string, id: string, extra: Record<string, unknown> = {}) => ({
+      table, record: { id, createdAt: 1, updatedAt: 10, deleted: false, ...extra },
+    });
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        rec('decks', 'd1', { name: 'SQL', order: 0, archived: false }),
+        rec('notes', 'n1', { deckId: 'd1', type: 'basic', front: 'a', back: 'b', draft: false }),
+        rec('cards', 'n1-0', { noteId: 'n1', ord: 0, state: 'new', due: 1 }),
+        rec('reviews', 'r1', { cardId: 'n1-0', deleted: true }),
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const tables = (pull.json() as { changes: Array<{ table: string; record: { deleted: boolean } }> }).changes;
+    expect(tables.map((c) => c.table).sort()).toEqual(['cards', 'decks', 'notes', 'reviews']);
+    expect(tables.find((c) => c.table === 'reviews')!.record.deleted).toBe(true);
+  });
 });
