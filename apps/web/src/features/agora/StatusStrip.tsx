@@ -1,19 +1,21 @@
+import { useId, useState } from 'react';
 import { Link } from 'wouter';
-import type { EnergyLevel, EngineOutput } from '@life/shared';
+import type { DayMode, EnergyLevel, EngineOutput } from '@life/shared';
 import { formatHHmm } from '@life/shared';
 import { Avatar } from '../../art/Avatar';
 import { Icon } from '../../art/icons';
 import {
-  useCharacterStats, useCurrentEnergy, useDayState, useProfile, useSettings,
+  useCharacterStats, useCurrentEnergy, useDayMode, useProfile, useSettings,
 } from '../../db/hooks';
-import { setEnergy, setHardDay } from '../../domain/actions';
+import { setEnergy } from '../../domain/actions';
 import { useSyncStatus, type SyncStatus } from '../../sync/status';
 import { useTimerSheet } from '../../timer/TimerSheet';
 import { Button } from '../../ui/Button';
 import { ENERGY_LEVEL_LABEL, formatDuration } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
-import { useCompanion } from '../companion/store';
+import { pickDayMode } from './blockFeedback';
+import { ModeButton, ModePicker } from './ModeChip';
 
 type FreeTimeInput = Pick<EngineOutput, 'freeMinutes' | 'currentCommitment' | 'nextCommitment'>;
 
@@ -91,19 +93,20 @@ export interface StatusStripProps {
   compact?: boolean;
 }
 
-/** Avatar + level · free time · sync, then energy and "Hoje está pesado". */
+/** Avatar + level · free time · sync, then energy and the day type (Normal / Baixa energia / …). */
 export function StatusStrip({ engine, compact }: StatusStripProps) {
   const profile = useProfile();
   const stats = useCharacterStats();
   const energy = useCurrentEnergy();
-  const dayState = useDayState();
+  const mode = useDayMode();
   const settings = useSettings();
+  const [picking, setPicking] = useState(false);
+  const pickerId = useId();
   const level = stats?.total.level ?? 1;
-  const hardDay = dayState?.hardDay ?? false;
 
-  const toggleHardDay = () => {
-    safeRun(setHardDay(!hardDay));
-    if (!hardDay) void useCompanion.getState().say('hardDay');
+  const pick = (m: DayMode) => {
+    setPicking(false);
+    if (m !== mode) pickDayMode(m);
   };
 
   return (
@@ -130,10 +133,9 @@ export function StatusStrip({ engine, compact }: StatusStripProps) {
       </div>
       <div className="status-strip__controls">
         <EnergyButton energy={energy} />
-        <Button size="sm" icon="moon" className="hard-day-btn" aria-pressed={hardDay} onClick={toggleHardDay}>
-          Hoje está pesado
-        </Button>
+        <ModeButton mode={mode} open={picking} pickerId={pickerId} onToggle={() => setPicking((v) => !v)} />
       </div>
+      {picking && <ModePicker id={pickerId} mode={mode} onPick={pick} />}
     </div>
   );
 }

@@ -4,7 +4,8 @@
 
 export type PhraseCategory =
   | 'greetMorning' | 'greetAfternoon' | 'greetNight' | 'start' | 'complete' | 'shrink' | 'snooze'
-  | 'postponed' | 'hardDay' | 'focusDone' | 'levelUp' | 'empty' | 'review' | 'drop';
+  | 'postponed' | 'hardDay' | 'focusDone' | 'levelUp' | 'empty' | 'review' | 'drop'
+  | 'dayFree' | 'blockStart' | 'resumption' | 'escape' | 'weekStart';
 
 export const PHRASES: Record<PhraseCategory, string[]> = {
   greetMorning: [
@@ -95,6 +96,36 @@ export const PHRASES: Record<PhraseCategory, string[]> = {
     'Menos peso na mochila. Bom para seguir viagem.',
     'Tudo bem deixar ir. Sobra espaço para o que importa.',
     'Missão solta, sem culpa. Você decidiu.',
+  ],
+  dayFree: [
+    'Dia livre! Descanso também é parte da jornada.',
+    'Hoje a taverna está de folga. Aproveite, {name}.',
+    'Nada para cumprir hoje. Recarregar também conta.',
+    'Dia de descanso. Se quiser algo leve, está guardado aqui.',
+  ],
+  blockStart: [
+    'Bloco aberto! Só o primeiro passo agora.',
+    'Começou o bloco. Estou aqui do lado, {name}.',
+    'Chama acesa para este bloco. Vai no seu ritmo.',
+    'Pronto, bloco em andamento. O resto vem passo a passo.',
+  ],
+  resumption: [
+    'Que bom te ver de volta, {name}! Recomeçar é o que importa.',
+    'Voltou! Nenhum dia parado apaga o caminho.',
+    'Retomada: a chama acendeu de novo.',
+    'Recomeçar é uma habilidade, e você acabou de usar.',
+  ],
+  escape: [
+    'Anotado. Acontece. O primeiro passo continua aqui.',
+    'Tudo bem. Quando quiser voltar, é só um passo pequeno.',
+    'Percebeu e registrou — isso já é útil.',
+    'Sem problema. O bloco espera por você.',
+  ],
+  weekStart: [
+    'Semana nova! Vamos olhar a anterior com calma?',
+    'Nova semana, {name}. Escolha poucos objetivos, bem claros.',
+    'Segunda chegou. Um ajuste pequeno para testar esta semana?',
+    'Semana em branco. Observar a anterior ajuda a planejar esta.',
   ],
 };
 

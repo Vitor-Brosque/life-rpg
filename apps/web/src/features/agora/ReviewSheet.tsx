@@ -9,6 +9,8 @@ import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { dropWithFeedback } from '../mission/missionFeedback';
+import { CapacityWarning } from './CapacityWarning';
+import { nextBlockButton, useBlockFit, type BlockFit } from './capacity';
 import { ShrinkDialog } from './ShrinkDialog';
 
 export const DROP_REASONS = ['não é mais importante', 'não depende de mim', 'já resolvido de outro jeito'];
@@ -23,18 +25,26 @@ export interface ReviewSheetProps {
 
 const deadlinePassed = (m: Mission, today: DayKey) => m.deadline !== undefined && m.deadline < today;
 
-function ReviewItem({ mission, today, onHandled, onUnhandled, onShrink }: {
-  mission: Mission; today: DayKey; onHandled(id: string): void; onUnhandled(id: string): void; onShrink(m: Mission): void;
+function ReviewItem({ mission, today, fit, onHandled, onUnhandled, onShrink }: {
+  mission: Mission; today: DayKey; fit?: BlockFit;
+  onHandled(id: string): void; onUnhandled(id: string): void; onShrink(m: Mission): void;
 }) {
-  const [mode, setMode] = useState<'pick' | 'drop'>();
+  const [mode, setMode] = useState<'pick' | 'drop' | 'full'>();
   const [date, setDate] = useState(addDays(today, 1));
   const titleId = useId();
   const passed = deadlinePassed(mission, today);
 
+  // Decided at the tap (the item leaves the list right away); a failed write brings it back.
+  // Marking it only after the write left a window where the list looked empty but undecided.
   const act = (fn: () => Promise<unknown>) => () => {
+    onHandled(mission.id);
     safeRun(async () => {
-      await fn();
-      onHandled(mission.id);
+      try {
+        await fn();
+      } catch (e) {
+        onUnhandled(mission.id);
+        throw e;
+      }
     });
   };
   // "Desfazer" on the drop toast puts the mission back in the list.
@@ -56,8 +66,13 @@ function ReviewItem({ mission, today, onHandled, onUnhandled, onShrink }: {
         ) : null}
       </div>
       <div className="review__item-actions">
-        <Button size="sm" onClick={moveTo(today)}>Hoje</Button>
+        {/* Over the block's time today, "Hoje" first asks (inline) about the next occurrence. */}
+        <Button size="sm" aria-expanded={fit?.full ? mode === 'full' : undefined}
+          onClick={fit?.full ? () => setMode('full') : moveTo(today)}>
+          Hoje
+        </Button>
         <Button size="sm" onClick={moveTo(addDays(today, 1))}>Amanhã</Button>
+        {fit?.nextDay && <Button size="sm" onClick={moveTo(fit.nextDay)}>{nextBlockButton(fit)}</Button>}
         <Button size="sm" aria-expanded={mode === 'pick'} onClick={() => setMode(mode === 'pick' ? undefined : 'pick')}>
           Escolher dia
         </Button>
@@ -67,6 +82,9 @@ function ReviewItem({ mission, today, onHandled, onUnhandled, onShrink }: {
           Soltar
         </Button>
       </div>
+      {mode === 'full' && fit && (
+        <CapacityWarning fit={fit} onNext={fit.nextDay ? moveTo(fit.nextDay) : undefined} onToday={moveTo(today)} />
+      )}
       {mode === 'pick' && (
         <div className="review__item-extra">
           <input type="date" aria-label={`Novo dia para ${mission.title}`} value={date} min={today}
@@ -91,6 +109,7 @@ function ReviewItem({ mission, today, onHandled, onUnhandled, onShrink }: {
 export function ReviewSheet({ missions, today, onClose }: ReviewSheetProps) {
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
   const [shrinking, setShrinking] = useState<Mission>();
+  const fitOf = useBlockFit();
   const finishing = useRef<Promise<void> | undefined>(undefined);
   const headingId = useId();
   const items = missions.filter((m) => !handled.has(m.id));
@@ -143,8 +162,8 @@ export function ReviewSheet({ missions, today, onClose }: ReviewSheetProps) {
           <p className="review__intro">Hoje, outro dia ou soltar — você escolhe. Nada aqui é atraso.</p>
           <ul className="review__list">
             {items.map((m) => (
-              <ReviewItem key={m.id} mission={m} today={today} onHandled={markHandled} onUnhandled={unmarkHandled}
-                onShrink={setShrinking} />
+              <ReviewItem key={m.id} mission={m} today={today} fit={fitOf(m)} onHandled={markHandled}
+                onUnhandled={unmarkHandled} onShrink={setShrinking} />
             ))}
           </ul>
         </>

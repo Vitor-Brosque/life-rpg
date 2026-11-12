@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { Mission } from '@life/shared';
 import { dayKeyToDate } from '@life/shared';
 import { Companion, SpeechBubble } from '../../art/Companion';
 import { useCharacterStats, useProfile, useToday } from '../../db/hooks';
@@ -12,15 +11,18 @@ import { WEEKDAY_ABBR } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { WeekDots } from '../../ui/WeekDots';
-import { Alternatives } from '../agora/Alternatives';
-import { MainCard, MainCardEmpty } from '../agora/MainCard';
+import { AgoraNow, showsMainCard } from '../agora/AgoraNow';
+import { pickDayMode } from '../agora/blockFeedback';
+import { DayTypeCard } from '../agora/DayTypeCard';
 import { ReviewSheet } from '../agora/ReviewSheet';
 import { ShrinkDialog } from '../agora/ShrinkDialog';
 import { SnoozeDialog } from '../agora/SnoozeDialog';
 import { StatusStrip } from '../agora/StatusStrip';
 import { TodayList } from '../agora/TodayList';
 import { useAgora } from '../agora/useAgora';
-import { useCompanionMoments, useDayReview, useTodayData } from '../agora/useAgoraData';
+import {
+  useBlocksNow, useCompanionMoments, useDayReview, useDayType, useTodayData,
+} from '../agora/useAgoraData';
 import { CaptureForm } from '../capture/CaptureBar';
 import { useCompanion } from '../companion/store';
 import { useMissionSheet } from '../mission/MissionSheet';
@@ -126,13 +128,19 @@ function ConstancyCard() {
  * constância). Large text, updates by itself (live queries fed by sync/SSE).
  */
 export function PainelScreen() {
-  const { engine, primary, alternatives, actions, canSkip, dialog, closeDialog } = useAgora();
+  const agora = useAgora();
+  const { engine, primary, actions, dialog, closeDialog } = agora;
   const { settings, today, now, missions, areas, todayMissions, occurrences, doneToday } = useTodayData();
   const review = useDayReview(today, missions);
+  const dayType = useDayType(today);
+  const { plan, current, next } = useBlocksNow(now);
+  const free = dayType.mode === 'free';
   const apoioRef = useRef<HTMLElement>(null);
 
-  const empty = engine !== undefined && !primary && !engine.currentCommitment;
-  useCompanionMoments(settings?.dayStartHour, today, primary?.mission.id, primary?.postponedHint ?? false, empty);
+  const loaded = engine !== undefined && dayType.loaded && plan !== undefined;
+  const empty = loaded && !primary && !engine.currentCommitment
+    && showsMainCard({ mode: dayType.mode, current, next, inCommitment: false });
+  useCompanionMoments(settings?.dayStartHour, today, primary?.mission.id, primary?.postponedHint ?? false, empty, free);
 
   const focusCapture = useCallback(() => {
     const field = apoioRef.current?.querySelector<HTMLTextAreaElement>('.capture__input');
@@ -141,11 +149,15 @@ export function PainelScreen() {
   }, []);
   usePainelShortcuts({
     capture: focusCapture,
-    complete: () => { if (primary && !engine?.currentCommitment) actions.complete(primary.mission); },
+    complete: () => {
+      const shown = showsMainCard({ mode: dayType.mode, current, next, inCommitment: !!engine?.currentCommitment });
+      if (shown && primary && !engine?.currentCommitment) actions.complete(primary.mission);
+    },
   });
 
-  const ready = engine !== undefined && today !== undefined && settings !== undefined;
-  const areaOf = (m?: Mission) => (m?.areaId ? areas.find((a) => a.id === m.areaId) : undefined);
+  const ready = engine !== undefined && today !== undefined && settings !== undefined && dayType.loaded
+    && plan !== undefined;
+  const listed = free ? todayMissions.filter((m) => m.status === 'doing' || m.date === today) : todayMissions;
   const bounds = ready ? dayBounds(today, settings.dayStartHour, settings.dayEndHour) : undefined;
   const date = today ? dayKeyToDate(today) : undefined;
 
@@ -157,19 +169,11 @@ export function PainelScreen() {
         {ready && (
           <>
             <StatusStrip engine={engine} compact />
-            {review.show && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
-            {primary || engine.currentCommitment ? (
-              <MainCard
-                suggestion={primary}
-                area={areaOf(primary?.mission)}
-                commitment={engine.currentCommitment}
-                canSkip={canSkip}
-                actions={actions}
-              />
-            ) : (
-              <MainCardEmpty onCapture={focusCapture} />
-            )}
-            <Alternatives items={alternatives} areas={areas} onPick={actions.promote} />
+            {!dayType.asked && !dayType.weekend && <DayTypeCard onPick={pickDayMode} />}
+            {review.show && !free && <ReviewSheet missions={review.items} today={today} onClose={review.close} />}
+            {/* "Onde você parou" belongs to the Apoio column here. */}
+            <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
+              current={current} next={next} showNote={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
           </>
         )}
       </section>
@@ -188,11 +192,11 @@ export function PainelScreen() {
               <TodayList
                 title="Missões de hoje"
                 emptyText="Nenhuma missão planejada para hoje."
-                missions={todayMissions}
+                missions={listed}
                 commitments={[]}
                 done={doneToday}
                 areas={areas}
-                hardDay={review.hardDay}
+                hardDay={dayType.mode === 'low' || dayType.mode === 'recovery'}
                 now={now}
                 onOpen={(m) => useMissionSheet.getState().open(m.id)}
                 onReorder={(ids) => safeRun(reorderDay(ids, today))}

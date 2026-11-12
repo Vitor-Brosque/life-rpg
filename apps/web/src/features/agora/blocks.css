@@ -1,0 +1,238 @@
+/* Marco 2 on the Agora: day type, mode chip, block banner, resume note/prompt, between blocks,
+   free day and the capacity warning. Contrast notes: --text-dim is kept off --stone-light. */
+
+/* ------------------------------------------------------------ day type card */
+
+.day-type { display: flex; flex-direction: column; gap: var(--space-3); }
+.day-type__title { margin: 0; color: var(--gold); font-size: 1.125rem; }
+.day-type__intro { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.day-type__options { display: grid; gap: 10px; padding: 2px; }
+.day-type__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: 8px 12px;
+  color: var(--text);
+  text-align: left;
+  background: var(--bg-2);
+  border: 0;
+  box-shadow: 0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline), -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline),
+    inset 0 2px 0 0 rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+@media (hover: hover) { .day-type__option:hover { background: #23273b; } }
+.day-type__option:active { transform: translateY(2px); }
+.day-type__icon { flex-shrink: 0; color: var(--gold); }
+.day-type__option--low .day-type__icon { color: var(--sky); }
+.day-type__option--recovery .day-type__icon { color: #c4b5f0; }
+.day-type__option--free .day-type__icon { color: var(--leaf); }
+.day-type__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.day-type__label { font-family: var(--font-pixel); font-size: 1.0625rem; font-weight: 700; }
+.day-type__hint { color: var(--text-dim); font-size: 0.8125rem; line-height: 1.3; }
+
+/* ---------------------------------------------------------- mode chip/picker */
+
+.mode-btn--low { --btn-bg: var(--sky); --btn-fg: var(--ink); --btn-hi: #a9d3ef; --btn-lo: #3f7fae; }
+.mode-btn--recovery { --btn-bg: #b5a4e6; --btn-fg: var(--ink); --btn-hi: #d6cbf5; --btn-lo: #7461b0; }
+.mode-btn--free { --btn-bg: var(--leaf); --btn-fg: var(--ink); --btn-hi: #b2e3a8; --btn-lo: #4c8f43; }
+
+.mode-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 2px; }
+.mode-picker__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-height: 56px;
+  padding: 8px 10px;
+  color: var(--text);
+  text-align: left;
+  background: var(--bg-2);
+  border: 0;
+  box-shadow: 0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline), -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline);
+  cursor: pointer;
+}
+.mode-picker__option[aria-pressed='true'] {
+  background: rgba(242, 193, 78, 0.14);
+  box-shadow: 0 -2px 0 0 var(--gold), 0 2px 0 0 var(--gold), -2px 0 0 0 var(--gold), 2px 0 0 0 var(--gold);
+}
+.mode-picker__icon { grid-row: span 2; color: var(--gold); }
+.mode-picker__label { font-family: var(--font-pixel); font-weight: 700; }
+.mode-picker__hint { grid-column: 2; color: var(--text-dim); font-size: 0.8125rem; line-height: 1.25; }
+
+/* ---------------------------------------------------------------- banner */
+
+.block-banner {
+  --px-c: var(--gold-dark);
+  --px-hi: #474d75;
+  --px-lo: #1c1f31;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--text);
+  background: linear-gradient(180deg, #333859 0%, var(--stone) 70%);
+}
+.block-banner__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.block-banner__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--gold);
+  font-family: var(--font-pixel);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.block-banner__eyebrow .icon { color: var(--ember); }
+/* Times use the body font: Pixelify's 5 reads like an S. */
+.block-banner__until {
+  flex-shrink: 0;
+  color: var(--gold);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.block-banner__name { margin: calc(var(--space-2) * -1) 0 0; color: var(--text); font-size: 1.5rem; line-height: 1.2; overflow-wrap: anywhere; }
+.block-banner__tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px; }
+.block-banner__tags:empty { display: none; }
+.block-banner__group { display: flex; flex-direction: column; gap: 2px; }
+.block-banner__label {
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--font-pixel);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.block-checks { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.block-check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch); cursor: pointer; }
+.block-check__text { min-width: 0; overflow-wrap: anywhere; }
+.block-check__text.is-done { color: var(--text-dim); text-decoration: line-through; text-decoration-thickness: 2px; }
+.block-banner__experiment {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 0.875rem;
+  background: rgba(111, 179, 224, 0.12);
+  box-shadow: inset 4px 0 0 var(--sky);
+}
+.block-banner__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); padding: 2px; }
+.block-banner__actions .btn { flex: 1 1 140px; white-space: nowrap; }
+.block-banner__actions .block-banner__start { flex-basis: 100%; }
+.block-banner__minimum[aria-pressed='true'] { --btn-bg: var(--sky); --btn-fg: var(--ink); --btn-hi: #a9d3ef; --btn-lo: #3f7fae; }
+.block-banner--compact .block-banner__name { font-size: 1.25rem; }
+
+/* Remaining time: the fill drains to the left; a shrunk block shows its lost part dashed. */
+.time-left { display: flex; flex-direction: column; gap: 6px; }
+.time-left__track {
+  position: relative;
+  height: 14px;
+  margin: 2px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline),
+    -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline),
+    inset 0 2px 0 0 rgba(0, 0, 0, 0.35);
+}
+.time-left__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--gold);
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(0, 0, 0, 0.16) 10px 12px);
+  box-shadow: inset 0 3px 0 0 rgba(255, 255, 255, 0.35), inset 0 -3px 0 0 rgba(0, 0, 0, 0.2);
+  transition: width 400ms steps(8);
+}
+.time-left__lost {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(90deg, rgba(169, 163, 184, 0.22) 0 6px, transparent 6px 12px);
+  border: 2px dashed var(--text-dim);
+}
+.time-left__caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.time-left__shrunk { color: var(--text-dim); }
+
+/* ------------------------------------------------------------- resume note */
+
+.resume-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  background: #ead9b3;
+  box-shadow: 0 -2px 0 0 var(--frame-wood), 0 2px 0 0 var(--frame-wood), -2px 0 0 0 var(--frame-wood), 2px 0 0 0 var(--frame-wood),
+    inset 6px 0 0 0 var(--gold-dark);
+  overflow-wrap: anywhere;
+}
+.resume-note__icon { flex-shrink: 0; margin-left: 4px; color: var(--ember-ink); }
+.resume-note__body { min-width: 0; padding-top: 2px; }
+.resume-note__label { font-family: var(--font-pixel); font-weight: 700; }
+
+/* ------------------------------------------------------------ resume prompt */
+
+.resume-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.resume-form__question { color: var(--text); font-size: 1rem; }
+.resume-form__hint { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-dim); font-size: 0.875rem; }
+.resume-form__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.resume-form__actions .btn--primary { flex: 1 1 160px; }
+
+/* ----------------------------------------------------------- between blocks */
+
+.between { display: flex; flex-direction: column; gap: var(--space-4); }
+.between__card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.between__next {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.1875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.between__text { margin: 0 0 var(--space-1); color: var(--text-dim); font-size: 0.9375rem; }
+.between__card .btn { margin-left: calc(var(--space-3) * -1); }
+
+/* ------------------------------------------------------------------ free day */
+
+.free-day { display: flex; flex-direction: column; gap: var(--space-4); }
+.free-day__title { margin: 0; color: var(--ink); font-family: var(--font-pixel); font-size: 1.25rem; font-weight: 700; }
+.free-day__text { margin: calc(var(--space-3) * -1) 0 0; color: var(--ink-soft); }
+.free-day__modes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 2px; }
+.free-day__card .btn--ghost { --btn-fg: var(--ink); }
+
+/* --------------------------------------------------------- capacity warning */
+
+.capacity-warning {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgba(242, 193, 78, 0.1);
+  box-shadow: inset 0 0 0 2px var(--gold-dark);
+}
+.capacity-warning__text { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--text); font-size: 0.9375rem; }
+.capacity-warning__icon { flex-shrink: 0; margin-top: 4px; color: var(--gold); }
+.capacity-warning__actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 2px; }

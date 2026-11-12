@@ -1,4 +1,5 @@
-import type { Area, DayKey, Journey, Mission } from '@life/shared';
+import type { Area, Block, DayKey, Journey, Mission } from '@life/shared';
+import { isOfBlock } from '@life/shared';
 import { areaIcon, Icon } from '../../art/icons';
 import { db } from '../../db/db';
 import { moveToDay, updateMission } from '../../domain/actions';
@@ -7,7 +8,7 @@ import { DURATION_OPTIONS, ENERGY_LABEL, ENERGY_OPTIONS, formatDuration } from '
 import { safeRun } from '../../ui/safeRun';
 import { RecurrencePicker } from './RecurrencePicker';
 
-interface Props { mission: Mission; areas: Area[]; journeys: Journey[]; today: DayKey }
+interface Props { mission: Mission; areas: Area[]; journeys: Journey[]; today: DayKey; blocks?: Block[] }
 
 /** Optional date field; cleared with an "×" or, when `noneLabel` is given, a "Sem data"-style chip. */
 function DateField({ label, value, onChange, min, noneLabel }: {
@@ -32,7 +33,7 @@ function DateField({ label, value, onChange, min, noneLabel }: {
 }
 
 /** Chips (duration, energy, area, important), dates, recurrence and journey. Saved on change. */
-export function MissionAttributes({ mission, areas, journeys, today }: Props) {
+export function MissionAttributes({ mission, areas, journeys, today, blocks = [] }: Props) {
   const set = (changes: Partial<Mission>) => safeRun(updateMission(mission.id, changes));
   const durations = [...new Set([...DURATION_OPTIONS, ...(mission.durationMin ? [mission.durationMin] : [])])]
     .sort((a, b) => a - b);
@@ -116,6 +117,26 @@ export function MissionAttributes({ mission, areas, journeys, today }: Props) {
           {activeJourneys.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
         </select>
       </label>
+
+      <BlockSelect mission={mission} blocks={blocks} onChange={(blockId) => set({ blockId })} />
     </>
+  );
+}
+
+/** "Bloco": automatic (by area/journey, naming the block it lands in) or one block explicitly. */
+function BlockSelect({ mission, blocks, onChange }: {
+  mission: Mission; blocks: Block[]; onChange(blockId: string | undefined): void;
+}) {
+  const live = blocks.filter((b) => !b.deleted && (!b.archived || b.id === mission.blockId));
+  if (live.length === 0) return null;
+  const auto = live.find((b) => !b.archived && isOfBlock({ ...mission, blockId: undefined }, b));
+  return (
+    <label className="field attr">
+      <span className="field__label">Bloco</span>
+      <select value={mission.blockId ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">{auto ? `Automático — ${auto.name}` : 'Automático (pela área ou jornada)'}</option>
+        {live.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+      </select>
+    </label>
   );
 }

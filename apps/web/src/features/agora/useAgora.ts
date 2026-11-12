@@ -98,3 +98,5 @@ export function useAgora() {
     closeDialog: () => setDialog(undefined),
   };
 }
+
+export type AgoraState = ReturnType<typeof useAgora>;

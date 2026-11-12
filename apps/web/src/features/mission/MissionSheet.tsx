@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import type { Mission } from '@life/shared';
 import { dayKeyOf } from '@life/shared';
 import { db } from '../../db/db';
-import { useAreas, useJourneys, useToday } from '../../db/hooks';
+import { useAreas, useBlocks, useJourneys, useToday } from '../../db/hooks';
 import { deleteMission, updateMission } from '../../domain/actions';
 import { Button } from '../../ui/Button';
 import { safeRun } from '../../ui/safeRun';
@@ -63,6 +63,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
   const today = useToday() ?? dayKeyOf(Date.now(), 4);
   const areas = useAreas().filter((a) => !a.archived || a.id === mission.areaId);
   const journeys = useJourneys();
+  const blocks = useBlocks();
   const startTimer = useTimerBridge((s) => s.start);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hintId = useId();
@@ -108,7 +109,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
       <ChecklistEditor mission={mission} />
       <EditableField label="Notas" value={mission.notes} multiline placeholder="Detalhes, links, ideias…"
         onSave={(v) => set({ notes: v || undefined })} />
-      <MissionAttributes mission={mission} areas={areas} journeys={journeys} today={today} />
+      <MissionAttributes mission={mission} areas={areas} journeys={journeys} today={today} blocks={blocks} />
 
       <div className="mission-sheet__danger">
         {live && (

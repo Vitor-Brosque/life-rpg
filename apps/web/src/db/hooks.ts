@@ -5,9 +5,10 @@ import type {
   Journey, LevelInfo, Mission, Profile, Settings, Week, XpEvent,
 } from '@life/shared';
 import {
-  activeDays, activeWorkdays, dayKeyOf, defaultDayMode, levelFromXp, planDay, suggest, weekKey,
+  activeDays, activeWorkdays, dayKeyOf, defaultDayMode, levelFromXp, suggest, weekKey,
 } from '@life/shared';
 import { isFreeDayFor } from '../domain/blockActions';
+import { planFromData, readDayPlanData } from './dayPlan';
 import { db } from './db';
 
 // ------------------------------------------------------------------ shared clock
@@ -56,6 +57,14 @@ function readClock(): number {
   // (Re-reading within the same second keeps the snapshot stable across React's double reads.)
   if (clockListeners.size === 0 && Math.abs(Date.now() - clockNow) >= 1000) clockNow = Date.now();
   return clockNow;
+}
+
+/**
+ * Ticks the shared clock now. Call after a write anchored at `Date.now()` (day start, block end):
+ * otherwise screens planned with the older clock value could see that moment as still ahead.
+ */
+export function refreshNow(): void {
+  tick();
 }
 
 /** Current time from the shared app clock (30 s ticks; refreshed on visibilitychange/pageshow/focus). */
@@ -135,27 +144,8 @@ export function useDayPlan(day?: DayKey): BlockOccurrence[] | undefined {
   const today = useToday();
   const key = day ?? today;
   const now = useNow();
-  const data = useLiveQuery(async () => {
-    if (!key) return undefined;
-    const settings = await db.settings.get('settings');
-    if (!settings || settings.deleted) return undefined;
-    const [blocks, commitments, sessions, dayState] = await Promise.all([
-      db.blocks.filter((b) => !b.deleted).toArray(),
-      db.commitments.filter((c) => !c.deleted).toArray(),
-      db.blockSessions.where('day').equals(key).filter((s) => !s.deleted).toArray(),
-      db.dayState.get(key),
-    ]);
-    return { key, settings, blocks, commitments, sessions, dayState: dayState && !dayState.deleted ? dayState : undefined };
-  }, [key]);
-  return useMemo(() => {
-    if (!data || data.key !== key) return undefined;
-    return planDay({
-      day: data.key, now,
-      dayStartHour: data.settings.dayStartHour, dayEndHour: data.settings.dayEndHour,
-      mode: defaultDayMode(data.key, data.dayState), dayStartedAt: data.dayState?.startedAt,
-      blocks: data.blocks, commitments: data.commitments, sessions: data.sessions,
-    });
-  }, [data, key, now]);
+  const data = useLiveQuery(async () => (key ? readDayPlanData(key) : undefined), [key]);
+  return useMemo(() => (data && data.key === key ? planFromData(data, now) : undefined), [data, key, now]);
 }
 
 /** Today's 'current' occurrence (at most one). */

@@ -9,13 +9,13 @@ const CATEGORIES = Object.keys(PHRASES) as PhraseCategory[];
 describe('phrases', () => {
   it('covers every category with at least 4 phrases and no guilt words', () => {
     expect(CATEGORIES.sort()).toEqual([
-      'complete', 'drop', 'empty', 'focusDone', 'greetAfternoon', 'greetMorning', 'greetNight',
-      'hardDay', 'levelUp', 'postponed', 'review', 'shrink', 'snooze', 'start',
+      'blockStart', 'complete', 'dayFree', 'drop', 'empty', 'escape', 'focusDone', 'greetAfternoon', 'greetMorning',
+      'greetNight', 'hardDay', 'levelUp', 'postponed', 'resumption', 'review', 'shrink', 'snooze', 'start', 'weekStart',
     ]);
     for (const cat of CATEGORIES) {
       expect(PHRASES[cat].length, cat).toBeGreaterThanOrEqual(4);
       for (const p of PHRASES[cat]) {
-        expect(p.toLowerCase(), `${cat}: ${p}`).not.toMatch(/deveria|falhou/);
+        expect(p.toLowerCase(), `${cat}: ${p}`).not.toMatch(/deveria|falhou|atrasad/);
       }
     }
   });

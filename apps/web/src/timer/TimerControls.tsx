@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Mission } from '@life/shared';
 import { Icon } from '../art/icons';
 import { db } from '../db/db';
+import { firstOpenStep, useResumePrompt } from '../features/agora/ResumePrompt';
 import { useCompanion } from '../features/companion/store';
 import { Button } from '../ui/Button';
 import { formatDuration, plural } from '../ui/format';
@@ -40,6 +41,15 @@ function phaseMessage(t: TimerData, timeUp: boolean): string | undefined {
 export function resumeTimer(): void {
   primeChime();
   useTimer.getState().resume();
+}
+
+/**
+ * "Onde parou?" after a session that did not complete its mission: the note becomes the mission's
+ * first step (and the current block's note when the mission belongs to it).
+ */
+function askWhereStopped(mission: Mission | undefined): void {
+  if (!mission || mission.status === 'done' || mission.status === 'dropped') return;
+  useResumePrompt.getState().open({ missionId: mission.id, suggestion: firstOpenStep(mission), linkCurrentBlock: true });
 }
 
 type Step = 'main' | 'finish' | 'interrupt';
@@ -93,11 +103,13 @@ export function TimerActive({ size = 'md', initialStep, onDone }: TimerActivePro
     } else {
       toast(mode === 'pomodoro' ? `Pomodoro encerrado · ${plural(pomodoroCount, 'foco', 'focos')}` : 'Cronômetro encerrado');
     }
+    askWhereStopped(mission);
   });
 
   const interrupt = (reason?: string) => end(async () => {
     await useTimer.getState().interrupt(reason);
     toast('Foco interrompido e registrado. Tudo bem.');
+    askWhereStopped(mission);
   });
 
   const big = size === 'lg';

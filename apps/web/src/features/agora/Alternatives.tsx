@@ -7,10 +7,14 @@ export interface AlternativesProps {
   areas: Area[];
   onPick(m: Mission): void;
   title?: string;
+  /** Screen-reader prefix of each row (what tapping does). */
+  pickLabel?: string;
 }
 
 /** Up to 3 compact rows; tapping one brings it to the main card. Renders nothing when empty. */
-export function Alternatives({ items, areas, onPick, title = 'Também cabe agora' }: AlternativesProps) {
+export function Alternatives({
+  items, areas, onPick, title = 'Também cabe agora', pickLabel = 'Trocar para: ',
+}: AlternativesProps) {
   const headingId = useId();
   if (items.length === 0) return null;
   return (
@@ -25,7 +29,7 @@ export function Alternatives({ items, areas, onPick, title = 'Também cabe agora
               <button type="button" className="row-card alt-row" onClick={() => onPick(m)}>
                 <span className="row-card__stripe" style={area ? { background: area.color } : undefined} aria-hidden="true" />
                 <span className="row-card__body">
-                  <span className="visually-hidden">Trocar para: </span>
+                  <span className="visually-hidden">{pickLabel}</span>
                   <span className="row-card__title">{m.title}</span>
                   {s.reasons[0] && <span className="row-card__sub">{s.reasons[0].text}</span>}
                 </span>

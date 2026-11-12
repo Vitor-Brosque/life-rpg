@@ -43,7 +43,6 @@
 .energy-btn__bars span:nth-child(2) { height: 10px; }
 .energy-btn__bars span:nth-child(3) { height: 14px; }
 .energy-btn__bars span.is-on { background: var(--leaf); }
-.hard-day-btn[aria-pressed='true'] { --btn-bg: var(--sky); --btn-fg: var(--ink); --btn-hi: #a9d3ef; --btn-lo: #3f7fae; }
 
 .sync-indicator {
   display: inline-flex;

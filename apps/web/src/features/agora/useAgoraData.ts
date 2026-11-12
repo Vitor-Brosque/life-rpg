@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { DayKey, Mission } from '@life/shared';
-import { dayKeyOf, needsReview, occurrencesOn, todayList } from '@life/shared';
+import type { BlockOccurrence, DayKey, DayMode, Mission } from '@life/shared';
+import { dayKeyOf, defaultDayMode, needsReview, occurrencesOn, todayList, weekdayOf } from '@life/shared';
 import { db } from '../../db/db';
-import { useAreas, useCommitments, useMissions, useNow, useSettings, useToday } from '../../db/hooks';
+import {
+  useAreas, useCommitments, useDayPlan, useMissions, useNow, useSettings, useToday,
+} from '../../db/hooks';
 import type { PhraseCategory } from '../companion/phrases';
 import { useCompanion } from '../companion/store';
 import { useAgoraSession } from './useAgora';
@@ -64,6 +66,41 @@ export function useDayReview(today: DayKey | undefined, missions: Mission[]) {
   };
 }
 
+export interface DayType {
+  /** False until today's state is read (avoids flashing the wrong view). */
+  loaded: boolean;
+  /** Recorded mode, else the weekday default (§6). */
+  mode: DayMode;
+  /** "Como está hoje?" was answered today. */
+  asked: boolean;
+  weekend: boolean;
+}
+
+/** Today's type and whether the day-type card should ask (workday without an answer). */
+export function useDayType(today: DayKey | undefined): DayType {
+  const dayState = useLiveQuery(async () => (today ? (await db.dayState.get(today)) ?? null : undefined), [today]);
+  const live = dayState && !dayState.deleted ? dayState : undefined;
+  const wd = today ? weekdayOf(today) : 1;
+  return {
+    loaded: today !== undefined && dayState !== undefined,
+    mode: today ? defaultDayMode(today, live) : 'normal',
+    asked: !!live?.mode,
+    weekend: wd === 0 || wd === 6,
+  };
+}
+
+/** Today's block plan with its current and next occurrence (one live query for both). */
+export function useBlocksNow(now: number): {
+  plan?: BlockOccurrence[]; current?: BlockOccurrence; next?: BlockOccurrence;
+} {
+  const plan = useDayPlan();
+  return useMemo(() => ({
+    plan,
+    current: plan?.find((o) => o.state === 'current'),
+    next: plan?.find((o) => o.state === 'upcoming' && o.start > now),
+  }), [plan, now]);
+}
+
 function greetingFor(hour: number, dayStartHour: number): PhraseCategory {
   if (hour >= dayStartHour && hour < 12) return 'greetMorning';
   if (hour >= 12 && hour < 18) return 'greetAfternoon';
@@ -80,7 +117,7 @@ let greetingPending = false;
  */
 export function useCompanionMoments(
   dayStartHour: number | undefined, today: DayKey | undefined, primaryId: string | undefined,
-  postponed: boolean, empty: boolean,
+  postponed: boolean, empty: boolean, free = false,
 ) {
   useEffect(() => {
     if (dayStartHour === undefined || !today) return;
@@ -90,18 +127,20 @@ export function useCompanionMoments(
     // The first-access introduction (Onboarding) is already showing: it is today's greeting.
     if (useCompanion.getState().message) return;
     greetingPending = true;
-    void useCompanion.getState().say(greetingFor(new Date().getHours(), dayStartHour))
+    // On a free day the greeting is a rest line.
+    void useCompanion.getState().say(free ? 'dayFree' : greetingFor(new Date().getHours(), dayStartHour))
       .finally(() => { greetingPending = false; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayStartHour, today]);
 
   const message = useCompanion((s) => s.message);
   const greetedDay = useAgoraSession((s) => s.greetedDay);
   useEffect(() => {
-    if (!empty || !today || message !== undefined || greetingPending || greetedDay !== today) return;
+    if (!empty || free || !today || message !== undefined || greetingPending || greetedDay !== today) return;
     if (useAgoraSession.getState().emptyDay === today) return;
     useAgoraSession.setState({ emptyDay: today });
     void useCompanion.getState().say('empty');
-  }, [empty, today, message, greetedDay]);
+  }, [empty, free, today, message, greetedDay]);
 
   const lastPrimary = useRef<string | undefined>(undefined);
   useEffect(() => {
