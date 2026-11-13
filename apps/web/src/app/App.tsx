@@ -12,7 +12,9 @@ import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
+import { CorpoScreen } from '../features/corpo/CorpoScreen';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
+import { WorkoutSheetHost } from '../features/corpo/WorkoutSheet';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
@@ -78,6 +80,7 @@ export function App() {
           <Route path="/jornadas"><JourneysScreen /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>
+          <Route path="/corpo"><CorpoScreen /></Route>
           <Route path="/ajustes"><SettingsScreen /></Route>
           <Route path="/painel"><PainelScreen /></Route>
           <Route><NotFound /></Route>
@@ -86,6 +89,7 @@ export function App() {
       <CaptureHost />
       <MissionSheetHost />
       <SleepSheetHost />
+      <WorkoutSheetHost />
       <TimerHost />
       <ResumePromptHost />
       <CheckinCardHost />

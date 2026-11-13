@@ -38,6 +38,11 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Estudo' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('Corpo (/corpo) belongs to Personagem', () => {
+    renderAt('/corpo', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Personagem' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('renders the slots above the nav and the floating button', () => {
     renderAt('/', (
       <Layout aboveNav={<div>Barra do cronômetro</div>} floating={<button type="button">Capturar</button>}>

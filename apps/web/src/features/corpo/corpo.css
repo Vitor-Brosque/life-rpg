@@ -8,3 +8,26 @@
 .care-row__actions { display: flex; gap: 6px; flex: none; }
 .sleep-form__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .sleep-form__error { font-weight: 600; }
+
+/* Tela Corpo, folha de treino, bloco Treino e cartão do Personagem (Task 5). */
+.sleep-nights { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sleep-night {
+  display: grid; grid-template-columns: 5ch 1fr auto; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px; padding: 4px 8px; text-align: left;
+  background: none; border: 0; color: inherit; font: inherit; cursor: pointer;
+}
+.sleep-night__track { position: relative; height: 8px; background: var(--stone); }
+.sleep-night__bar { position: absolute; top: 0; bottom: 0; background: var(--sky); }
+.sleep-night__text { color: var(--text-dim); font-size: 0.9em; }
+.corpo__stats { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0; }
+.corpo__stats dt { color: var(--text-dim); }
+.corpo__stats dd { margin: 0; }
+@media (min-width: 600px) { .corpo__stats { grid-template-columns: 1fr 1fr; } }
+.corpo__range { display: block; color: var(--text-dim); }
+.corpo__workouts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.corpo__workout { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.workout-form__kinds { display: flex; flex-wrap: wrap; gap: 8px; border: 0; padding: 0; margin: 0; }
+.workout-form__kind { display: flex; align-items: center; gap: 6px; min-height: 44px; padding-inline: 6px; }
+.body-block__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.body-block__done, .body-block__minimum { margin: 4px 0; }
+.body-card__link { color: var(--sky); display: inline-flex; align-items: center; min-height: 44px; }

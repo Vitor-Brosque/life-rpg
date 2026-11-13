@@ -11,6 +11,7 @@ import { safeRun } from '../../ui/safeRun';
 import {
   endRoutineWithFeedback, finishTimerFor, skipBlockWithFeedback, startBlockWithFeedback, toggleObjectiveWithFeedback,
 } from './blockFeedback';
+import { BodyBlockPanel } from '../corpo/BodyBlockPanel';
 import { RoutineChecklist, TimeLeft, useRoutineTicks, versionMinutes } from './BlockParts';
 import { EscapeButton } from './EscapeButton';
 import { ResumeNote } from './ResumeNote';
@@ -122,6 +123,7 @@ export function BlockBanner({ occurrence, now, next, note, week, blockIds, focus
       ) : (
         <TimeLeft occurrence={occurrence} now={now} />
       )}
+      {block.kind === 'body' && <BodyBlockPanel occurrence={occurrence} now={now} />}
 
       {objectives.length > 0 && week && (
         <div className="block-banner__group">

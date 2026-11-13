@@ -10,6 +10,7 @@ import { relativeTime } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { WeekDots, workdaysText } from '../../ui/WeekDots';
+import { BodyCard } from '../corpo/BodyCard';
 import { LookEditor } from './LookEditor';
 import './character.css';
 
@@ -103,6 +104,8 @@ export function CharacterScreen() {
         )}
         <p className="constancy__note">Dias livres não entram na conta. Um dia parado não apaga nada.</p>
       </Panel>
+
+      <BodyCard />
 
       <section aria-labelledby="recent-title">
         <h2 id="recent-title" className="section-title">Conquistas recentes</h2>
