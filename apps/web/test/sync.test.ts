@@ -305,6 +305,12 @@ describe('startSync', () => {
   const flushUntil = async (cond: () => boolean, tries = 100, step = 10) => {
     for (let i = 0; i < tries && !cond(); i++) await flush(step, step);
   };
+  /** Waits for something an event (not a timer) causes: real event-loop turns, the fake clock stays put,
+   *  so slow I/O under load can't let retry timers fire early. Falls back to advancing time. */
+  const settleUntil = async (cond: () => boolean, turns = 2000) => {
+    for (let i = 0; i < turns && !cond(); i++) await new Promise<void>((r) => setImmediate(r));
+    if (!cond()) await flushUntil(cond);
+  };
   const fake = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
   it('debounces local changes by 1s and stops everything on cleanup', async () => {
@@ -348,7 +354,7 @@ describe('startSync', () => {
     expect(f).toHaveBeenCalledTimes(1);
     // An ordinary trigger failing must not escalate the delay.
     window.dispatchEvent(new Event('online'));
-    await flushUntil(() => f.mock.calls.length >= 2);
+    await settleUntil(() => f.mock.calls.length >= 2);
     expect(f).toHaveBeenCalledTimes(2);
     // The retry timers armed so far: 2s after the first failure and 2s again after the failed "online" trigger
     // (it re-arms without doubling). Each failed *retry* then doubles: 4s, then 8s.
@@ -375,7 +381,7 @@ describe('startSync', () => {
     expect(FakeES.instances).toHaveLength(2);
     await setMeta('syncToken', 'tok2');
     window.dispatchEvent(new Event('life-rpg:token'));
-    await flushUntil(() => FakeES.instances.length >= 3);
+    await settleUntil(() => FakeES.instances.length >= 3);
     expect(FakeES.instances).toHaveLength(3);
     expect(FakeES.instances[2]!.url).toContain('token=tok2');
     expect(FakeES.instances[1]!.closed).toBe(true);
