@@ -183,3 +183,17 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 @media (min-width: 900px) {
   .review__work--split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
 }
+
+/* ------------------------------------------------------------------ "Sugerir cards" (Marco 7) */
+
+.suggest__list { display: grid; gap: 0.75rem; margin: 0; padding-left: 1.25rem; }
+.suggest__item { display: grid; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 2px dashed var(--outline); }
+.suggest__item--done { color: var(--text-dim); }
+.suggest__title { margin: 0; font-size: 1rem; }
+.suggest__field { display: grid; gap: 0.25rem; }
+.suggest__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.suggest__done { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.suggest__done a { display: inline-flex; align-items: center; min-height: var(--touch); padding: 0 0.5rem; }
+.suggest__item:focus, .suggest__stage:focus { outline: none; }
+.suggest__item:focus-visible, .suggest__stage:focus-visible { outline: 3px dashed var(--gold); outline-offset: 2px; }
+.note-editor__suggest { display: flex; }

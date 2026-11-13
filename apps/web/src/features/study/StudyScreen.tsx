@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { nextDayStart, stripCloze, studyObserved } from '@life/shared';
+import { useAiFeature } from '../../ai/aiStatus';
 import { db } from '../../db/db';
 import { useJourneys } from '../../db/hooks';
 import { Button } from '../../ui/Button';
@@ -13,6 +14,7 @@ import { PracticePanel } from '../practice/PracticePanel';
 import { DeckSheet } from './DeckSheet';
 import { ForecastBars } from './ForecastBars';
 import { StudyPrefsSheet } from './StudyPrefsSheet';
+import { SuggestCardsSheet } from './SuggestCardsSheet';
 import { TodayCard } from './TodayCard';
 import { useStudyPlan } from './useStudyPlan';
 import './study.css';
@@ -27,6 +29,8 @@ export function StudyScreen() {
   const liveCards = useLiveQuery(() => db.cards.filter((c) => !c.deleted).count());
   const [deckSheet, setDeckSheet] = useState(false);
   const [prefs, setPrefs] = useState(false);
+  const cardsAi = useAiFeature('cards');
+  const [suggest, setSuggest] = useState(false);
 
   if (!study.loaded || !study.plan || !study.input || !study.data || drafts === undefined || liveCards === undefined) {
     return <section className="screen study" aria-busy="true" aria-label="Estudo" />;
@@ -67,6 +71,7 @@ export function StudyScreen() {
           <div className="study__actions">
             {active.length > 0 && <Button size="sm" icon="plus" onClick={() => navigate(newCardHref)}>Novo card</Button>}
             <Button size="sm" variant="ghost" onClick={() => setDeckSheet(true)}>Novo baralho</Button>
+            {cardsAi && <Button size="sm" variant="ghost" onClick={() => setSuggest(true)}>Sugerir cards</Button>}
           </div>
         </div>
         {active.length === 0 ? <p className="muted">Nenhum baralho ainda.</p> : (
@@ -122,6 +127,7 @@ export function StudyScreen() {
       <Button variant="ghost" icon="gear" onClick={() => setPrefs(true)}>Preferências de estudo</Button>
       <DeckSheet open={deckSheet} onClose={() => setDeckSheet(false)} />
       <StudyPrefsSheet open={prefs} onClose={() => setPrefs(false)} />
+      {cardsAi && <SuggestCardsSheet open={suggest} onClose={() => setSuggest(false)} deckId={active[0]?.id} />}
     </section>
   );
 }

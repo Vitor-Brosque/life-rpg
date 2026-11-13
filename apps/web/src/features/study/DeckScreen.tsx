@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useAiFeature } from '../../ai/aiStatus';
 import { db } from '../../db/db';
 import { useJourneys, useSettings, useToday } from '../../db/hooks';
 import { deleteDeck, restoreDeck, setDeckArchived } from '../../domain/studyActions';
@@ -11,6 +12,7 @@ import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { DeckSheet } from './DeckSheet';
+import { SuggestCardsSheet } from './SuggestCardsSheet';
 import { TYPE_LABEL, matchesQuery, noteStatus, noteTitle } from './noteDraft';
 import './study.css';
 
@@ -26,6 +28,8 @@ export function DeckScreen({ id }: { id: string }) {
   const cards = useLiveQuery(async () => (await db.cards.where('deckId').equals(id).toArray()).filter((c) => !c.deleted), [id]);
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState(false);
+  const cardsAi = useAiFeature('cards');
+  const [suggest, setSuggest] = useState(false);
 
   if (deck === undefined || notes === undefined || cards === undefined || !today || !settings) {
     return <section className="screen deck" aria-busy="true" aria-label="Baralho" />;
@@ -57,6 +61,7 @@ export function DeckScreen({ id }: { id: string }) {
       <div className="study__actions">
         {!deck.archived && <Button variant="primary" icon="plus" onClick={() => navigate(`/estudo/nota/nova?baralho=${id}`)}>Novo card</Button>}
         {reviewable && <Button icon="book" onClick={() => navigate(`/estudo/revisar?baralho=${id}`)}>Revisar este baralho</Button>}
+        {!deck.archived && cardsAi && <Button variant="ghost" onClick={() => setSuggest(true)}>Sugerir cards</Button>}
         <Button variant="ghost" onClick={() => setEdit(true)}>Editar baralho</Button>
         <Button variant="ghost" onClick={() => safeRun(setDeckArchived(id, !deck.archived))}>{deck.archived ? 'Desarquivar' : 'Arquivar'}</Button>
         {notes.length === 0 && <Button variant="danger" onClick={remove}>Apagar baralho</Button>}
@@ -86,6 +91,7 @@ export function DeckScreen({ id }: { id: string }) {
         )}
       </Panel>
       <DeckSheet open={edit} onClose={() => setEdit(false)} deck={deck} />
+      {!deck.archived && cardsAi && <SuggestCardsSheet open={suggest} onClose={() => setSuggest(false)} deckId={id} />}
     </section>
   );
 }

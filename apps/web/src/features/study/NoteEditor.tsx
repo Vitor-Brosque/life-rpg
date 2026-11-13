@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { CodeLang, NoteErrors, NoteType } from '@life/shared';
-import { wrapCloze } from '@life/shared';
+import { noteSourceText, wrapCloze } from '@life/shared';
+import { useAiFeature } from '../../ai/aiStatus';
 import { db } from '../../db/db';
 import {
   NoteValidationError, deleteNote, resetNote, restoreNote, saveNote, setNoteSuspended,
@@ -16,6 +17,7 @@ import { FieldError } from '../routine/BlockFields';
 import { SpeakButton } from '../media/SpeakButton';
 import { MarkdownField } from '../media/MarkdownField';
 import { CodeEditor } from './CodeEditor';
+import { SuggestCardsSheet } from './SuggestCardsSheet';
 import { CodeView, Rich } from './Rich';
 import { LANG_LABEL, NOTE_TYPES, TYPE_LABEL, emptyForm, formOf, isNoteType, previewFaces, type NoteForm } from './noteDraft';
 import './study.css';
@@ -39,6 +41,8 @@ export function NoteEditor({ id }: { id?: string }) {
   const [errors, setErrors] = useState<NoteErrors>({});
   const [status, setStatus] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const cardsAi = useAiFeature('cards');
+  const [suggest, setSuggest] = useState<{ text: string; deckId?: string }>();
   const loadedFor = useRef<string | undefined>(undefined);
   const saving = useRef(false);
   const frontRef = useRef<HTMLTextAreaElement>(null);
@@ -204,6 +208,14 @@ export function NoteEditor({ id }: { id?: string }) {
             <Button type="submit" variant={isNew ? 'secondary' : 'primary'} icon={isNew ? undefined : 'check'}>Salvar</Button>
             <Button variant="ghost" onClick={() => leave(existing?.deckId ?? (form.deckId || undefined))}>Cancelar</Button>
           </div>
+          {!isNew && cardsAi && (
+            <div className="note-editor__suggest">
+              <Button size="sm" variant="ghost" onClick={() => setSuggest({
+                text: noteSourceText({ type: form.type, front: form.front, back: form.back, extra: form.extra, language: form.language }),
+                deckId: form.deckId || undefined,
+              })}>Sugerir cards desta nota</Button>
+            </div>
+          )}
 
           {!isNew && !isDraft && (
             <div className="note-editor__danger">
@@ -235,6 +247,10 @@ export function NoteEditor({ id }: { id?: string }) {
           ))}
         </Panel>
       </div>
+      {/* Outside the <form>: React portals bubble events through the React tree, and Ctrl+Enter must not save while typing here. */}
+      {!isNew && cardsAi && (
+        <SuggestCardsSheet open={!!suggest} onClose={() => setSuggest(undefined)} initialText={suggest?.text} deckId={suggest?.deckId} />
+      )}
     </section>
   );
 }
