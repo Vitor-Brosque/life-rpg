@@ -6,6 +6,7 @@ import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { newRecord, put } from '../src/db/repo';
 import { createMission, setDayMode } from '../src/domain/actions';
+import { saveDeck, saveNote } from '../src/domain/studyActions';
 import { concludePractice, createPracticeSession, pausePractice, setPracticeRating, updatePractice } from '../src/domain/practiceActions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
@@ -94,6 +95,16 @@ describe('Agora practice line', () => {
     renderAgora();
     expect(await screen.findByRole('region', { name: 'Bloco atual' }, SLOW)).toHaveTextContent('Treino');
     expect(screen.queryByRole('button', { name: 'Sessão de prática' })).toBeNull();
+  });
+
+  it('a block with reviews and cards due shows the review card and not the practice line', async () => {
+    await db.blocks.update('b1', { reviews: true });
+    const d = await saveDeck({ name: 'SQL' });
+    await saveNote({ deckId: d.id, type: 'basic', front: 'p', back: 'r' });
+    renderAgora();
+    expect(await screen.findByRole('heading', { name: 'Revisão espaçada' }, SLOW)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sessão de prática' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Retomar prática/ })).toBeNull();
   });
 
   it('the Painel does not show it', async () => {

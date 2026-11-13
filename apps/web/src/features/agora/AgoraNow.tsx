@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import type { Area, BlockOccurrence, DayKey, DayMode, Mission } from '@life/shared';
-import { isOfBlock } from '@life/shared';
+import { isOfBlock, reviewPrompt } from '@life/shared';
 import { useBlocks, useWeek } from '../../db/hooks';
 import { useTimer } from '../../timer/store';
 import { PracticePrompt } from '../practice/PracticePrompt';
-import { ReviewPrompt } from '../study/ReviewPrompt';
+import { ReviewPrompt, ReviewPromptView } from '../study/ReviewPrompt';
+import { useStudyPlan } from '../study/useStudyPlan';
 import { sameNameIds } from '../week/weekData';
 import { Alternatives } from './Alternatives';
 import { BetweenBlocks, fitsIn } from './BetweenBlocks';
@@ -43,6 +45,24 @@ export function showsMainCard(s: {
   if (s.mode === 'free') return false;
   if (s.current) return s.current.block.kind !== 'routine';
   return !s.next || s.inCommitment;
+}
+
+/**
+ * Inside a block, one study nudge at a time: the review card wins; the practice line shows only when there
+ * is no review card (and only once the study plan has loaded, so it does not flash before the card).
+ */
+function BlockNudges({ mode, current, focus, showReview, showPractice, children }: {
+  mode: DayMode; current: BlockOccurrence; focus?: Mission; showReview: boolean; showPractice: boolean; children: ReactNode;
+}) {
+  const study = useStudyPlan();
+  const review = showReview ? reviewPrompt({ plan: study.plan, mode, restDay: study.restDay, current }) : undefined;
+  return (
+    <>
+      {review && study.plan && <ReviewPromptView kind={review} plan={study.plan} />}
+      {children}
+      {showPractice && study.loaded && !review && <PracticePrompt mode={mode} current={current} focusMission={focus} />}
+    </>
+  );
 }
 
 /**
@@ -88,9 +108,11 @@ export function AgoraNow({
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
-        {showReview && <ReviewPrompt mode={mode} current={current} />}
-        {current.block.kind !== 'routine' && main}
-        {showPractice && <PracticePrompt mode={mode} current={current} focusMission={focus} />}
+        {showReview || showPractice ? (
+          <BlockNudges mode={mode} current={current} focus={focus} showReview={showReview} showPractice={showPractice}>
+            {current.block.kind !== 'routine' && main}
+          </BlockNudges>
+        ) : (current.block.kind !== 'routine' && main)}
       </>
     );
   }
