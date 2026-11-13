@@ -14,6 +14,10 @@ export const UPLOAD_ROUND_BYTES = 8 * 1024 * 1024;
 export const PREFETCH_ROUND_FILES = 30;
 export const PREFETCH_SCAN_MS = 5 * 60_000;
 export const ON_DEMAND_RETRY_MS = 30_000;
+/** A file the server could not give (404, bad bytes) is skipped by the background download for this long. */
+export const PREFETCH_COOLDOWN_MS = 10 * 60_000;
+/** Per file: a stalled connection must not hold the sync round forever. */
+export const MEDIA_TIMEOUT_MS = 60_000;
 
 export type MediaStatus = 'downloading' | 'missing';
 /** Download state of files this device lacks (absent key: nothing known yet). */
@@ -31,6 +35,13 @@ function mark(hash: string, status: MediaStatus | undefined): void {
 const mediaUrl = (hash: string): string => `/api/media/${hash}`;
 const isOffline = (): boolean => typeof navigator !== 'undefined' && navigator.onLine === false;
 const isClosed = (e: unknown): boolean => (e as { name?: string } | null)?.name === 'DatabaseClosedError';
+
+/** Runs `run` with an abort signal that fires after `ms` (own timer: AbortSignal.timeout is missing in older Safari). */
+function withTimeout<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  return run(ctl.signal).finally(() => clearTimeout(timer));
+}
 
 export type UploadOutcome = 'done' | 'more' | 'stopped';
 
@@ -53,11 +64,12 @@ export async function uploadPendingMedia(token: string): Promise<UploadOutcome> 
       }
       let res: Response;
       try {
-        res = await fetch(mediaUrl(item.hash), {
+        res = await withTimeout(MEDIA_TIMEOUT_MS, (signal) => fetch(mediaUrl(item.hash), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/octet-stream', Authorization: `Bearer ${token}` },
           body: data.bytes,
-        });
+          signal,
+        }));
       } catch {
         return 'stopped';
       }
@@ -79,16 +91,20 @@ export type DownloadOutcome = 'stored' | 'missing' | 'failed' | 'offline';
 
 /** One file from the server: its bytes must hash to `hash`; kept here, not queued for upload. */
 export async function downloadMedia(hash: string, token: string): Promise<DownloadOutcome> {
-  let res: Response;
+  let bytes: ArrayBuffer;
   try {
-    res = await fetch(mediaUrl(hash), { headers: { Authorization: `Bearer ${token}` } });
+    const got = await withTimeout(MEDIA_TIMEOUT_MS, async (signal) => {
+      const res = await fetch(mediaUrl(hash), { headers: { Authorization: `Bearer ${token}` }, signal });
+      return { status: res.status, bytes: res.ok ? await res.arrayBuffer() : undefined };
+    });
+    if (got.status === 404) return 'missing';
+    if (!got.bytes) return 'failed';
+    bytes = got.bytes;
   } catch {
-    return 'offline';
+    return 'offline'; // no network, timeout, or the body stopped arriving
   }
-  if (res.status === 404) return 'missing';
-  if (!res.ok) return 'failed';
   try {
-    await storeMedia(await res.arrayBuffer(), { upload: false, expectHash: hash });
+    await storeMedia(bytes, { upload: false, expectHash: hash });
     return 'stored';
   } catch (e) {
     if (!isClosed(e)) console.warn(`media: could not keep ${hash}`, e);
@@ -105,7 +121,14 @@ function fetchOnce(hash: string, token: string): Promise<DownloadOutcome> {
   if (running) return running;
   triedAt.set(hash, Date.now());
   mark(hash, 'downloading');
-  const p = downloadMedia(hash, token)
+  const p = (async (): Promise<DownloadOutcome> => {
+    try {
+      if (await db.mediaInfo.get(hash)) return 'stored'; // already here: nothing to fetch
+    } catch {
+      return 'failed';
+    }
+    return downloadMedia(hash, token);
+  })()
     .then((r) => { mark(hash, r === 'stored' ? undefined : 'missing'); return r; })
     .finally(() => { inFlight.delete(hash); });
   inFlight.set(hash, p);
@@ -119,6 +142,10 @@ export function requestMedia(hash: string): void {
   if (last !== undefined && Date.now() - last < ON_DEMAND_RETRY_MS) return;
   triedAt.set(hash, Date.now());
   void (async () => {
+    if (await db.mediaInfo.get(hash)) {
+      mark(hash, undefined);
+      return;
+    }
     const token = await getMeta<string>('syncToken');
     if (!token || isOffline()) {
       mark(hash, 'missing');
@@ -142,6 +169,7 @@ export async function missingMedia(): Promise<string[]> {
   return wanted.filter((_, i) => !have[i]);
 }
 
+const prefetchTried = new Map<string, number>();
 let lastScan = 0;
 let prefetching: Promise<void> | undefined;
 let again = false;
@@ -160,8 +188,16 @@ export function prefetchMedia(token: string, force = false): Promise<void> {
   lastScan = Date.now();
   prefetching = (async () => {
     try {
-      for (const hash of (await missingMedia()).slice(0, PREFETCH_ROUND_FILES)) {
-        if ((await fetchOnce(hash, token)) === 'offline') break;
+      const now = Date.now();
+      // Files the server could not give wait out a cooldown, so they never starve the ones behind them.
+      const wanted = (await missingMedia()).filter((h) => now - (prefetchTried.get(h) ?? -Infinity) >= PREFETCH_COOLDOWN_MS);
+      for (const hash of wanted.slice(0, PREFETCH_ROUND_FILES)) {
+        const r = await fetchOnce(hash, token);
+        if (r === 'offline') {
+          lastScan = 0; // not a real scan: the next unforced one may run as soon as the network is back
+          break;
+        }
+        if (r !== 'stored') prefetchTried.set(hash, Date.now());
       }
     } catch (e) {
       if (!isClosed(e)) console.warn('media prefetch failed', e);
@@ -180,6 +216,7 @@ export function prefetchMedia(token: string, force = false): Promise<void> {
 export function resetMediaSyncState(): void {
   inFlight.clear();
   triedAt.clear();
+  prefetchTried.clear();
   lastScan = 0;
   prefetching = undefined;
   again = false;

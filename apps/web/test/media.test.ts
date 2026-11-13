@@ -8,7 +8,7 @@ import { ensureSeed } from '../src/db/seed';
 import { rateCard, saveDeck, saveNote } from '../src/domain/studyActions';
 import { syncNow } from '../src/sync/client';
 import {
-  ON_DEMAND_RETRY_MS, UPLOAD_ROUND_FILES, downloadMedia, missingMedia, prefetchMedia, requestMedia, resetMediaSyncState,
+  MEDIA_TIMEOUT_MS, ON_DEMAND_RETRY_MS, UPLOAD_ROUND_FILES, downloadMedia, missingMedia, prefetchMedia, requestMedia, resetMediaSyncState,
   uploadPendingMedia, useMediaStatus,
 } from '../src/sync/media';
 import { useSyncStatus } from '../src/sync/status';
@@ -152,7 +152,75 @@ describe('downloads', () => {
   });
 });
 
+describe('robustness', () => {
+  it('prefetch: 30 permanently missing files do not starve the ones behind them', async () => {
+    const dead = Array.from({ length: 30 }, (_, i) => (i + 1).toString(16).padStart(64, '0'));
+    const goodBytes = [20, 21, 22, 23, 24].map((n) => png(n));
+    const good = goodBytes.map((b) => sha256Hex(b));
+    await db.notes.put(note('n1', [...dead, ...good].map((h) => `![a](media:${h})`).join(' ')));
+    const f = vi.fn(async (u: string) => {
+      const idx = good.indexOf(u.slice('/api/media/'.length));
+      return idx >= 0 ? res(200, goodBytes[idx]) : res(404);
+    });
+    vi.stubGlobal('fetch', f);
+    await prefetchMedia('tok', true);
+    expect(f).toHaveBeenCalledTimes(30);
+    await prefetchMedia('tok', true);
+    for (const h of good) expect(await db.mediaInfo.get(h), h).toBeTruthy();
+    expect(f).toHaveBeenCalledTimes(35);
+  });
+  it('an offline scan does not lock out the next unforced scan', async () => {
+    const b = png(30); const h = sha256Hex(b);
+    await db.notes.put(note('n1', `![a](media:${h})`));
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline'); }));
+    await prefetchMedia('tok');
+    expect(await db.mediaInfo.get(h)).toBeUndefined();
+    vi.stubGlobal('fetch', vi.fn(async () => res(200, b)));
+    await prefetchMedia('tok');
+    expect(await db.mediaInfo.get(h)).toBeTruthy();
+  });
+  it('a stalled download times out as offline; a broken body is offline too', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.stubGlobal('fetch', vi.fn((_u: string, i: RequestInit) => new Promise((_ok, fail) => {
+      i.signal!.addEventListener('abort', () => fail(new DOMException('aborted', 'AbortError')));
+    })));
+    const p = downloadMedia('e'.repeat(64), 'tok');
+    await vi.advanceTimersByTimeAsync(MEDIA_TIMEOUT_MS + 1);
+    expect(await p).toBe('offline');
+    vi.useRealTimers();
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => { throw new TypeError('body'); } })));
+    expect(await downloadMedia('e'.repeat(64), 'tok')).toBe('offline');
+  });
+  it('a file that is already stored is not fetched again', async () => {
+    const b = png(31); const h = sha256Hex(b);
+    await storeMedia(b, { upload: false });
+    await setMeta('syncToken', 'tok');
+    const f = vi.fn(async () => res(200, b)); vi.stubGlobal('fetch', f);
+    useMediaStatus.setState({ [h]: 'missing' }, true);
+    requestMedia(h);
+    await vi.waitFor(() => expect(useMediaStatus.getState()[h]).toBeUndefined());
+    expect(f).not.toHaveBeenCalled();
+  });
+});
+
 describe('sync rounds', () => {
+  it('a note pulled before its media reached the server shows as missing, and the file arrives later', async () => {
+    await setMeta('syncToken', 'tok');
+    const b = png(32); const h = sha256Hex(b);
+    let uploaded = false;
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url === '/api/sync') return json({ cursor: 2, changes: [{ table: 'notes', record: note('n7', `![x](media:${h})`) }] });
+      return uploaded ? res(200, b) : res(404);
+    }));
+    expect(await syncNow()).toBe(true); // records sync even though the file is not on the server yet
+    expect((await db.notes.get('n7'))!.front).toContain(h);
+    await vi.waitFor(() => expect(useMediaStatus.getState()[h]).toBe('missing'));
+    uploaded = true; // device A finally uploaded it
+    expect(await syncNow()).toBe(true);
+    requestMedia(h); // the placeholder on screen asks again
+    await vi.waitFor(async () => expect(await db.mediaInfo.get(h)).toBeTruthy());
+    await vi.waitFor(() => expect(useMediaStatus.getState()[h]).toBeUndefined());
+  });
   it('sends queued media before the records', async () => {
     await setMeta('syncToken', 'tok');
     const info = await saveMediaBlob(new Blob([png(4)]));
