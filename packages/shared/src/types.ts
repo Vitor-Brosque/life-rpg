@@ -42,6 +42,7 @@ export interface Mission extends BaseRecord {
   important: boolean;
   shrunk: boolean;
   postponeCount: number;
+  cueBlockId?: ID;        // "Quando?" of an if-then plan: the block where this mission starts (research P5)
   recurrence?: Recurrence;
   startedAt?: number;
   completedAt?: number;
@@ -173,7 +174,10 @@ export interface Week extends BaseRecord {           // id = Monday DayKey
   objectives: WeekObjective[];
   review?: WeekReview;
   experiment?: string;
+  atypical?: WeekAtypical; // exams, travel...: kept out of comparisons (research P3)
 }
+/** A week marked as atypical: why, and when the usual rhythm comes back. */
+export interface WeekAtypical { reason: string; returnDay?: DayKey }
 export interface Checkin extends BaseRecord {
   at: number;
   kind: 'start' | 'escape';
@@ -347,6 +351,8 @@ export interface PracticeSession extends BaseRecord {
   explanation: string;         // "Explique em 2 frases"
   nextAction?: string;         // open: where to resume · done: first action of the next session
   endedAt?: number;
+  retestOf?: ID;               // a later rebuild of that session (research P2)
+  availableFrom?: DayKey;      // retest: the day it is meant for
 }
 
 // ------------------------------------------------------------------ corpo e casa (Marco 4)
