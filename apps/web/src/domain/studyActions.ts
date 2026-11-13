@@ -259,6 +259,8 @@ export async function saveStudySettings(changes: Partial<StudySettings>): Promis
     maxNewPerDay: Math.min(50, Math.max(0, Math.round(merged.maxNewPerDay))),
     retention: RETENTIONS.reduce((best, r) => (Math.abs(r - merged.retention) < Math.abs(best - merged.retention) ? r : best)),
     restDays: restDays.length >= 7 ? cur.restDays : restDays,
+    // Absent = reminder off; only a valid HH:mm is kept.
+    ...(merged.reminderAt && /^([01]\d|2[0-3]):[0-5]\d$/.test(merged.reminderAt) ? { reminderAt: merged.reminderAt } : {}),
   };
   await patch<Settings>('settings', 'settings', { study });
 }

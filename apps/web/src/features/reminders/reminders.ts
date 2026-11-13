@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Commitment, DayKey, SleepLog, SleepSettings } from '@life/shared';
-import { addDays, logicalTimestamp, occurrencesOn, sleepNightOf, sleepSettingsOf, weekdayOf } from '@life/shared';
+import type { Commitment, DayKey, DayMode, SleepLog, SleepSettings, StudyInput, StudySettings } from '@life/shared';
+import {
+  addDays, logicalTimestamp, occurrencesOn, remainingOf, sleepNightOf, sleepSettingsOf, studyPlan, studySettingsOf, weekdayOf,
+} from '@life/shared';
 import { db } from '../../db/db';
-import { useSettings, useToday } from '../../db/hooks';
+import { useDayMode, useSettings, useToday } from '../../db/hooks';
 import { getMeta, setMeta } from '../../db/repo';
+import { readStudyData } from '../../db/studyData';
 import { cancelPush, schedulePush } from '../../timer/push';
 
 // Commitment reminders are server pushes (they must arrive with the app closed). The device
@@ -172,4 +175,100 @@ export function useWindDownReminders(): void {
     const s = sleepSettingsOf({ sleep: { windDownReminder: on, windDownAt: time } });
     void syncWindDownReminders(s, today, Date.now(), logs, dayStartHour);
   }, [logs, on, time, today, tokenTick, dayStartHour]);
+
+  // Mounted here (Layout already calls this hook) so the study reminder needs no extra wiring.
+  useStudyReminders();
+}
+
+// ------------------------------------------------------------------ study reminder
+
+const STUDY_META = 'scheduledStudy';
+const STUDY_DAYS = 7;
+export const STUDY_BODY_LATER = 'Revisão de hoje: há cards esperando.';
+
+export interface StudyReminderInput {
+  study: StudySettings;
+  today: DayKey;
+  now: number;
+  mode: DayMode;
+  dayStartHour: number;
+  /** Today's plan: goal reached, and the work left (due cards plus the allowed new ones). */
+  goalMet: boolean;
+  remaining: { count: number; minutes: number };
+  /** The plan's forecast: minutes of due reviews on the next study days. */
+  forecast: ReadonlyArray<{ day: DayKey; min: number }>;
+}
+
+/**
+ * Study pushes that should exist now: the next 7 days at `study.reminderAt`, on study days only
+ * (not in `restDays`). Today needs cards left, an unmet goal and a day that is not free; a later
+ * day needs forecast reviews. Tag `study:${day}`.
+ */
+export function desiredStudyReminders(p: StudyReminderInput): ScheduledReminder[] {
+  const time = p.study.reminderAt;
+  if (!time) return [];
+  const out: ScheduledReminder[] = [];
+  for (let i = 0; i < STUDY_DAYS; i++) {
+    const day = addDays(p.today, i);
+    if (p.study.restDays.includes(weekdayOf(day))) continue;
+    const at = logicalTimestamp(day, time, p.dayStartHour);
+    if (at <= p.now) continue;
+    let body: string;
+    if (i === 0) {
+      if (p.mode === 'free' || p.goalMet || p.remaining.count <= 0) continue;
+      body = `Revisão de hoje: ${p.remaining.count} cards, uns ${p.remaining.minutes} min.`;
+    } else {
+      if (!((p.forecast.find((f) => f.day === day)?.min ?? 0) > 0)) continue;
+      body = STUDY_BODY_LATER;
+    }
+    out.push({ tag: `study:${day}`, at, title: TITLE, body });
+  }
+  return out;
+}
+
+export function syncStudyReminders(p: StudyReminderInput): Promise<void> {
+  return enqueue(() => syncScheduled(STUDY_META, desiredStudyReminders(p), p.now));
+}
+
+/** Layout effect: keeps the study push in sync with the setting, today's plan and the token. */
+export function useStudyReminders(): void {
+  const settings = useSettings();
+  const today = useToday();
+  const mode = useDayMode();
+  const [tokenTick, setTokenTick] = useState(0);
+  const on = settings ? studySettingsOf(settings).reminderAt !== undefined : undefined;
+  // Study data is only read while the reminder is on; the live query re-runs when reviews change.
+  const loaded = useLiveQuery(
+    async () => (on && today ? { today, data: await readStudyData(today) } : undefined), [today, on],
+  );
+
+  useEffect(() => {
+    const onToken = () => setTokenTick((n) => n + 1);
+    window.addEventListener(TOKEN_EVENT, onToken);
+    return () => window.removeEventListener(TOKEN_EVENT, onToken);
+  }, []);
+
+  useEffect(() => {
+    if (!settings || !today) return;
+    const study = studySettingsOf(settings);
+    const now = Date.now();
+    const base = { study, today, now, mode, dayStartHour: settings.dayStartHour };
+    if (!study.reminderAt) {
+      void syncStudyReminders({ ...base, goalMet: false, remaining: { count: 0, minutes: 0 }, forecast: [] });
+      return;
+    }
+    if (!loaded || loaded.today !== today) return;
+    const input: StudyInput = {
+      cards: loaded.data.cards, reviews: loaded.data.reviews, deckOrder: loaded.data.deckOrder,
+      settings: study, mode, today, now, dayStartHour: settings.dayStartHour,
+    };
+    const plan = studyPlan(input);
+    void syncStudyReminders({ ...base, goalMet: plan.goalMet, remaining: remainingOf(input, plan), forecast: plan.forecast });
+  }, [settings, today, mode, loaded, tokenTick]);
+}
+
+/** The same hint the Notificações section shows when the browser blocked notifications. */
+export function blockedNotificationsHint(): string | undefined {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'denied') return undefined;
+  return 'Notificações bloqueadas neste aparelho. Libere nos ajustes do navegador.';
 }
