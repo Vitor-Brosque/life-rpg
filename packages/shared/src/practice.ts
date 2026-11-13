@@ -133,6 +133,15 @@ const isItem = (x: unknown): x is ChecklistItem =>
 const items = (v: unknown): ChecklistItem[] =>
   (Array.isArray(v) ? v.filter(isItem).map((x) => ({ id: x.id, text: x.text, done: x.done === true })) : []);
 
+/** A valid Marco 7 hint reference, or undefined (bad data from sync or import is dropped). */
+function hintOf(v: unknown): PracticeFeedback['hint'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const h = v as { step?: unknown; level?: unknown };
+  return isPracticeStep(h.step) && (h.level === 1 || h.level === 2 || h.level === 3)
+    ? { step: h.step, level: h.level }
+    : undefined;
+}
+
 /** Fills missing or broken fields (sync, import): the screen never breaks on outside data. */
 export function normalizePractice(s: PracticeSession): PracticeSession {
   const raw = s as unknown as Record<string, unknown>;
@@ -149,7 +158,16 @@ export function normalizePractice(s: PracticeSession): PracticeSession {
   const feedback = (Array.isArray(raw.feedback) ? raw.feedback : [])
     .filter((f): f is PracticeFeedback => !!f && typeof f === 'object'
       && typeof (f as PracticeFeedback).id === 'string' && typeof (f as PracticeFeedback).text === 'string')
-    .map((f) => ({ ...f, at: typeof f.at === 'number' ? f.at : 0, source: SOURCES.includes(f.source) ? f.source : 'person' }));
+    .map((f) => {
+      const { hint: rawHint, ...rest } = f;
+      const hint = hintOf(rawHint);
+      return {
+        ...rest,
+        at: typeof f.at === 'number' ? f.at : 0,
+        source: SOURCES.includes(f.source) ? f.source : 'person',
+        ...(hint ? { hint } : {}),
+      };
+    });
   const rb = raw.rebuild as Partial<PracticeRebuild> | undefined;
   const out: PracticeSession = {
     ...s,

@@ -28,3 +28,4 @@ export * from './watch';
 export * from './associations';
 export * from './world';
 export * from './npc';
+export * from './ai';

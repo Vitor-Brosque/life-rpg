@@ -131,6 +131,7 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   study?: StudySettings;           // Marco 3; absent = DEFAULT_STUDY (see studySettingsOf)
   sleep?: SleepSettings;           // Marco 4; absent = DEFAULT_SLEEP (see sleepSettingsOf)
   patterns?: PatternSettings;      // Marco 5; absent = { watchDismissed: [] } (see patternSettingsOf)
+  ai?: AiSettings;                 // Marco 7; absent = every AI aid off (see aiSettingsOf)
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
@@ -306,6 +307,7 @@ export interface PracticeFeedback {
   at: number;
   source: FeedbackSource;  // Marco 7 may write 'ai' entries made by the app
   text: string;
+  hint?: { step: PracticeStep; level: HintLevel };   // Marco 7: a hint asked in the app (source 'ai' only)
 }
 
 export interface PracticeRebuild {
@@ -457,6 +459,13 @@ export function patternSettingsOf(s?: { patterns?: Partial<PatternSettings> }): 
   const list: unknown = s?.patterns?.watchDismissed;
   return { watchDismissed: Array.isArray(list) ? list.filter((k): k is string => typeof k === 'string') : [] };
 }
+
+// ------------------------------------------------------------------ inteligência opcional (Marco 7)
+
+/** Pista graduada: 1 pergunta · 2 direção · 3 próximo passo. */
+export type HintLevel = 1 | 2 | 3;
+/** Ajudas de IA ligadas em Ajustes; ausente = tudo desligado (aiSettingsOf). */
+export interface AiSettings { hints: boolean; cards: boolean; weekly: boolean }
 
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
