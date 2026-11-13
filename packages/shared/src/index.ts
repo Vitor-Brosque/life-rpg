@@ -22,3 +22,4 @@ export * from './sleep';
 export * from './meals';
 export * from './workouts';
 export * from './periods';
+export * from './trends';
