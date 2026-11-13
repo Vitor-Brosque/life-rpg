@@ -28,6 +28,11 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Agora' })).not.toHaveAttribute('aria-current');
   });
 
+  it('a lousa (/lousa/…) belongs to Estudo', () => {
+    renderAt('/lousa/abc', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Estudo' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('renders the slots above the nav and the floating button', () => {
     renderAt('/', (
       <Layout aboveNav={<div>Barra do cronômetro</div>} floating={<button type="button">Capturar</button>}>

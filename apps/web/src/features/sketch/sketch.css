@@ -46,3 +46,24 @@
 .sketch__msg { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-dim); font-size: 0.875rem; }
 /* The live region stays in the tree (screen readers need it to announce); empty, it takes no room. */
 .sketch__msg:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* ------------------------------------------------------------------ screens */
+
+/* "/lousa/:id" fills the height left by the safe areas, the bottom nav and the dock (timer bar). */
+.screen.sketch-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: none;
+  height: calc(100dvh - var(--safe-top) - var(--space-4) - var(--nav-h) - var(--safe-bottom) - var(--dock-h) - var(--space-5));
+  min-height: 420px;
+}
+@media (min-width: 1200px) {
+  .screen.sketch-screen { height: calc(100dvh - 2 * var(--space-6) - var(--dock-h) - var(--space-5)); }
+}
+.sketch-screen__top { display: flex; align-items: center; gap: var(--space-2); }
+.sketch-screen__title { flex: 1; min-width: 0; font-family: var(--font-pixel); }
+.sketch-screen__pad { flex: 1; min-height: 0; }
+.sketch-row__name { flex: 1 1 60%; min-width: 0; overflow-wrap: anywhere; }
+.sketch-row__meta { color: var(--text-dim); font-size: 0.8125rem; }
+.sketch-panel__all { align-self: flex-start; color: var(--text-dim); }

@@ -1,3 +1,4 @@
+import { SketchesPanel } from '../sketch/SketchesPanel';
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -93,6 +94,8 @@ export function StudyScreen() {
           </details>
         )}
       </Panel>
+
+      <SketchesPanel />
 
       {input.cards.length > 0 && (
         <Panel variant="stone" className="study-section">

@@ -8,6 +8,8 @@ import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
 import { CharacterScreen } from '../features/character/CharacterScreen';
 import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
+import { SketchListScreen } from '../features/sketch/SketchListScreen';
+import { SketchScreen } from '../features/sketch/SketchScreen';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
@@ -57,13 +59,15 @@ export function App() {
   }
   return (
     <>
-      <Layout floating={location.startsWith('/estudo/revisar') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
+      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
           <Route path="/estudo"><StudyScreen /></Route>
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
           <Route path="/estudo/revisar"><ReviewSession /></Route>
+          <Route path="/estudo/lousas"><SketchListScreen /></Route>
+          <Route path="/lousa/:id">{(params) => <SketchScreen key={params.id} id={params.id} />}</Route>
           <Route path="/estudo/nota/nova"><NoteEditor /></Route>
           <Route path="/estudo/nota/:id">{(params) => <NoteEditor key={params.id} id={params.id} />}</Route>
           <Route path="/jornadas"><JourneysScreen /></Route>
