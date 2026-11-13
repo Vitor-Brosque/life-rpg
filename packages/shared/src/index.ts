@@ -18,3 +18,4 @@ export * from './sketch';
 export * from './sha256';
 export * from './media';
 export * from './practice';
+export * from './sleep';

@@ -103,7 +103,8 @@ export interface LifeEvent extends BaseRecord {
 }
 
 export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience'
-  | 'block' | 'resumption' | 'checkin' | 'objective' | 'study' | 'practice';
+  | 'block' | 'resumption' | 'checkin' | 'objective' | 'study' | 'practice'
+  | 'sleep' | 'mealprep' | 'workout';
 export interface XpEvent extends BaseRecord {
   at: number;
   amount: number;
@@ -128,6 +129,7 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   commitmentReminderMin: number; // 0 = off
   checkinCard?: boolean;         // absent = true
   study?: StudySettings;           // Marco 3; absent = DEFAULT_STUDY (see studySettingsOf)
+  sleep?: SleepSettings;           // Marco 4; absent = DEFAULT_SLEEP (see sleepSettingsOf)
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
@@ -342,6 +344,75 @@ export interface PracticeSession extends BaseRecord {
   explanation: string;         // "Explique em 2 frases"
   nextAction?: string;         // open: where to resume · done: first action of the next session
   endedAt?: number;
+}
+
+// ------------------------------------------------------------------ corpo e casa (Marco 4)
+
+/** One night, from noon to noon: `night` is the date of the evening it starts on (sleepNightOf). */
+export interface SleepLog extends BaseRecord {  // id = `sleep-${night}`
+  night: DayKey;
+  bedAt?: number;       // "Deitei"
+  wakeAt?: number;      // "Acordei"
+}
+
+export interface SleepSettings {
+  agoraPrompt: boolean;       // "Deitei" / "Acordei" in the Agora (default true)
+  windDownReminder: boolean;  // push at windDownAt, Monday to Friday (default false)
+  windDownAt: HHmm;           // default '22:45', the Desaceleração block of the suggested routine
+  noteDismissed: boolean;     // the one-time note about symptoms was dismissed
+}
+
+export const DEFAULT_SLEEP: SleepSettings = {
+  agoraPrompt: true, windDownReminder: false, windDownAt: '22:45', noteDismissed: false,
+};
+
+/** `settings.sleep` with every missing field taken from DEFAULT_SLEEP. */
+export function sleepSettingsOf(s?: { sleep?: Partial<SleepSettings> }): SleepSettings {
+  return { ...DEFAULT_SLEEP, ...(s?.sleep ?? {}) };
+}
+
+export type MealKind = 'almoco' | 'jantar';
+
+export interface Recipe extends BaseRecord {
+  name: string;
+  ingredients: string[];  // one line each, as typed ("frango 1 kg"); merged by ingredientKey
+}
+
+export interface MenuSlot { day: DayKey; meal: MealKind; recipeId: ID }
+
+export interface Menu extends BaseRecord {          // id = `menu-${monday}`
+  week: DayKey;                                     // Monday
+  slots: MenuSlot[];                                // at most one per (day, meal), sorted
+}
+
+export interface ShoppingItem { id: ID; text: string }
+
+export interface ShoppingList extends BaseRecord {  // id = `shop-${monday}`
+  week: DayKey;
+  manual: ShoppingItem[];
+  checked: string[];    // row keys: `g:${ingredientKey}` (from the menu) or `m:${item.id}` (manual)
+}
+
+export type FreezerMoveKind = 'prep' | 'eat' | 'fix';
+
+export interface FreezerMove extends BaseRecord {   // append-only: created or soft-deleted, never edited
+  at: number;
+  day: DayKey;          // logical day
+  recipeId: ID;
+  delta: number;        // portions in (+) or out (−)
+  kind: FreezerMoveKind;
+  meal?: MealKind;      // 'eat' from the Agora's meal line
+}
+
+export type WorkoutKind = 'musculacao' | 'cardio' | 'outro';
+
+export interface Workout extends BaseRecord {       // append-only: created or soft-deleted, never edited
+  at: number;
+  day: DayKey;          // logical day
+  kind: WorkoutKind;
+  minutes: number;      // 1–300
+  minimum?: boolean;    // "versão mínima do cardio" (only when true)
+  blockId?: ID;         // logged from the body block's banner
 }
 
 export const SYNC_TABLES = [
