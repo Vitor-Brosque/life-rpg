@@ -148,7 +148,7 @@ export function StepBody({ step, session, go, headingRef }: StepProps & { step: 
   const props = { session, go };
   return (
     <>
-      <h2 ref={headingRef} tabIndex={-1} className="practice__step-title">{STEP_TITLE[step]}</h2>
+      <h2 id="practice-step-title" ref={headingRef} tabIndex={-1} className="practice__step-title">{STEP_TITLE[step]}</h2>
       {step === 'problem' && <ProblemStep {...props} />}
       {step === 'basics' && <BasicsStep {...props} />}
       {step === 'plan' && <PlanStep {...props} />}

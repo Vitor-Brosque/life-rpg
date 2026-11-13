@@ -4,6 +4,7 @@ import { PRACTICE_LIMITS, listOps, ulid } from '@life/shared';
 import { useJourneys, useMissions } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
+import { usePageHide } from '../../ui/usePageHide';
 import { useDraftField } from './useDraftField';
 import './practice.css';
 
@@ -51,6 +52,20 @@ function ItemRow({ item, index, noun, onEdit, checkLabel }: RowProps) {
   const touched = useRef(false);
   // A row being edited (focused or with local changes) keeps its text when the list changes from outside.
   useEffect(() => { if (!editing.current && !touched.current) setText(item.text); }, [item.text]);
+  const latest = useRef({ text, item, onEdit });
+  latest.current = { text, item, onEdit };
+  // The edit also saves when the row goes away (Ctrl+Enter to the next step) or the page hides (iOS may kill the PWA).
+  // `touched` is cleared by whichever path commits first, so blur and these never save twice.
+  const commitPending = (): void => {
+    if (!touched.current) return;
+    touched.current = false;
+    const { text: current, item: it, onEdit: edit } = latest.current;
+    const t = current.trim();
+    if (t && t !== it.text) edit((xs) => listOps.set(xs, it.id, { text: t }));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- commitPending only reads refs
+  useEffect(() => () => commitPending(), []);
+  usePageHide(commitPending);
   const n = index + 1;
   const commit = (): void => {
     editing.current = false;

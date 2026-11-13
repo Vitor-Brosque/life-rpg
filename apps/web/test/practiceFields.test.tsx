@@ -433,6 +433,8 @@ describe('practiceData', () => {
     expect(practiceBack('/')).toBe('/');
     expect(practiceBack('/\\evil.com')).toBe('/estudo/praticas');
     expect(practiceBack('//evil.com')).toBe('/estudo/praticas');
+    expect(practiceBack('/	/x')).toBe('/estudo/praticas');
+    expect(practiceBack('/a b')).toBe('/estudo/praticas');
     expect(practiceBack(null)).toBe('/estudo/praticas');
   });
 });

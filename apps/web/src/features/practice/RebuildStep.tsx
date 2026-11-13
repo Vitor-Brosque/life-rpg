@@ -3,11 +3,13 @@ import type { PracticeSession } from '@life/shared';
 import { compareFact } from '@life/shared';
 import { compareRebuild, setRebuildCode, startRebuild } from '../../domain/practiceActions';
 import { Button } from '../../ui/Button';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { CodeEditor } from '../study/CodeEditor';
 import { CodeView } from '../study/Rich';
 import type { StepProps } from './PracticeSteps';
+import { focusStepTitle } from './practiceData';
 import { useDraftField } from './useDraftField';
 
 /** "Reconstruir sem consulta" (spec §5.2, step 8): the implementation stays hidden until "Comparar". */
@@ -29,7 +31,9 @@ export function RebuildStep({ session, go }: StepProps) {
         <p className="practice__hint">
           Reescreva a solução sem olhar. A sua implementação fica escondida até você comparar. Fazer isso em outro dia é um teste ainda melhor.
         </p>
-        <Button variant="primary" onClick={() => safeRun(startRebuild(session.id))}>Começar reconstrução</Button>
+        <Button variant="primary" onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); safeRun(startRebuild(session.id)); }}>
+          Começar reconstrução
+        </Button>
       </>
     );
   }
@@ -54,8 +58,10 @@ export function RebuildStep({ session, go }: StepProps) {
         <div className="practice__confirm" role="group" aria-label="Refazer reconstrução">
           <p>Apagar a reconstrução atual e começar de novo?</p>
           <div className="cluster">
-            <Button variant="primary" onClick={() => { setConfirm(false); safeRun(startRebuild(session.id)); }}>Sim, refazer</Button>
-            <Button onClick={() => setConfirm(false)}>Cancelar</Button>
+            <Button variant="primary" onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); setConfirm(false); safeRun(startRebuild(session.id)); }}>
+              Sim, refazer
+            </Button>
+            <Button autoFocus onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); setConfirm(false); }}>Cancelar</Button>
           </div>
         </div>
       ) : (
@@ -71,6 +77,7 @@ function RebuildEditor({ session }: { session: PracticeSession }) {
   const compare = (): void => {
     if (busy) return;
     setBusy(true);
+    focusWhenGone(document.activeElement, focusStepTitle);
     // Save what was typed first: compareRebuild reads the stored rebuild to decide the bonus.
     safeRun(draft.flush()
       .then(() => compareRebuild(session.id))

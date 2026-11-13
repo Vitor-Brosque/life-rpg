@@ -87,7 +87,7 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 
 /* ------------------------------------------------------------------ deck and note editor */
 
-.deck__back { color: var(--text-dim); text-decoration: none; }
+.deck__back { color: var(--text-dim); text-decoration: none; display: inline-flex; align-items: center; min-height: 36px; align-self: flex-start; justify-self: start; }
 .deck-note__title { flex: 1 1 60%; min-width: 0; overflow-wrap: anywhere; }
 .deck-note__meta { color: var(--text-dim); font-size: 0.8125rem; }
 .note-editor__grid { display: grid; gap: var(--space-4); }

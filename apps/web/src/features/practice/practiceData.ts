@@ -23,10 +23,13 @@ export function usePracticeSession(id: string): PracticeDoc {
   return session ? { status: 'ready', session } : { status: 'missing' };
 }
 
-/** `?voltar=` only when it is an internal path ("/…", not "//…", no backslash); else the list. */
+/** `?voltar=` only when it is an internal path ("/…", not "//…", no backslash or control characters); else the list. */
 export function practiceBack(v: string | null): string {
-  return v && v.startsWith('/') && !v.startsWith('//') && !v.includes('\\') ? v : '/estudo/praticas';
+  return v && v.startsWith('/') && !v.startsWith('//') && !v.includes('\\') && !/[\u0000-\u001f\u007f]/.test(v) ? v : '/estudo/praticas';
 }
+
+/** The current step's title: where focus goes when the button that was used disappears. */
+export const focusStepTitle = (): HTMLElement | null => document.getElementById('practice-step-title');
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 

@@ -52,6 +52,11 @@ function PracticeBody({ session }: { session: PracticeSession }) {
   const next = nextStep(step);
 
   useEffect(() => { if (moved.current) headingRef.current?.focus(); }, [step]);
+  // Keep the current step visible in the (horizontally scrolling) strip.
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>('.practice-steps__step.is-current');
+    if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [step]);
 
   const go = (to: PracticeStep): void => {
     moved.current = true;
@@ -67,7 +72,8 @@ function PracticeBody({ session }: { session: PracticeSession }) {
     go(next);
   };
   const openSketch = (): void => safeRun(async () => {
-    const sketch = await ensurePracticeSketch(session);
+    await title.flush(); // a title still being typed is saved first; the sketch takes its name
+    const sketch = await ensurePracticeSketch({ id: session.id, title: title.value.trim() || session.title });
     const here = `${location}${search ? `?${search}` : ''}`;
     navigate(`/lousa/${sketch.id}?voltar=${encodeURIComponent(here)}`);
   });

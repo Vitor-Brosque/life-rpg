@@ -18,7 +18,9 @@ export function PauseSheet({ open, session, onClose, onPaused }: PauseSheetProps
 }
 
 function PauseForm({ session, onClose, onPaused }: Omit<PauseSheetProps, 'open'>) {
-  const [text, setText] = useState(() => session.nextAction ?? resumeSuggestion(session));
+  // Until the user types, follow the stored note: a draft still being saved may land after the sheet opens.
+  const [edited, setEdited] = useState<string>();
+  const text = edited ?? session.nextAction ?? resumeSuggestion(session);
   const [busy, setBusy] = useState(false);
   const leave = (): void => { onClose(); onPaused(); };
   const pause = (): void => {
@@ -31,7 +33,7 @@ function PauseForm({ session, onClose, onPaused }: Omit<PauseSheetProps, 'open'>
       <label className="field">
         <span className="field__label">Onde parou? Qual a primeira ação da próxima vez?</span>
         <input type="text" value={text} maxLength={PRACTICE_LIMITS.nextAction} enterKeyHint="done"
-          onChange={(e) => setText(e.target.value)} />
+          onChange={(e) => setEdited(e.target.value)} />
       </label>
       <div className="cluster">
         <Button type="submit" variant="primary" disabled={busy}>Pausar</Button>

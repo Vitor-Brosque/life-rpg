@@ -79,7 +79,7 @@ export function ErrorLog({ session }: { session: PracticeSession }) {
                 {e.fix && <p className="practice-entry__text">Ideia correta: {e.fix}</p>}
                 <div className="cluster">
                   {e.noteId && liveNotes.includes(e.noteId) ? (
-                    <Link href={`/estudo/nota/${e.noteId}`} aria-label={`Rascunho de card · abrir: ${e.what}`}>Rascunho de card · abrir</Link>
+                    <Link href={`/estudo/nota/${e.noteId}`} className="btn btn--ghost btn--sm" aria-label={`Rascunho de card · abrir: ${e.what}`}>Rascunho de card · abrir</Link>
                   ) : (
                     <Button size="sm" aria-label={`Virar card: ${e.what}`} onClick={() => toCard(e)}>Virar card</Button>
                   )}

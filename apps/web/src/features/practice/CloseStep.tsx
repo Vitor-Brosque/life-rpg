@@ -3,12 +3,13 @@ import type { Indicator, IndicatorKey, PracticeScore } from '@life/shared';
 import { INDICATORS, PRACTICE_LIMITS, rebuildFact } from '@life/shared';
 import { PracticeIncompleteError, concludePractice, reopenPractice, setPracticeRating, updatePractice } from '../../domain/practiceActions';
 import { Button } from '../../ui/Button';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { useCompanion } from '../companion/store';
 import { DraftText, ScoreChoice } from './PracticeFields';
 import type { StepProps } from './PracticeSteps';
-import { dayMonth } from './practiceData';
+import { dayMonth, focusStepTitle } from './practiceData';
 
 /** "Fechar" (spec §5.2, step 9): three separate self-ratings, never summed and never rewarded. */
 export function CloseStep({ session }: StepProps) {
@@ -26,6 +27,7 @@ export function CloseStep({ session }: StepProps) {
   const conclude = (): void => {
     if (busy) return;
     setBusy(true);
+    focusWhenGone(document.activeElement, focusStepTitle);
     safeRun(concludePractice(session.id)
       .then(({ xp }) => {
         useToast.getState().show(xp > 0 ? `Sessão encerrada · +${xp} XP` : 'Sessão encerrada');
@@ -53,7 +55,7 @@ export function CloseStep({ session }: StepProps) {
       {session.status === 'done' ? (
         <div className="practice__done">
           <p>Sessão encerrada em {dayMonth(session.endedAt ?? session.updatedAt)}.</p>
-          <Button onClick={() => safeRun(reopenPractice(session.id))}>Reabrir sessão</Button>
+          <Button onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); safeRun(reopenPractice(session.id)); }}>Reabrir sessão</Button>
         </div>
       ) : (
         <>

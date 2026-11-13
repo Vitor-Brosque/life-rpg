@@ -8,7 +8,9 @@ import { newRecord, put } from '../src/db/repo';
 import { createMission } from '../src/domain/actions';
 import { createPracticeSession, editPracticeList, startRebuild, updatePractice } from '../src/domain/practiceActions';
 import { useMissionSheet } from '../src/features/mission/MissionSheet';
+import { PauseSheet } from '../src/features/practice/PauseSheet';
 import { PracticeScreen } from '../src/features/practice/PracticeScreen';
+import { normalizePractice } from '@life/shared';
 import { ToastHost, useToast } from '../src/ui/Toast';
 
 beforeEach(async () => {
@@ -179,3 +181,51 @@ describe('PracticeScreen', () => {
     expect(screen.getByRole('link', { name: 'Ver sessões' })).toHaveAttribute('href', '/estudo/praticas');
   });
 });
+
+describe('PracticeScreen details', () => {
+  it('a step edited and left with Ctrl+Enter (no blur) is still saved', async () => {
+    const s = await createPracticeSession({ title: 'Dedup' });
+    await updatePractice(s.id, { step: 'plan' });
+    await editPracticeList(s.id, 'plan', () => [{ id: 'a', text: 'Passo 1', done: false }]);
+    renderAt(s.id);
+    await stepHeading('Decompor');
+    const input = await screen.findByRole('textbox', { name: 'Passo 1' });
+    fireEvent.change(input, { target: { value: 'Passo 1 revisado' } });
+    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true });
+    await stepHeading('Decisões');
+    await waitFor(async () => expect((await get(s.id)).plan).toEqual([expect.objectContaining({ id: 'a', text: 'Passo 1 revisado' })]));
+  });
+
+  it('the current step is scrolled into view in the strip', async () => {
+    const user = userEvent.setup();
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      const s = await createPracticeSession({ title: 'Dedup' });
+      renderAt(s.id);
+      await stepHeading('Problema');
+      scroll.mockClear();
+      await user.click(screen.getByRole('button', { name: /^Passo 6: Testar/ }));
+      await stepHeading('Testar');
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
+});
+
+describe('PauseSheet prefill', () => {
+  it('follows the stored note until the user types', async () => {
+    const user = userEvent.setup();
+    const base = normalizePractice(await createPracticeSession({ title: 'Dedup' }));
+    const label = 'Onde parou? Qual a primeira ação da próxima vez?';
+    const { rerender } = render(<PauseSheet open session={base} onClose={() => {}} onPaused={() => {}} />);
+    const field = await screen.findByRole('textbox', { name: label });
+    rerender(<PauseSheet open session={{ ...base, nextAction: 'ligar a segunda fonte' }} onClose={() => {}} onPaused={() => {}} />);
+    expect(field).toHaveValue('ligar a segunda fonte');
+    await user.type(field, '!');
+    rerender(<PauseSheet open session={{ ...base, nextAction: 'outra' }} onClose={() => {}} onPaused={() => {}} />);
+    expect(field).toHaveValue('ligar a segunda fonte!');
+  });
+});
+

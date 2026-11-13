@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FeedbackSource } from '@life/shared';
 import { PRACTICE_LIMITS } from '@life/shared';
 import { useNow } from '../../db/hooks';
@@ -17,11 +17,15 @@ export function FeedbackStep({ session }: StepProps) {
   const now = useNow();
   const [source, setSource] = useState<FeedbackSource>('person');
   const [text, setText] = useState('');
+  const field = useRef<HTMLTextAreaElement>(null);
   const add = (): void => {
     const t = text.trim();
     if (!t) return;
     setText('');
-    safeRun(addPracticeFeedback(session.id, { source, text: t }).catch((e: unknown) => { setText(t); throw e; }));
+    // The button turns disabled (not removed) once the text is cleared: focus goes back to the field.
+    safeRun(addPracticeFeedback(session.id, { source, text: t })
+      .then(() => { field.current?.focus(); })
+      .catch((e: unknown) => { setText(t); throw e; }));
   };
   return (
     <>
@@ -34,7 +38,7 @@ export function FeedbackStep({ session }: StepProps) {
       </fieldset>
       <label className="field practice-field">
         <span className="field__label">O que disseram?</span>
-        <textarea rows={3} value={text} maxLength={PRACTICE_LIMITS.feedbackText} onChange={(e) => setText(e.target.value)} />
+        <textarea ref={field} rows={3} value={text} maxLength={PRACTICE_LIMITS.feedbackText} onChange={(e) => setText(e.target.value)} />
       </label>
       <Button variant="primary" disabled={!text.trim()} onClick={add}>Adicionar feedback</Button>
       {session.feedback.length > 0 && (

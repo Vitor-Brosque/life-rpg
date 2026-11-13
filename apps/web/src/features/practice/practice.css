@@ -58,7 +58,7 @@
 .practice-row { display: grid; gap: 2px; }
 .practice-row__title { font-weight: 700; overflow-wrap: anywhere; }
 .practice-row__meta, .practice-row__next { color: var(--text-dim); font-size: 0.8125rem; overflow-wrap: anywhere; }
-.practice-panel__all { justify-self: start; }
+.practice-panel__all { justify-self: start; display: inline-flex; align-items: center; min-height: 36px; }
 .practice-history__rows { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .practice-history__row { display: grid; grid-template-columns: 7.5rem auto; align-items: end; gap: var(--space-1) var(--space-3); }
 .practice-history__summary { grid-column: 1 / -1; color: var(--text-dim); font-size: 0.8125rem; }
@@ -69,7 +69,8 @@
 .practice-history__bar--v2 { height: 100%; }
 .practice-history__legend { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
 .journey-practice { margin: 0; }
+.journey-practice a { display: inline-flex; align-items: center; min-height: 36px; }
 
 .practice-line { margin: 0; color: var(--text-dim); font-size: 0.9375rem; overflow-wrap: anywhere; }
-.practice-line a { color: var(--sky); }
+.practice-line a { color: var(--sky); display: inline-flex; align-items: center; min-height: 36px; }
 .practice-line .practice__link { font-size: inherit; }
