@@ -26,6 +26,7 @@ export const XP_REASON_LABEL: Record<XpReason, string> = {
   checkin: 'Card de início',
   objective: 'Objetivo da semana',
   study: 'Revisão espaçada',
+  practice: 'Prática técnica',
 };
 
 const xpLabel = (into: number, needed: number) => `${into} / ${needed} XP`;

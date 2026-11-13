@@ -103,7 +103,7 @@ export interface LifeEvent extends BaseRecord {
 }
 
 export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience'
-  | 'block' | 'resumption' | 'checkin' | 'objective' | 'study';
+  | 'block' | 'resumption' | 'checkin' | 'objective' | 'study' | 'practice';
 export interface XpEvent extends BaseRecord {
   at: number;
   amount: number;
@@ -277,7 +277,71 @@ export interface Stroke {
 export interface Sketch extends BaseRecord {  // a mission's lousa has id `sketch-m-${missionId}`
   title: string;        // '' → automatic name (sketchTitle)
   missionId?: ID;
+  practiceId?: ID;      // a practice session's lousa; then id = `sketch-p-${practiceId}`
   strokes: Stroke[];
+}
+
+// ------------------------------------------------------------------ prática técnica (Marco 3d)
+
+export type PracticeStatus = 'open' | 'done';
+export type PracticeStep = 'problem' | 'basics' | 'plan' | 'design' | 'code' | 'test' | 'feedback' | 'rebuild' | 'close';
+/** Self-rating 0–2. Entregue: 0 não · 1 parcial · 2 sim. */
+export type PracticeScore = 0 | 1 | 2;
+export type FeedbackSource = 'person' | 'ai' | 'tool';
+
+export interface PracticeError {
+  id: ID;
+  at: number;
+  what: string;         // o que deu errado (required)
+  why: string;          // por quê
+  fix: string;          // a ideia correta
+  noteId?: ID;          // the card draft made from this entry
+}
+
+export interface PracticeFeedback {
+  id: ID;
+  at: number;
+  source: FeedbackSource;  // Marco 7 may write 'ai' entries made by the app
+  text: string;
+}
+
+export interface PracticeRebuild {
+  code: string;
+  startedAt: number;
+  comparedAt?: number;  // read-only from then on
+  peeked?: boolean;     // "Mostrar mesmo assim" before comparing (only when true)
+}
+
+export interface PracticeRatings {
+  delivered?: PracticeScore;
+  understood?: PracticeScore;
+  autonomous?: PracticeScore;
+}
+
+export interface PracticeSession extends BaseRecord {
+  title: string;               // ≤ 80, required
+  status: PracticeStatus;
+  step: PracticeStep;          // where the session reopens
+  journeyId?: ID;
+  missionId?: ID;
+  deckId?: ID;                 // where error drafts go; absent → inbox
+  problem: string;
+  inputs: string;
+  outputs: string;
+  basics: ChecklistItem[];     // concepts (done unused)
+  plan: ChecklistItem[];       // decomposition steps, ticked while implementing
+  alternatives: string;
+  decision: string;
+  language: CodeLang;
+  code: string;
+  tests: ChecklistItem[];      // done = passed
+  feedback: PracticeFeedback[];
+  rebuild?: PracticeRebuild;
+  errors: PracticeError[];
+  ratings: PracticeRatings;
+  explanation: string;         // "Explique em 2 frases"
+  nextAction?: string;         // open: where to resume · done: first action of the next session
+  endedAt?: number;
 }
 
 export const SYNC_TABLES = [

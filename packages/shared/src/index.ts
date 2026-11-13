@@ -17,3 +17,4 @@ export * from './highlight';
 export * from './sketch';
 export * from './sha256';
 export * from './media';
+export * from './practice';
