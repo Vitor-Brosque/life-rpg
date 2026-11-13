@@ -168,3 +168,10 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 .review-prompt__meta { margin: 2px 0 0; color: var(--text-dim); font-size: 0.875rem; }
 .review-line, .study-status { margin: 0; font-size: 0.875rem; }
 .review-line a, .study-status a { color: var(--text-dim); }
+
+/* CodeMirror host: empty (no gap in the field) until the chunk loads; the look is in cmEditor.ts. */
+.code-editor__cm:empty { display: none; }
+.code-editor__cm .cm-editor { max-height: 70vh; }
+.code-editor__cm .cm-scroller { overflow: auto; }
+/* iOS zooms into fields under 16 px on focus. */
+@media (pointer: coarse) { .code-editor__input { font-size: 1rem; } }

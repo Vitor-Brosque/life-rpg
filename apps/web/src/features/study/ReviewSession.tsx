@@ -290,7 +290,7 @@ export function ReviewSession() {
           <Panel variant="stone" className="review__card">
             <Rich text={isCloze && revealed ? face.back : face.front} className="review__front" />
             {isCode && (
-              <CodeEditor label="Sua resposta (código)" value={answer} onChange={setAnswer} readOnly={revealed} rows={6} />
+              <CodeEditor label="Sua resposta (código)" language={face.code!.lang} value={answer} onChange={setAnswer} readOnly={revealed} rows={6} />
             )}
             {!isCode && !isTopic && !revealed && (
               <Button size="sm" variant="ghost" aria-pressed={writeFirst}

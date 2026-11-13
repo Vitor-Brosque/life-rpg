@@ -178,7 +178,7 @@ export function NoteEditor({ id }: { id?: string }) {
                   {(Object.keys(LANG_LABEL) as CodeLang[]).map((l) => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}
                 </select>
               </div>
-              <CodeEditor id="note-back" label="Solução" value={form.back} onChange={(v) => set('back', v)} />
+              <CodeEditor id="note-back" label="Solução" language={form.language} value={form.back} onChange={(v) => set('back', v)} />
               <FieldError id="note-back-error" text={errors.back} />
             </>
           )}
