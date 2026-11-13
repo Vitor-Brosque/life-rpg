@@ -75,7 +75,8 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
         .then(() => run(v))
         .then(() => { echo.current = { value: v, until: Date.now() + ECHO_WAIT_MS }; }, (e: unknown) => {
           // Keep the text and mark it unsaved again: the next blur or edit tries once more.
-          dirty.current = true;
+          // (unless a newer edit already took its place: that one carries the text forward)
+          if (current.current === v) dirty.current = true;
           console.error('save draft failed', e);
           useToast.getState().show(FAILURE_TOAST);
         })

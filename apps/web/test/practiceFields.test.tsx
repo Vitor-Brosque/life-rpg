@@ -229,6 +229,21 @@ describe('useDraftField', () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
+  it('a failed save superseded by a newer saved edit does not keep the field dirty', async () => {
+    quietConsole();
+    const first = deferred();
+    const save = vi.fn((v: string) => (v === 'a' ? first.promise : Promise.resolve()));
+    const { rerender } = render(<Draft saved="" save={save} />);
+    focus(); type('a'); blur();
+    await settle();
+    focus(); type('ab'); blur();
+    first.reject(new Error('disco cheio'));
+    await settle();
+    rerender(<Draft saved="ab" save={save} />);
+    rerender(<Draft saved="de outro aparelho" save={save} />);
+    expect(field()).toHaveValue('de outro aparelho');
+  });
+
   it('writes a draft with the save function of the moment of the edit', async () => {
     const oldSave = vi.fn(async () => undefined);
     const newSave = vi.fn(async () => undefined);
