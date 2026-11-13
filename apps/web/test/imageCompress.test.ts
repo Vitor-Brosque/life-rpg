@@ -4,7 +4,7 @@ import { IMAGE_MESSAGES, compressImage, encodeSmallest } from '../src/features/m
 import { PNG_BYTES } from './fakeMedia';
 
 const blob = (size: number, type: string) => new Blob([new Uint8Array(size)], { type });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); delete (HTMLImageElement.prototype as { decode?: unknown }).decode; });
 
 describe('encodeSmallest', () => {
   it('stops at the first attempt that fits the target', async () => {
@@ -64,5 +64,65 @@ describe('drawingToImage', () => {
     // bounds −1…101 × −1…51 (half the widths), 24 px of margin: 150×100 at zoom 1, origin at (−25, −25)
     expect(size).toBe('150x100');
     expect(calls).toEqual(['fillRect 0,0,150,100', 'setTransform 1,0,0,1,25,25', 'stroke', 'fill']);
+  });
+});
+
+describe('compressImage decisions', () => {
+  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1]);
+  const WEBP = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20]);
+  const file = (bytes: Uint8Array, type: string, pad = 0) => new File([bytes as BlobPart, new Uint8Array(pad)], 'x', { type });
+  const canvases: HTMLCanvasElement[] = [];
+  const fills: string[] = [];
+  const setup = (w: number, h: number, decode: () => Promise<void> = async () => {}) => {
+    canvases.length = 0; fills.length = 0;
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    Object.defineProperty(HTMLImageElement.prototype, 'decode', { configurable: true, writable: true, value: decode });
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(w);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(h);
+    const ctx = {
+      fillStyle: '', imageSmoothingQuality: '', drawImage: () => {},
+      fillRect: () => { fills.push(String(ctx.fillStyle)); },
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, cb: BlobCallback, type?: string) {
+      canvases.push(this);
+      cb(new Blob([new Uint8Array(1000)], { type: type ?? '' }));
+    });
+  };
+
+  it('keeps a small PNG or WebP as is', async () => {
+    setup(800, 600);
+    const png = file(PNG_BYTES, 'image/png');
+    expect(await compressImage(png)).toBe(png);
+    const webp = file(WEBP, 'image/webp');
+    expect(await compressImage(webp)).toBe(webp);
+    expect(canvases).toHaveLength(0);
+  });
+  it('re-encodes a small JPEG (drops EXIF), with a white background, and releases the canvases', async () => {
+    setup(800, 600);
+    const out = await compressImage(file(JPEG, 'image/jpeg'));
+    expect(out).not.toBeInstanceOf(File);
+    expect(out.type).toBe('image/webp'); // the stub answers whatever type is asked
+    setup(800, 600);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, cb: BlobCallback, type?: string) {
+      canvases.push(this);
+      cb(type === 'image/webp' ? new Blob(['x'], { type: 'image/png' }) : new Blob([new Uint8Array(1000)], { type: type ?? '' }));
+    });
+    expect((await compressImage(file(JPEG, 'image/jpeg'))).type).toBe('image/jpeg');
+    expect(fills).toContain('#ffffff');
+    expect(canvases.length).toBeGreaterThan(0);
+    for (const c of canvases) { expect(c.width).toBe(0); expect(c.height).toBe(0); }
+  });
+  it('sends an oversized PNG (side or bytes) through the encoder', async () => {
+    setup(4000, 3000);
+    expect((await compressImage(file(PNG_BYTES, 'image/png'))).size).toBe(1000);
+    expect(canvases).toHaveLength(1);
+    setup(800, 600);
+    expect((await compressImage(file(PNG_BYTES, 'image/png', 400 * 1024))).size).toBe(1000);
+  });
+  it('turns a decode failure into cantOpen', async () => {
+    setup(1, 1, async () => { throw new Error('bad'); });
+    await expect(compressImage(file(PNG_BYTES, 'image/png'))).rejects.toThrow(IMAGE_MESSAGES.cantOpen);
   });
 });

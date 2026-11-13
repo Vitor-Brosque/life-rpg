@@ -97,7 +97,6 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 }
 .note-types { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .note-type { display: inline-flex; align-items: center; gap: var(--space-1); padding: 6px 10px; background: var(--bg-2); cursor: pointer; }
-.note-editor__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .note-editor__form textarea { width: 100%; resize: vertical; }
 .note-editor__status { min-height: 1.25em; margin: 0; color: var(--gold); }
 .note-editor__danger { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3); border-top: 2px solid var(--outline); }

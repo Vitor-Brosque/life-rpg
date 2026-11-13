@@ -32,5 +32,8 @@ export async function drawingToImage(strokes: readonly Stroke[], el: Element = d
       ctx.stroke();
     }
   }
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  return new Promise((resolve) => canvas.toBlob((b) => {
+    canvas.width = canvas.height = 0;
+    resolve(b);
+  }, 'image/png'));
 }

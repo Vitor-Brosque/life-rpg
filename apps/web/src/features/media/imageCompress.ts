@@ -60,7 +60,10 @@ function canvasEncode(img: HTMLImageElement, w: number, h: number, type: string,
   }
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, w, h);
-  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  return new Promise((resolve) => canvas.toBlob((b) => {
+    canvas.width = canvas.height = 0; // iOS Safari keeps canvas memory until released
+    resolve(b);
+  }, type, quality));
 }
 
 /**
@@ -72,10 +75,14 @@ export async function compressImage(file: Blob): Promise<Blob> {
   if (!file.type.startsWith('image/') && !head?.startsWith('image/')) throw new MediaInputError(IMAGE_MESSAGES.notImage);
   if (file.size > IMAGE_INPUT_MAX_BYTES) throw new MediaInputError(IMAGE_MESSAGES.tooBig);
   const img = await decodeImage(file);
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
-  if ((head === 'image/png' || head === 'image/webp') && file.size <= IMAGE_TARGET_BYTES && Math.max(w, h) <= IMAGE_MAX_SIDE) {
-    return file;
+  try {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if ((head === 'image/png' || head === 'image/webp') && file.size <= IMAGE_TARGET_BYTES && Math.max(w, h) <= IMAGE_MAX_SIDE) {
+      return file;
+    }
+    return await encodeSmallest(w, h, (tw, th, type, q) => canvasEncode(img, tw, th, type, q));
+  } finally {
+    img.src = ''; // release the decoded bitmap
   }
-  return encodeSmallest(w, h, (tw, th, type, q) => canvasEncode(img, tw, th, type, q));
 }

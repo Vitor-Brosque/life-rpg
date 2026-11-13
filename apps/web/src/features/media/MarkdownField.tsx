@@ -41,6 +41,12 @@ export interface MarkdownFieldProps {
 const firstFile = (files: ArrayLike<File> | null | undefined, prefix: string): File | undefined =>
   Array.from(files ?? []).find((f) => f.type.startsWith(prefix));
 
+/** An image/* file, or a single file without a type (compressImage checks its signature). */
+const candidate = (files: ArrayLike<File> | null | undefined): File | undefined => {
+  const list = Array.from(files ?? []);
+  return list.find((f) => f.type.startsWith('image/')) ?? (list.length === 1 && list[0]!.type === '' ? list[0] : undefined);
+};
+
 function showError(e: unknown, what: string): void {
   if (e instanceof MediaInputError) {
     useToast.getState().show(e.message);
@@ -58,6 +64,7 @@ export function MarkdownField({
   const ref = textareaRef ?? own;
   const fileId = `${id}-image-file`;
   const [busy, setBusy] = useState(false);
+  const working = useRef(false);
   const [sheet, setSheet] = useState<'drawing' | undefined>(undefined);
 
   /** The reference at the cursor (end of the text when the field never had focus), label selected. */
@@ -70,6 +77,8 @@ export function MarkdownField({
   };
 
   const addImage = async (file: Blob): Promise<void> => {
+    if (working.current) return;
+    working.current = true;
     setBusy(true);
     onStatus(FIELD_STATUS.preparing);
     try {
@@ -80,13 +89,15 @@ export function MarkdownField({
       onStatus('');
       showError(e, 'image');
     } finally {
+      working.current = false;
       setBusy(false);
     }
   };
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>): void => {
-    const file = firstFile(e.clipboardData?.files, 'image/');
+    const file = candidate(e.clipboardData?.files);
     if (!file) return; // text: the browser pastes it
     e.preventDefault();
+    if (working.current) return;
     void addImage(file);
   };
   const onDragOver = (e: DragEvent<HTMLTextAreaElement>): void => {
@@ -96,7 +107,8 @@ export function MarkdownField({
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return; // dragged text: the browser handles it
     e.preventDefault();
-    const image = firstFile(files, 'image/');
+    if (working.current) return;
+    const image = candidate(files);
     if (image) { void addImage(image); return; }
     useToast.getState().show(DROP_UNSUPPORTED);
   };
