@@ -11,7 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/planejar', label: 'Planejar', icon: 'plan', also: ['/casa'] },
   { href: '/estudo', label: 'Estudo', icon: 'book', also: ['/lousa', '/pratica'] },
   { href: '/jornadas', label: 'Jornadas', icon: 'journey' },
-  { href: '/personagem', label: 'Personagem', icon: 'character', also: ['/ajustes', '/corpo', '/padroes'] },
+  { href: '/personagem', label: 'Personagem', icon: 'character', also: ['/ajustes', '/corpo', '/padroes', '/mapa'] },
 ];
 
 export interface LayoutProps {

@@ -1,0 +1,126 @@
+/* Mundo RPG (Marco 6): the map, the territory sheet, the list view and the Personagem card. */
+
+.world { gap: var(--space-4); }
+.world__top { display: flex; align-items: center; gap: var(--space-2); }
+.world__top h1 { margin: 0; }
+.world__top .btn { margin-left: calc(var(--space-2) * -1); color: var(--text-dim); }
+.world__summary { margin: 0; color: var(--text-dim); }
+.world__views { display: flex; gap: var(--space-2); }
+.world__note { margin: 0; font-size: 0.875rem; }
+
+/* ------------------------------------------------------------------ map */
+
+.world-map {
+  position: relative;
+  width: 100%;
+  max-width: 576px;            /* 144 world px × 4 */
+  margin-inline: auto;
+  overflow: hidden;
+  background: #4f8f45;         /* GRASS, while the svg paints */
+}
+.world-map__art { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.world-map__tile,
+.world-map__hub {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0 0 3px;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+}
+.world-map__tile { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.world-map__tile--top { justify-content: flex-start; padding: 3px 0 0; }
+.world-map__tile:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+@media (hover: hover) { .world-map__tile:hover { background: rgba(255, 246, 224, 0.1); } }
+.world-map__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 96%;
+  padding: 1px 6px;
+  color: var(--text);
+  background: rgba(18, 20, 31, 0.8);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.world-map__name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.world-map__lvl { flex-shrink: 0; padding: 0 4px; color: var(--ink); background: var(--gold); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------- territory sheet */
+
+.territory { display: flex; flex-direction: column; gap: var(--space-4); }
+.territory__head { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-3); }
+.territory__art svg,
+.npc__art svg,
+.world-list__art svg { display: block; }
+.territory__info { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.territory__area,
+.territory__next { margin: 0; }
+.territory__next { color: var(--muted); font-size: 0.875rem; }
+.npc { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: var(--space-3); padding: var(--space-3); background: var(--bg-2); }
+.npc__speech { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.npc__name { margin: 0; color: var(--gold); font-family: var(--font-pixel); font-weight: 700; }
+.npc__line { margin: 0; padding: var(--space-2) var(--space-3); color: var(--ink); background: var(--parchment); overflow-wrap: anywhere; }
+.territory__recent,
+.territory__journeys { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.territory__journey {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-3);
+  color: inherit;
+  text-decoration: none;
+  background: var(--bg-2);
+}
+.territory__journey:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.territory__journey-title { font-weight: 700; overflow-wrap: anywhere; }
+.territory__journey-next { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------ list */
+
+.world-list { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.world-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--stone);
+  box-shadow: inset 6px 0 0 0 var(--area-color, var(--ember));
+}
+.world-list__item--hub { grid-template-columns: 1fr; }
+.world-list__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.world-list__text p { margin: 0; overflow-wrap: anywhere; }
+.world-list__title { margin: 0; font-size: 1rem; }
+.world-list__npc { font-style: italic; }
+
+/* ------------------------------------------------------- Personagem card */
+
+.world-card {
+  --px-hi: #3e4365;
+  --px-lo: #1c1f31;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch);
+  padding: var(--space-3);
+  color: var(--text);
+  text-decoration: none;
+  background: var(--stone);
+}
+.world-card:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+@media (hover: hover) { .world-card:hover { background: var(--stone-light); } }
+.world-card__icon { display: grid; place-items: center; width: 52px; height: 52px; color: var(--gold); background: var(--bg-2); }
+.world-card__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.world-card__title { font-family: var(--font-pixel); font-size: 1.125rem; font-weight: 700; }
+.world-card__summary { color: var(--text-dim); font-size: 0.875rem; }
+.world-card__news { color: var(--gold); font-size: 0.875rem; font-weight: 700; }

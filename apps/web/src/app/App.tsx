@@ -14,6 +14,7 @@ import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
 import { RecipesScreen } from '../features/casa/RecipesScreen';
 import { ShoppingScreen } from '../features/casa/ShoppingScreen';
+import { MapScreen } from '../features/world/MapScreen';
 import { CorpoScreen } from '../features/corpo/CorpoScreen';
 import { PatternsScreen } from '../features/patterns/PatternsScreen';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
@@ -86,6 +87,7 @@ export function App() {
           <Route path="/jornadas"><JourneysScreen /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>
+          <Route path="/mapa"><MapScreen /></Route>
           <Route path="/corpo"><CorpoScreen /></Route>
           <Route path="/padroes"><PatternsScreen /></Route>
           <Route path="/ajustes"><SettingsScreen /></Route>

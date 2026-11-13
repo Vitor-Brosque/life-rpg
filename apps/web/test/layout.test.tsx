@@ -33,6 +33,11 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Estudo' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('the world map (/mapa) belongs to Personagem', () => {
+    renderAt('/mapa', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Personagem' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('a practice session (/pratica/…) belongs to Estudo', () => {
     renderAt('/pratica/abc', <Layout>x</Layout>);
     expect(screen.getByRole('link', { name: 'Estudo' })).toHaveAttribute('aria-current', 'page');
