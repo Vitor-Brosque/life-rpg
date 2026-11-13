@@ -316,4 +316,21 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 'p1')).toMatchObject({ table: 'practiceSessions', record: { plan: session.plan, errors: session.errors } });
     expect(changes.find((c) => c.record.id === 'p2')!.record.deleted).toBe(true);
   });
+
+  it('syncs a month reflection (monthReviews), and a soft-deleted one', async () => {
+    const { app } = await make();
+    const observed = { workdays: 22, activeWorkdays: 17, blocksPlanned: 80, blocksStarted: 48, minimumUsed: 12, resumptions: 2, reviews: 310, practiceClosed: 4, workouts: 14, escapes: 9 };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'monthReviews', record: { id: 'month-2026-10', createdAt: 1, updatedAt: 10, deleted: false, month: '2026-10', answers: { progress: 'a', obstacle: 'b', next: 'c' }, observed, answeredAt: 10 } },
+        { table: 'monthReviews', record: { id: 'month-2026-09', createdAt: 1, updatedAt: 10, deleted: true, month: '2026-09', skipped: true, observed, answeredAt: 10 } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'month-2026-10')).toMatchObject({ table: 'monthReviews', record: { month: '2026-10', observed } });
+    expect(changes.find((c) => c.record.id === 'month-2026-09')!.record.deleted).toBe(true);
+  });
 });

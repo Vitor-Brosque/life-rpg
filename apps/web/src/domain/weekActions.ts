@@ -8,12 +8,17 @@ import { awardXp, getToday, hasLiveXp, withLock } from './common';
 const upsertWeek = (weekId: DayKey, changes: Partial<Week>): Promise<Week> =>
   upsert<Week>('weeks', weekId, changes, { objectives: [] });
 
-/** Stores the review; its adjustment becomes the week's experiment (shown on Agora). */
+/**
+ * Stores the review; its adjustment becomes the week's experiment (shown on Agora). An empty
+ * adjustment keeps an experiment the week already has (chosen in Padrões).
+ */
 export async function saveWeekReview(weekId: DayKey, r: Omit<WeekReview, 'answeredAt'>): Promise<void> {
-  const experiment = r.adjustment.trim();
-  await withLock(`week:${weekId}`, () => upsertWeek(weekId, {
-    review: { ...r, answeredAt: Date.now() }, experiment: experiment || undefined,
-  }));
+  const adjustment = r.adjustment.trim();
+  await withLock(`week:${weekId}`, async () => {
+    const current = await db.weeks.get(weekId);
+    const kept = current && !current.deleted ? current.experiment : undefined;
+    await upsertWeek(weekId, { review: { ...r, answeredAt: Date.now() }, experiment: adjustment || kept });
+  });
 }
 
 /** Replaces the week's objectives; new ones get an id, blank texts are dropped. */

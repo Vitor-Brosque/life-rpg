@@ -45,8 +45,8 @@ export interface WeekCycle {
 }
 
 /**
- * Whether the "Nova semana" card shows: Monday or Tuesday, the week has no record yet (no review,
- * no objectives), and never before "Como está hoje?" is answered.
+ * Whether the "Nova semana" card shows: Monday or Tuesday, the week has no review and no
+ * objectives yet, and never before "Como está hoje?" is answered.
  */
 export function useWeekCycle(today: DayKey | undefined, day: { asked: boolean; mode: DayMode }): WeekCycle {
   const weekId = today ? weekKey(today) : undefined;
@@ -59,7 +59,9 @@ export function useWeekCycle(today: DayKey | undefined, day: { asked: boolean; m
   const { dismissed, opened, started } = useWeekSession();
 
   const cycleDay = today !== undefined && isCycleDay(today);
-  const pending = cycleDay && week === null;
+  // A week whose record only holds an experiment (chosen in Padrões) still waits for its cycle.
+  const onlyExperiment = !!week && !week.review && week.objectives.length === 0;
+  const pending = cycleDay && (week === null || onlyExperiment);
   // Step 1 saved, step 2 never done (app closed, "Fazer depois"): the objectives stay reachable.
   const noObjectives = cycleDay && !!week?.review && week.objectives.length === 0;
   const auto = pending && day.asked && day.mode !== 'free' && dismissed !== weekId;

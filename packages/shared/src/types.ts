@@ -466,6 +466,7 @@ export const SYNC_TABLES = [
   'sketches',
   'practiceSessions',
   'sleepLogs', 'recipes', 'menus', 'shoppingLists', 'freezerMoves', 'workouts',
+  'monthReviews',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews', 'freezerMoves', 'workouts'];

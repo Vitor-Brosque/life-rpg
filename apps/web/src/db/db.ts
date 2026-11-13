@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, FreezerMove, Journey,
-  LifeEvent, MediaType, Menu, Mission, Note, PracticeSession, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
+  LifeEvent, MediaType, Menu, Mission, MonthReview, Note, PracticeSession, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
   SleepLog, SyncTable, Week, Workout, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
@@ -43,6 +43,7 @@ export class LifeDB extends Dexie {
   shoppingLists!: Table<ShoppingList, string>;
   freezerMoves!: Table<FreezerMove, string>;
   workouts!: Table<Workout, string>;
+  monthReviews!: Table<MonthReview, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -128,6 +129,14 @@ export class LifeDB extends Dexie {
       shoppingLists: 'id',
       freezerMoves: 'id,at,recipeId',
       workouts: 'id,day,at',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v8 (Marco 5): monthly reflections, one record per month reflected upon. Same cursor restart as
+    // v2–v4, v6 and v7, so reflections a v7 client skipped (unknown table) are pulled again.
+    this.version(8).stores({
+      monthReviews: 'id',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
