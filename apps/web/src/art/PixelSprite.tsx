@@ -44,3 +44,15 @@ export const PixelSprite = memo(function PixelSprite({ sprite, scale = 1, title,
     </svg>
   );
 });
+
+export interface SpriteRectsProps { sprite: Sprite; x?: number; y?: number }
+
+/** A sprite's rects inside a parent <svg>, offset by (x, y) in the parent's units (world map). */
+export const SpriteRects = memo(function SpriteRects({ sprite, x = 0, y = 0 }: SpriteRectsProps) {
+  const rects = useMemo(() => spriteRects(sprite), [sprite]);
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      {rects.map((r) => <rect key={`${r.x},${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill={r.fill} />)}
+    </g>
+  );
+});

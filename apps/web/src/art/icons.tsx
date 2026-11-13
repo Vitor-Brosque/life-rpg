@@ -9,10 +9,25 @@ export type IconName =
   | 'snooze' | 'play' | 'pause' | 'stop' | 'gear' | 'sync' | 'energy' | 'heart' | 'book' | 'hammer'
   | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
   | 'bell' | 'chest' | 'door'
-  | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash'
+  | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash' | 'map'
   | 'mic' | 'image' | 'speaker' | 'drive';
 
 const ROWS: Record<IconName, string[]> = {
+  // Mundo RPG (Marco 6): a framed map with a dotted route to an X.
+  map: [
+    '............',
+    'oooooooooooo',
+    'o..........o',
+    'o......o.o.o',
+    'o.......o..o',
+    'o.....oo.o.o',
+    'o....o.....o',
+    'o...o......o',
+    'o..o.......o',
+    'o.oo.......o',
+    'oooooooooooo',
+    '............',
+  ],
   // Lousa (Marco 3b): pencil, eraser, move, undo, redo, fit to screen, clear.
   pen: [
     '.........oo.',

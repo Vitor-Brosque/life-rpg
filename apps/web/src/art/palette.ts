@@ -6,11 +6,15 @@ export const OUTLINE = '#1a1220';
 /** Look options. Index = value stored in `profile.look`. */
 export const SKIN_TONES: string[] = ['#f7d9bc', '#eab98f', '#c98b5e', '#9c6440', '#6b4128'];
 export const HAIR_COLORS: string[] = ['#3b2a24', '#7a4722', '#b9602c', '#e6b54f', '#d8d3c8', '#9a3b34', '#3f5f9e'];
-export const OUTFIT_COLORS: string[] = ['#3f6fb5', '#4e8a3e', '#a8432f', '#7b52a3', '#c48a2c', '#46546a'];
+/** 0–5 always available; 6–9 unlock with the total level (OUTFIT_UNLOCKS in @life/shared). */
+export const OUTFIT_COLORS: string[] = [
+  '#3f6fb5', '#4e8a3e', '#a8432f', '#7b52a3', '#c48a2c', '#46546a',
+  '#2f9e78', '#5aaed6', '#b23a55', '#e3b341',
+];
 
 export const SKIN_NAMES = ['Clara', 'Média clara', 'Média', 'Morena', 'Escura'];
 export const HAIR_COLOR_NAMES = ['Preto', 'Castanho', 'Ruivo', 'Loiro', 'Grisalho', 'Vermelho', 'Azul'];
-export const OUTFIT_NAMES = ['Azul', 'Verde', 'Vermelho', 'Roxo', 'Mostarda', 'Ardósia'];
+export const OUTFIT_NAMES = ['Azul', 'Verde', 'Vermelho', 'Roxo', 'Mostarda', 'Ardósia', 'Esmeralda', 'Celeste', 'Carmim', 'Dourado'];
 
 /** Fixed avatar details. */
 export const LEATHER = '#5c3a21';
