@@ -25,6 +25,18 @@ describe('runBackup', () => {
     expect(runBackup(store, dir, new Date(2026, 4, 3, 22))).toBe(file);
   });
 
+  it('mirrors media files into backups/media and keeps them when old backups are pruned', () => {
+    const dir = tmp();
+    const name = 'c'.repeat(64);
+    mkdirSync(join(dir, 'media'));
+    writeFileSync(join(dir, 'media', name), 'bytes');
+    const store = new RecordStore(':memory:');
+    runBackup(store, dir, new Date(2026, 4, 3, 10), 1);
+    runBackup(store, dir, new Date(2026, 4, 4, 10), 1);
+    expect(readdirSync(join(dir, 'backups', 'media'))).toEqual([name]);
+    expect(readdirSync(join(dir, 'backups')).sort()).toEqual(['life-rpg-2026-05-04.sqlite', 'media']);
+  });
+
   it('keeps only the newest N backups', () => {
     const dir = tmp();
     const bdir = join(dir, 'backups');

@@ -1,12 +1,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
+import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { z } from 'zod';
 import { SYNC_TABLES, type SyncChange, type SyncResponse } from '@life/shared';
 import type { ServerConfig } from './config';
 import { Hub } from './hub';
+import { MediaStore, registerMediaRoutes } from './media';
 import { PushService } from './push';
 import { RecordStore } from './store';
 
@@ -14,6 +16,7 @@ export interface BuildDeps {
   store?: RecordStore;
   hub?: Hub;
   push?: PushService;
+  media?: MediaStore;
   now?: () => number;
 }
 
@@ -62,6 +65,7 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
   const store = deps.store ?? new RecordStore(cfg.dbPath);
   const hub = deps.hub ?? new Hub();
   const push = deps.push ?? new PushService(store, cfg.dataDir);
+  const media = deps.media ?? new MediaStore(join(cfg.dataDir, 'media'));
   const app = Fastify({ bodyLimit: 5 * 1024 * 1024 });
 
   // Open SSE responses: ended on close, otherwise they keep the server from shutting down.
@@ -87,7 +91,7 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
       if (!ok) return reply.code(401).send({ error: 'unauthorized' });
     });
     api.setNotFoundHandler((_req, reply) => reply.code(404).send({ error: 'not_found' }));
-    registerApiRoutes(api, { store, hub, push, streams });
+    registerApiRoutes(api, { store, hub, push, streams, media });
   }, { prefix: '/api' });
 
   if (cfg.webDir && existsSync(cfg.webDir)) {
@@ -114,8 +118,8 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
 /** Authenticated routes; paths are relative to the '/api' prefix. */
 function registerApiRoutes(
   app: FastifyInstance,
-  { store, hub, push, streams }: {
-    store: RecordStore; hub: Hub; push: PushService; streams: Set<ServerResponse>;
+  { store, hub, push, streams, media }: {
+    store: RecordStore; hub: Hub; push: PushService; streams: Set<ServerResponse>; media: MediaStore;
   },
 ): void {
   app.post('/sync', async (request, reply) => {
@@ -174,4 +178,6 @@ function registerApiRoutes(
       streams.delete(res);
     });
   });
+
+  registerMediaRoutes(app, media);
 }

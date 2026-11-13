@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { backupMedia } from './media';
 import type { RecordStore } from './store';
 
 const NAME = /^life-rpg-\d{4}-\d{2}-\d{2}\.sqlite$/;
@@ -17,6 +18,8 @@ export function runBackup(store: RecordStore, dataDir: string, now: Date, keep =
   for (const old of all.slice(0, Math.max(0, all.length - keep))) {
     rmSync(join(dir, old), { force: true });
   }
+  // Media files are immutable: hard links in backups/media keep them safe from deletion at no extra space.
+  backupMedia(join(dataDir, 'media'), join(dir, 'media'));
   return file;
 }
 

@@ -55,6 +55,10 @@ Cole o token na tela de configuração do app.
 
 Tudo fica em `~/projects/life-rpg/data/`: banco (`life-rpg.sqlite`), `token`, `vapid.json` (chaves de push) e `backups/` (um backup diário por volta das 03h, mantendo os 14 mais recentes). Não apague `vapid.json`: sem ele as inscrições de push existentes deixam de valer.
 
+As imagens e os áudios dos cards ficam em `data/media/` (um arquivo por conteúdo, nomeado pelo SHA-256). O backup diário espelha essa pasta em `data/backups/media/` com links físicos: não ocupa espaço extra e nada é apagado de lá. Para recuperar uma mídia apagada por engano:
+
+    ssh homelab "cd ~/projects/life-rpg && sudo -n cp -n data/backups/media/* data/media/"
+
 Opcional: a variável de ambiente `LIFE_RPG_VAPID_SUBJECT` (por exemplo `mailto:voce@exemplo.com`) define o contato informado aos serviços de push; o padrão é `mailto:life-rpg@example.com`.
 
 ## Restaurar um backup
