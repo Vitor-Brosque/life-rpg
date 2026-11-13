@@ -47,13 +47,15 @@ describe('images in cards', () => {
   });
   it('says "Baixando imagem…" while downloading', async () => {
     await setMeta('syncToken', 'tok');
-    let release!: () => void;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
+    let release: (() => void) | undefined;
+    const fetchMock = vi.fn(() => new Promise((resolve) => {
       release = () => resolve({ ok: true, status: 200, arrayBuffer: async () => PNG_BYTES.slice().buffer });
-    })));
+    }));
+    vi.stubGlobal('fetch', fetchMock);
     render(<Rich text={`![gráfico](media:${IMG})`} />);
     expect(await screen.findByText('Baixando imagem…')).toBeInTheDocument();
-    release();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled()); // the status can show before the request starts
+    release!();
     await waitFor(() => expect(imgSrc('gráfico')).toBe('blob:t/1'));
   });
   it('an image inside a revealed cloze is marked', async () => {
