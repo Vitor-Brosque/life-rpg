@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import type { XpReason } from '@life/shared';
-import { titleForLevel } from '@life/shared';
+import { STAGES, stageForLevel, titleForLevel } from '@life/shared';
 import { Avatar } from '../../art/Avatar';
 import { areaIcon, Icon } from '../../art/icons';
 import { useCharacterStats, useNow, useProfile } from '../../db/hooks';
@@ -12,6 +12,7 @@ import { ProgressBar } from '../../ui/ProgressBar';
 import { WeekDots, workdaysText } from '../../ui/WeekDots';
 import { BodyCard } from '../corpo/BodyCard';
 import { PatternsCard } from '../patterns/PatternsCard';
+import { WorldCard } from '../world/WorldCard';
 import { LookEditor } from './LookEditor';
 import './character.css';
 
@@ -75,6 +76,8 @@ export function CharacterScreen() {
         </div>
       </Panel>
 
+      {stats && <WorldCard stages={stats.byArea.map(({ info }) => stageForLevel(info.level))} />}
+
       <section aria-labelledby="attributes-title">
         <h2 id="attributes-title" className="section-title">Atributos</h2>
         <ul className="attributes" aria-label="Atributos">
@@ -83,7 +86,7 @@ export function CharacterScreen() {
               <span className="attribute__icon" aria-hidden="true"><Icon name={areaIcon(area.icon)} size={24} /></span>
               <span className="attribute__text">
                 <span className="attribute__name">{area.attribute}</span>
-                <span className="attribute__area">{area.name}</span>
+                <span className="attribute__area">{`${area.name} · ${STAGES[stageForLevel(info.level)]!.name}`}</span>
               </span>
               <span className="attribute__level">Nv {info.level}</span>
               <span className="attribute__bar">
