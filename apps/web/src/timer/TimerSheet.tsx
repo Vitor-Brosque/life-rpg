@@ -64,7 +64,7 @@ function TimerSetup({ onStarted }: { onStarted(): void }) {
   const focusMin = settings?.pomodoro.focusMin ?? 25;
   const breakMin = settings?.pomodoro.breakMin ?? 5;
 
-  const hint = mode === 'free' ? 'Conta o tempo até você concluir.'
+  const hint = mode === 'free' ? 'Conta o tempo até você concluir. Pause quando sentir que caiu, ou ao fim de uma etapa.'
     : mode === 'pomodoro' ? `${focusMin} min de foco e ${breakMin} de pausa. A pausa só começa quando você tocar.`
       : 'Avisa quando o tempo acabar.';
 

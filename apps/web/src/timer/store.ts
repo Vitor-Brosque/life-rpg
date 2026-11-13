@@ -69,7 +69,7 @@ const PUSH_TITLE = 'LIFE RPG';
 
 export const TIMER_IDLE: TimerData = {
   status: 'idle',
-  mode: 'pomodoro',
+  mode: 'free',
   phase: 'focus',
   startedAt: undefined,
   segmentStartedAt: undefined,

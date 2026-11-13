@@ -19,18 +19,21 @@ beforeEach(async () => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('sleep actions', () => {
-  it('"Deitei" then "Acordei": one record per night and +2 XP once, to Equilíbrio', async () => {
+  const legacyXp = (night: string) => db.xpEvents.put({
+    id: `xp-sleep-${night}`, createdAt: 1, updatedAt: 1, deleted: false, at: 1, amount: 2, reason: 'sleep',
+    dayKey: night, areaId: 'area-equilibrio',
+  });
+
+  it('"Deitei" then "Acordei": one record per night and no XP', async () => {
     const bed = await logBedtime(NIGHT);
     expect(bed.xp).toBe(0);
     expect(bed.log).toMatchObject({ id: 'sleep-2026-11-13', night: NIGHT, bedAt: at(13, 23, 40).getTime() });
     expect(await db.outbox.get('sleepLogs:sleep-2026-11-13')).toBeDefined();
     vi.setSystemTime(at(14, 7, 10));
     const wake = await logWake(NIGHT);
-    expect(wake.xp).toBe(2);
+    expect(wake.xp).toBe(0);
     expect(wake.log.wakeAt).toBe(at(14, 7, 10).getTime());
-    expect(await db.xpEvents.get('xp-sleep-2026-11-13')).toMatchObject({
-      amount: 2, reason: 'sleep', areaId: 'area-equilibrio', dayKey: '2026-11-14', deleted: false,
-    });
+    expect(await db.xpEvents.get('xp-sleep-2026-11-13')).toBeUndefined();
     vi.setSystemTime(at(14, 7, 30));
     const again = await logWake(NIGHT); // a second tap (stale tab, other device) keeps the first time
     expect(again).toMatchObject({ xp: 0, created: false });
@@ -40,18 +43,21 @@ describe('sleep actions', () => {
     expect(await db.sleepLogs.count()).toBe(1);
   });
 
-  it('Desfazer removes the time and, with it, the XP of the night', async () => {
+  it('Desfazer removes the time and, with it, an old XP of the night', async () => {
     await logBedtime(NIGHT);
     vi.setSystemTime(at(14, 7, 10));
     await logWake(NIGHT);
+    await legacyXp(NIGHT);
     const undone = await clearSleepTime(NIGHT, 'wakeAt');
     expect(undone.log).not.toHaveProperty('wakeAt');
     expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(true);
   });
 
-  it('saveSleepTimes validates, writes both times and keeps the XP in step', async () => {
+  it('saveSleepTimes validates, writes both times and drops an old XP when the night is incomplete', async () => {
     const saved = await saveSleepTimes('2026-11-12', '23:30', '07:00');
-    expect(saved.xp).toBe(2);
+    expect(saved.xp).toBe(0);
+    expect(await db.xpEvents.get('xp-sleep-2026-11-12')).toBeUndefined();
+    await legacyXp('2026-11-12');
     expect(saved.log).toMatchObject({ bedAt: at(12, 23, 30).getTime(), wakeAt: at(13, 7, 0).getTime() });
     await expect(saveSleepTimes('2026-11-12', '01:30', '01:00'))
       .rejects.toThrow('O horário de acordar precisa ser depois do de deitar.');
@@ -61,15 +67,17 @@ describe('sleep actions', () => {
     expect((await db.xpEvents.get('xp-sleep-2026-11-12'))!.deleted).toBe(true);
   });
 
-  it('delete and restore a night, with its XP', async () => {
+  it('delete and restore a night: an old XP is removed and not revived', async () => {
     await saveSleepTimes(NIGHT, '23:40', '07:10');
+    await legacyXp(NIGHT);
     const removed = await deleteSleepLog(NIGHT);
     expect((await db.sleepLogs.get('sleep-2026-11-13'))!.deleted).toBe(true);
     expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(true);
     expect(await deleteSleepLog(NIGHT)).toBeUndefined();
-    await restoreSleepLog(removed!);
+    const restored = await restoreSleepLog(removed!);
+    expect(restored.xp).toBe(0);
     expect(await db.sleepLogs.get('sleep-2026-11-13')).toMatchObject({ deleted: false, bedAt: removed!.bedAt, wakeAt: removed!.wakeAt });
-    expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(false);
+    expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(true);
   });
 
   it('saveSleepSettings merges with the defaults and refuses an invalid time', async () => {

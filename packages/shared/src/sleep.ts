@@ -6,8 +6,7 @@ import { addDays, dayKeyOf, formatHHmm, parseHHmm, timestampAt, toDayKey } from 
 
 /** A night runs from noon to noon: going to bed at 01:30 on the 14th belongs to the night of the 13th. */
 export const SLEEP_CUTOFF_HOUR = 12;
-export const SLEEP_XP = 2;
-/** Longer than this is a typo or a missing tap, not a night: no duration, no XP. */
+/** Longer than this is a typo or a missing tap, not a night: no duration. */
 export const SLEEP_MAX_MIN = 16 * 60;
 export const SLEEP_WINDOW = 14;
 /** Complete nights needed before the window shows averages and spreads. */

@@ -39,11 +39,12 @@ describe('CareStrip — sono', () => {
     vi.setSystemTime(at(14, 7, 10));
     view.rerender(strip());
     await user.click(screen.getByRole('button', { name: 'Acordei' }));
-    await waitFor(() => expect(toastText()).toHaveTextContent('Bom dia. Dormiu 9h10 · +2 XP'));
+    await waitFor(() => expect(toastText()).toHaveTextContent('Bom dia. Dormiu 9h10.'));
+    expect(toastText()).not.toHaveTextContent('XP');
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Sono' })).not.toBeInTheDocument());
     await user.click(within(toastText()).getByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await db.sleepLogs.get('sleep-2026-11-13'))!.wakeAt).toBeUndefined());
-    expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(true);
+    expect(await db.xpEvents.get('xp-sleep-2026-11-13')).toBeUndefined();
   });
 
   it('no "Deitei" during a commitment, none when turned off in Ajustes', async () => {
@@ -70,7 +71,7 @@ describe('CareStrip — sono', () => {
 });
 
 describe('Folha da noite', () => {
-  it('saves both times with XP, refuses wake before bed, deletes with Desfazer', async () => {
+  it('saves both times without XP, refuses wake before bed, deletes with Desfazer', async () => {
     const user = userEvent.setup();
     vi.setSystemTime(at(13, 15));
     render(strip());
@@ -79,7 +80,8 @@ describe('Folha da noite', () => {
     await user.type(within(sheet).getByLabelText('Deitei às'), '23:30');
     await user.type(within(sheet).getByLabelText('Acordei às'), '07:00');
     await user.click(within(sheet).getByRole('button', { name: 'Salvar' }));
-    await waitFor(() => expect(toastText()).toHaveTextContent('Noite salva · +2 XP'));
+    await waitFor(() => expect(toastText()).toHaveTextContent('Noite salva.'));
+    expect(await db.xpEvents.get('xp-sleep-2026-11-12')).toBeUndefined();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     useSleepSheet.getState().open('2026-11-12');

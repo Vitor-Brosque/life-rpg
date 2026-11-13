@@ -1,15 +1,14 @@
-import type { BaseRecord, DayKey, HHmm, Settings, SleepLog, SleepSettings, SyncTable, XpEvent } from '@life/shared';
+import type { BaseRecord, DayKey, HHmm, Settings, SleepLog, SleepSettings, SyncTable } from '@life/shared';
 import {
-  SLEEP_ISSUE_TEXT, SLEEP_XP, sleepIssue, sleepLogId, sleepMinutes, sleepSettingsOf, sleepTimes, sleepXpId,
+  SLEEP_ISSUE_TEXT, sleepIssue, sleepLogId, sleepMinutes, sleepSettingsOf, sleepTimes, sleepXpId,
 } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, putAll } from '../db/repo';
-import { getToday, withLock } from './common';
+import { withLock } from './common';
 
-// Sono (Marco 4, spec §4). The night's XP follows the night: +2 once it is complete (bed and wake,
-// plausible duration), removed when an undo or an edit leaves it incomplete or deletes it.
-
-const SLEEP_AREA = 'area-equilibrio';
+// Sono (Marco 4, spec §4). Logging a night gives no XP: XP is for effort, never for registering
+// data (research B14/D11). Old awards (`xp-sleep-<night>`) are still removed when the night is
+// undone, edited to incomplete or deleted, so Desfazer/Apagar stay coherent.
 
 export class SleepValidationError extends Error {}
 
@@ -37,17 +36,10 @@ async function writeNight(night: DayKey, times: Times): Promise<{ log: SleepLog;
   const had = !!current && !current.deleted;
   const complete = sleepMinutes(next) !== undefined;
   const entries: Array<{ table: SyncTable; record: BaseRecord }> = [{ table: 'sleepLogs', record: next }];
-  let xp = 0;
-  if (complete && !had) {
-    xp = SLEEP_XP;
-    entries.push({ table: 'xpEvents', record: newRecord<XpEvent>({
-      id: xpId, at: Date.now(), amount: SLEEP_XP, reason: 'sleep', dayKey: await getToday(), areaId: SLEEP_AREA,
-    }) });
-  } else if (!complete && had) {
-    entries.push({ table: 'xpEvents', record: { ...current!, deleted: true } });
-  }
+  // Never awards XP any more; only an old award (from before) is removed when the night stops being complete.
+  if (!complete && had) entries.push({ table: 'xpEvents', record: { ...current!, deleted: true } });
   await putAll(entries);
-  return { log: (await db.sleepLogs.get(next.id))!, xp };
+  return { log: (await db.sleepLogs.get(next.id))!, xp: 0 };
 }
 
 /** "Deitei": now is the night's bedtime. */

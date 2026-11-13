@@ -59,7 +59,7 @@ export function FocusSection({ settings }: { settings?: Settings }) {
         <NumberSelect label="Minutos de pausa" value={pomodoro?.breakMin} options={withCurrent(BREAK_MINUTES, pomodoro?.breakMin)}
           format={(n) => `${n} min`} onChange={(breakMin) => savePomodoro({ breakMin })} />
       </div>
-      <p className="settings-hint">Usados no modo Pomodoro do cronômetro. A pausa só começa quando você tocar.</p>
+      <p className="settings-hint">Usados no modo Pomodoro, para quem prefere um ritmo fixo. Pausas no seu ritmo funcionam tão bem quanto. A pausa só começa quando você tocar.</p>
       <label className="settings-check">
         <input type="checkbox" className="px-checkbox" checked={settings?.checkinCard !== false} disabled={!settings}
           onChange={(e) => saveSettings({ checkinCard: e.target.checked })} />

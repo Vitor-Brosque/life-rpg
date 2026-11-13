@@ -364,9 +364,15 @@ describe('TimerSheet', () => {
     render(<><AgoraScreen /><TimerHost /></>);
     await user.click(await screen.findByRole('button', { name: 'Cronômetro' }));
     const dialog = await screen.findByRole('dialog', { name: 'Cronômetro' });
-    expect(within(dialog).getByRole('button', { name: 'Pomodoro' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dialog).getByRole('button', { name: 'Livre' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dialog).getByText('Conta o tempo até você concluir. Pause quando sentir que caiu, ou ao fim de uma etapa.')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Pomodoro' }));
     expect(within(dialog).getByText(/25 min de foco e 5 de pausa/)).toBeInTheDocument();
     expect(timer().status).toBe('idle');
+  });
+
+  it('the timer starts in free mode', () => {
+    expect(TIMER_IDLE.mode).toBe('free');
   });
 
   it('registers the mission sheet "Cronômetro" starter', () => {

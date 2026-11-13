@@ -105,6 +105,11 @@ describe('SettingsScreen', () => {
     });
   });
 
+  it('the Foco hint presents Pomodoro as one option, not the best one', async () => {
+    renderSettings();
+    expect(await screen.findByText(/para quem prefere um ritmo fixo\. Pausas no seu ritmo funcionam tão bem quanto/)).toBeInTheDocument();
+  });
+
   it('two quick Pomodoro changes both stick, even from a stale render', async () => {
     const user = userEvent.setup();
     // The live query may not have re-rendered between two changes: the section must not save stale values.

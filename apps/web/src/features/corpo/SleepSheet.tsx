@@ -71,8 +71,8 @@ function SleepForm({ fixedNight, onClose }: { fixedNight?: DayKey; onClose(): vo
     e.preventDefault();
     setBusy(true);
     try {
-      const { xp } = await saveSleepTimes(night, bed || null, wake || null);
-      toast(xp > 0 ? `Noite salva · +${xp} XP` : 'Noite salva.');
+      await saveSleepTimes(night, bed || null, wake || null);
+      toast('Noite salva.');
       onClose();
     } catch (err) {
       if (err instanceof SleepValidationError) setError(err.message);

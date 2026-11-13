@@ -22,7 +22,7 @@ async function tapBed(night: DayKey): Promise<void> {
 }
 
 async function tapWake(night: DayKey): Promise<void> {
-  const { log, xp, created } = await logWake(night);
+  const { log, created } = await logWake(night);
   if (!created) { toast(`Já registrado: acordou às ${formatClock(log.wakeAt!)}.`); return; }
   if (log.bedAt === undefined) {
     toast('Bom dia. Que horas deitou?', { label: 'Informar', run: () => useSleepSheet.getState().open(night) });
@@ -31,7 +31,7 @@ async function tapWake(night: DayKey): Promise<void> {
   const undo: ToastAction = { label: 'Desfazer', run: () => safeRun(clearSleepTime(night, 'wakeAt')) };
   const minutes = sleepMinutes(log);
   if (minutes === undefined) toast(`Bom dia. Acordou às ${formatClock(log.wakeAt!)}.`, undo);
-  else toast(`Bom dia. Dormiu ${formatDuration(minutes)}${xp > 0 ? ` · +${xp} XP` : '.'}`, undo);
+  else toast(`Bom dia. Dormiu ${formatDuration(minutes)}.`, undo);
 }
 
 /** "Deitei" / "Acordei" in the Agora (spec §6.1); nothing outside its windows or when turned off. */
