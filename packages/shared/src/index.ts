@@ -24,3 +24,5 @@ export * from './workouts';
 export * from './periods';
 export * from './trends';
 export * from './postpone';
+export * from './watch';
+export * from './associations';
