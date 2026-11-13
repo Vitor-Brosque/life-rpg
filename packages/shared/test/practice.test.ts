@@ -231,6 +231,9 @@ describe('errors and XP', () => {
     expect(earnsPracticeXp(S({ problem: 'p', code: '  ' }))).toBe(false);
     expect(earnsPracticeXp(S({ problem: ' ', code: 'x' }))).toBe(false);
     expect(earnsPracticeXp(S({ problem: 'p', code: 'x' }))).toBe(true);
+    expect(earnsPracticeXp(S({ problem: 'p', code: 'x', retestOf: 'o', rebuild: { code: ' ', startedAt: 1 } }))).toBe(false);
+    expect(earnsPracticeXp(S({ problem: 'p', code: 'x', retestOf: 'o' }))).toBe(false);
+    expect(earnsPracticeXp(S({ problem: 'p', code: 'x', retestOf: 'o', rebuild: { code: 'y', startedAt: 1 } }))).toBe(true);
     expect(earnsRebuildXp(S({ code: 'x', rebuild: { code: ' ', startedAt: 1 } }))).toBe(false);
     expect(earnsRebuildXp(S({ code: '', rebuild: { code: 'y', startedAt: 1 } }))).toBe(false);
     expect(earnsRebuildXp(S({ code: 'x' }))).toBe(false);

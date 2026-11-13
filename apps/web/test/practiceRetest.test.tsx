@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PracticeSession } from '@life/shared';
-import { PRACTICE_LIMITS, hintRequestOf, hintStepState } from '@life/shared';
+import { PRACTICE_LIMITS, PRACTICE_REBUILD_XP, PRACTICE_XP, addDays, hintRequestOf, hintStepState, practiceXpId, rebuildXpId } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import {
@@ -70,8 +70,12 @@ describe('createRetest', () => {
   it('1 week and 2 weeks; the title is cut to the limit', async () => {
     const o = await original();
     await db.practiceSessions.update(o.id, { title: 'T'.repeat(PRACTICE_LIMITS.title) });
-    expect((await createRetest(o.id, 14)).availableFrom).toBe('2026-11-27');
-    expect((await createRetest(o.id, 7)).title).toHaveLength(PRACTICE_LIMITS.title);
+    const two = await createRetest(o.id, 14);
+    expect(two.availableFrom).toBe(addDays('2026-11-13', 14));
+    await deletePractice(two.id);
+    const one = await createRetest(o.id, 7);
+    expect(one.availableFrom).toBe(addDays('2026-11-13', 7));
+    expect(one.title).toHaveLength(PRACTICE_LIMITS.title);
   });
 
   it('uses the logical day (before the day starts, it is still yesterday)', async () => {
@@ -188,9 +192,21 @@ describe('retest leak guards', () => {
     expect(hintStepState(await get(r.id), 'code').kind).toBe('ready');
     const again = await compareRebuild(r.id);
     expect(again.xp).toBe(0);
-    expect(first.xp).toBeGreaterThanOrEqual(0);
-    const xp = (await db.xpEvents.toArray()).filter((x) => !x.deleted && x.id.includes(r.id));
-    expect(xp.length).toBe(first.xp > 0 ? 1 : 0);
+    expect(first.xp).toBe(PRACTICE_REBUILD_XP);
+    const live = (await db.xpEvents.toArray()).filter((x) => !x.deleted).map((x) => x.id);
+    expect(live.filter((id) => id.includes(r.id))).toEqual([rebuildXpId(r.id)]);
+    expect(live).not.toContain(rebuildXpId(o.id));
+  });
+
+  it('closing a fresh retest gives no XP; after writing the rebuild it does', async () => {
+    const o = await original();
+    const r = await createRetest(o.id, 3);
+    for (const k of ['delivered', 'understood', 'autonomous'] as const) await setPracticeRating(r.id, k, 2);
+    const none = await concludePractice(r.id);
+    expect(none.xp).toBe(0);
+    expect((await db.xpEvents.toArray()).some((x) => !x.deleted && x.id === practiceXpId(r.id))).toBe(false);
+    await db.practiceSessions.update(r.id, { rebuild: { code: 'def dedup(xs): return list(set(xs))', startedAt: 1 } });
+    expect((await concludePractice(r.id)).xp).toBe(PRACTICE_XP);
   });
 
   it('a retest of a retest does not stack the suffix', async () => {

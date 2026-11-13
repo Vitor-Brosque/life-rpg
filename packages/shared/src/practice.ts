@@ -312,7 +312,9 @@ export function errorCardDraft(e: Pick<PracticeError, 'what' | 'why' | 'fix'>): 
   return { front: `Erro: ${e.what.trim()}\n\nQual é a ideia correta?`, back: e.fix.trim(), ...(why ? { extra: why } : {}) };
 }
 
-export const earnsPracticeXp = (s: Pick<PracticeSession, 'problem' | 'code'>): boolean => filled(s.problem) && filled(s.code);
+/** A retest copies the problem and the code, so it also needs its own rebuild code. */
+export const earnsPracticeXp = (s: Pick<PracticeSession, 'problem' | 'code' | 'retestOf' | 'rebuild'>): boolean =>
+  filled(s.problem) && filled(s.code) && (!s.retestOf || filled(s.rebuild?.code));
 export const earnsRebuildXp = (s: Pick<PracticeSession, 'code' | 'rebuild'>): boolean => filled(s.code) && filled(s.rebuild?.code);
 
 const PRACTICE_PREFIX = 'xp-practice-';
