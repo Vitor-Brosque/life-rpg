@@ -53,3 +53,12 @@
 .use-experiment:focus { outline: none; }
 .use-experiment__ask { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .use-experiment__ask p { flex-basis: 100%; margin: 0; }
+
+/* Adiamentos. */
+.postpone__missions, .postpone__buckets, .postpone__past { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.postpone__missions li { display: flex; }
+.postpone__past p { margin: 0; }
+.postpone__dim { margin: var(--space-3) 0 var(--space-1); }
+.hypothesis { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); margin-bottom: var(--space-3); }
+.hypothesis .evidence-line { margin: 0; }
+.hypothesis__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

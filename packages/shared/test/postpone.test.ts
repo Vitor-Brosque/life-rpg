@@ -133,9 +133,9 @@ describe('postponeHypotheses', () => {
     expect(mon.text).toBe('Pode ser que a segunda-feira concentre mais adiamentos.');
     expect(mon.experiment).toBe('Na próxima segunda-feira, planeje uma missão a menos e use a versão mínima do primeiro bloco.');
     const low = only('mode', { key: 'low', label: 'Baixa energia', postponed: 6, started: 2, shrunk: 0, dropped: 0 });
-    expect(low.basis).toBe('Em dias de Baixa energia: adiou 6 e começou 2 (75% de adiamentos). Nos outros dias: adiou 3 e começou 9 (25%).');
-    expect(low.text).toBe('Pode ser que, em dias de Baixa energia, o plano ainda fique grande demais.');
-    expect(low.experiment).toBe('Nos dias de Baixa energia desta semana, deixe só uma missão planejada por bloco.');
+    expect(low.basis).toBe('Em dias de baixa energia: adiou 6 e começou 2 (75% de adiamentos). Nos outros dias: adiou 3 e começou 9 (25%).');
+    expect(low.text).toBe('Pode ser que, em dias de baixa energia, o plano ainda fique grande demais.');
+    expect(low.experiment).toBe('Nos dias de baixa energia desta semana, deixe só uma missão planejada por bloco.');
   });
   it('nothing about missions or groups below 8 postponements', () => {
     const fewer = emptyData({ missions, areas, events: events.filter((e, i) => !(e.missionId === 'mH1' && i < 2)) });

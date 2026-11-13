@@ -227,11 +227,14 @@ function dimTexts(x: StrongBucket): Omit<Hypothesis, 'id'> {
         experiment: `Na próxima ${WEEKDAY_NAMES[wd]}, planeje uma missão a menos e use a versão mínima do primeiro bloco.`,
       };
     }
-    case 'mode': return {
-      basis: `Em dias de ${b.label}: ${head}. Nos outros dias: ${rest}.`,
-      text: `Pode ser que, em dias de ${b.label}, o plano ainda fique grande demais.`,
-      experiment: `Nos dias de ${b.label} desta semana, deixe só uma missão planejada por bloco.`,
-    };
+    case 'mode': {
+      const mode = b.label.toLocaleLowerCase('pt-BR');   // mid-sentence: "dias de baixa energia"
+      return {
+        basis: `Em dias de ${mode}: ${head}. Nos outros dias: ${rest}.`,
+        text: `Pode ser que, em dias de ${mode}, o plano ainda fique grande demais.`,
+        experiment: `Nos dias de ${mode} desta semana, deixe só uma missão planejada por bloco.`,
+      };
+    }
   }
 }
 

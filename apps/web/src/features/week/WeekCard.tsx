@@ -6,6 +6,8 @@ import { focusWhenGone } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { useCompanion } from '../companion/store';
+import { useWatchNotices } from '../patterns/patternData';
+import { WatchNotice } from '../patterns/WatchNotice';
 import { firstShowOfWeek, readReviewDraft, writeReviewDraft, type ReviewDraft } from './weekCycle';
 import { observedRows, useWeekCardData } from './weekData';
 import { WeekObjectives, type NewObjective } from './WeekObjectives';
@@ -22,12 +24,22 @@ const stepHeading = () => document.querySelector<HTMLElement>('[data-week-step]'
 /** When the tapped button goes away, focus moves to the new step's heading. */
 const toStep = (e: MouseEvent<HTMLElement>) => focusWhenGone(e.currentTarget, stepHeading);
 
+/** Weeks 5–8 notices, compact, under last week's numbers (spec §5.5). Mounted only while step 1 is on screen. */
+function WatchLines({ onUse }: { onUse(text: string): void }) {
+  const notices = useWatchNotices();
+  if (!notices?.length) return null;
+  return <>{notices.map((n) => <WatchNotice key={n.key} notice={n} variant="compact" onUse={onUse} />)}</>;
+}
+
 /** Step 1: last week as observed numbers, then the user's own reading (hypotheses). */
-function ReviewStep({ weekId, stats, onSave, onLater }: {
-  weekId: DayKey; stats: WeekStats; onSave(a: ReviewDraft): Promise<void>; onLater(e: MouseEvent<HTMLButtonElement>): void;
+function ReviewStep({ weekId, stats, experiment, onSave, onLater }: {
+  weekId: DayKey; stats: WeekStats; experiment?: string; onSave(a: ReviewDraft): Promise<void>; onLater(e: MouseEvent<HTMLButtonElement>): void;
 }) {
   // A draft per week, so "Fazer depois" or leaving the screen loses nothing.
-  const [answers, setAnswers] = useState<ReviewDraft>(() => readReviewDraft(weekId));
+  const [answers, setAnswers] = useState<ReviewDraft>(() => {
+    const draft = readReviewDraft(weekId);
+    return draft.adjustment || !experiment ? draft : { ...draft, adjustment: experiment };
+  });
   const [saving, setSaving] = useState(false);
   const observedId = useId();
   const readingId = useId();
@@ -57,6 +69,7 @@ function ReviewStep({ weekId, stats, onSave, onLater }: {
             </div>
           ))}
         </dl>
+        <WatchLines onUse={(t) => change('adjustment', t)} />
       </section>
 
       <section className="week-card__section" aria-labelledby={readingId}>
@@ -149,7 +162,7 @@ export function WeekCard({ today, weekId, collapsed = false, onStart, onLater, o
         )}
       </div>
       {collapsed ? null : current === 'review' && data.stats ? (
-        <ReviewStep weekId={weekId} stats={data.stats} onSave={saveReview} onLater={later} />
+        <ReviewStep weekId={weekId} stats={data.stats} experiment={data.experiment} onSave={saveReview} onLater={later} />
       ) : (
         <WeekObjectives groups={data.groups} carry={data.carry} onDone={saveObjectives} onLater={later} />
       )}

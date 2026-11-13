@@ -2,6 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BlockSession, Checkin, DayState, Week, XpEvent } from '@life/shared';
+import { addDays, timestampAt, weekdayOf } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, saveWeekReview, setDayMode, setObjectives } from '../src/domain/actions';
@@ -369,5 +370,41 @@ describe('week objectives stay reachable', () => {
     await waitFor(async () => expect((await db.weeks.get(WEEK))?.objectives).toEqual([
       expect.objectContaining({ blockId: 'b1', text: 'Publicar a edição 3', done: false }),
     ]));
+  });
+});
+
+describe('Nova semana and Padrões', () => {
+  it('the adjustment field starts with the experiment chosen in Padrões', async () => {
+    const user = userEvent.setup();
+    await seedLastWeek();
+    await db.weeks.put({ ...base, id: WEEK, objectives: [], experiment: 'Versão mínima do Tech' } satisfies Week);
+    await setDayMode('normal');
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    expect(within(await weekCard()).getByLabelText('Que ajuste você quer testar?')).toHaveValue('Versão mínima do Tech');
+  });
+
+  it('a weeks 5–8 drop shows under last week, and "Usar no ajuste" fills the field', async () => {
+    const user = userEvent.setup();
+    // Tech (b1) started every workday from 05/10 to 30/10, then only on Mondays and Tuesdays.
+    const sessions: BlockSession[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = addDays('2026-10-05', i);
+      const wd = weekdayOf(d);
+      if (wd === 0 || wd === 6 || (i >= 28 && wd > 2)) continue;
+      sessions.push({ ...base, id: `bs-b1-${d}`, blockId: 'b1', day: d, version: 'normal', startedAt: timestampAt(d, '09:00'), endedAt: timestampAt(d, '10:00') });
+    }
+    await db.blockSessions.bulkPut(sessions);
+    await db.xpEvents.bulkPut([xp('x1', '2026-11-09'), xp('x2', '2026-11-10')]);
+    await setDayMode('normal');
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    const note = await within(await weekCard()).findByRole('group', { name: 'Semanas 5–8: Tech' });
+    expect(note).toHaveTextContent('Semanas 5–8 · Tech: Nas 4 primeiras semanas, você começou 20 de 20 (100%). Nas últimas 2 semanas, 4 de 10 (40%).');
+    expect(within(note).getByRole('link', { name: 'Ver em Padrões' })).toHaveAttribute('href', '/padroes');
+    await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
+    expect(within(await weekCard()).getByLabelText('Que ajuste você quer testar?'))
+      .toHaveValue('Nesta semana, a meta de Tech é só a versão mínima (45 min).');
+    expect((await db.weeks.get(WEEK))?.experiment).toBeUndefined();
   });
 });

@@ -78,6 +78,8 @@ export interface WeekCardData {
   carry: Array<{ objective: WeekObjective; group: string }>;
   /** This week's review, when step 1 was already answered. */
   review?: WeekReview;
+  /** This week's experiment (chosen in Padrões or earlier), if any. */
+  experiment?: string;
 }
 
 const live = <T extends { deleted: boolean }>(r: T | undefined): T | undefined => (r && !r.deleted ? r : undefined);
@@ -111,6 +113,7 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
       groups,
       carry: carryOver(live(last), blocks, groups),
       review: live(current)?.review,
+      experiment: live(current)?.experiment,
     } satisfies WeekCardData;
   }, [today, weekId]);
 }
