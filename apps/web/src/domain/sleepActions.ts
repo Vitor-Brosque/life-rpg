@@ -58,7 +58,7 @@ const tapTime = (night: DayKey, field: 'bedAt' | 'wakeAt'): Promise<TapResult> =
   return { ...(await writeNight(night, { [field]: Date.now() })), created: true };
 });
 
-/** "Desfazer" after a tap: removes that time again (and the XP, if the night stops being complete). */
+/** "Desfazer" after a tap: removes that time again (an old award is removed if the night stops being complete, never restored). */
 export const clearSleepTime = (night: DayKey, field: 'bedAt' | 'wakeAt'): Promise<{ log: SleepLog; xp: number }> =>
   withLock('sleep', () => writeNight(night, { [field]: undefined }));
 
@@ -84,7 +84,7 @@ export const deleteSleepLog = (night: DayKey): Promise<SleepLog | undefined> => 
   return log;
 });
 
-/** Desfazer of "Apagar noite": the same times come back (and the XP, when complete). */
+/** Desfazer of "Apagar noite": the same times come back (no XP: old awards are removed, never restored). */
 export const restoreSleepLog = (log: SleepLog): Promise<{ log: SleepLog; xp: number }> =>
   withLock('sleep', () => writeNight(log.night, { bedAt: log.bedAt, wakeAt: log.wakeAt }));
 

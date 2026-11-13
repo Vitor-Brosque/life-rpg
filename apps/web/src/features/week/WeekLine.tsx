@@ -23,7 +23,7 @@ export function WeekLine({ experiment, atypical, onOpen }: WeekLineProps) {
   if (!text && !atypical && !onOpen) return null;
   return (
     <div className="week-line">
-      {atypical && <p className="week-line__experiment">{atypicalLineText(atypical)}</p>}
+      {atypical && <p className="week-line__experiment week-line__experiment--atypical">{atypicalLineText(atypical)}</p>}
       {text && <p className="week-line__experiment">{`Experimento da semana: ${text}`}</p>}
       {onOpen && (
         <button type="button" className="week-line__link" onClick={onOpen}>

@@ -34,7 +34,7 @@ function MissionView({ suggestion, area, canSkip, actions }: {
   const cueBlock = useBlocks().find((b) => b.id === m.cueBlockId);
   const today = useToday();
   // The if-then plan line shows in the cue block or on the day the plan is for.
-  const planActive = suggestion.reasons.some((r) => r.code === 'cue') || (m.date !== undefined && today !== undefined && m.date <= today);
+  const planActive = suggestion.reasons.some((r) => r.code === 'cue') || (m.date !== undefined && today !== undefined && m.date === today);
   const doneSteps = m.checklist.filter((c) => c.done).length;
 
   return (

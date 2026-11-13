@@ -85,6 +85,48 @@ describe('setWeekAtypical', () => {
   });
 });
 
+describe('setWeekAtypical, return day beyond the next Monday', () => {
+  it('marks every following week that starts before it, and unmarking clears them together', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Viagem', returnDay: '2026-11-30' });
+    const m = { reason: 'Viagem', returnDay: '2026-11-30' };
+    expect((await db.weeks.get(WEEK))?.atypical).toEqual(m);
+    expect((await db.weeks.get('2026-11-23'))?.atypical).toEqual(m);
+    expect(await db.weeks.get('2026-11-30')).toBeUndefined();
+    await setWeekAtypical(WEEK, undefined);
+    expect((await db.weeks.get(WEEK))?.deleted).toBe(true);
+    expect((await db.weeks.get('2026-11-23'))?.deleted).toBe(true);
+  });
+
+  it('unmarking stops at a week with a different mark, and the span is at most 6 weeks', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Viagem', returnDay: '2026-12-01' });
+    await setWeekAtypical('2026-11-23', { reason: 'Provas' });
+    await setWeekAtypical(WEEK, undefined);
+    expect((await db.weeks.get('2026-11-23'))?.atypical?.reason).toBe('Provas');
+    await setWeekAtypical('2027-01-04', { reason: 'Saúde', returnDay: '2027-06-01' });
+    const marked = (await db.weeks.toArray()).filter((w) => w.atypical?.reason === 'Saúde');
+    expect(marked).toHaveLength(6);
+    expect(marked[0]?.atypical?.returnDay).toBe('2027-02-15');
+  });
+
+  it('the Agora shows the line in the second week', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Provas', returnDay: '2026-11-30' });
+    vi.setSystemTime(at(25, 9, 30)); // Wednesday of the second week
+    await setDayMode('normal');
+    useAgoraSession.setState({ greetedDay: '2026-11-25' });
+    render(<><AgoraScreen /><ToastHost /></>);
+    expect(await screen.findByText('Semana atípica (Provas) até 30/11. Versões mínimas contam tanto quanto.')).toBeInTheDocument();
+  });
+
+  it('the sheet limits the return day to 6 weeks', async () => {
+    const user = userEvent.setup();
+    vi.setSystemTime(at(11, 10, 20));
+    render(<WeekView />);
+    await user.click(await screen.findByRole('button', { name: /Semana atípica/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Semana atípica' });
+    expect(within(sheet).getByLabelText('O ritmo volta em')).toHaveAttribute('max', '2026-12-21');
+  });
+});
+
 describe('Agora', () => {
   const renderAgora = () => render(<><AgoraScreen /><ToastHost /></>);
 
@@ -135,6 +177,15 @@ describe('Agora', () => {
     const card = await screen.findByRole('region', { name: 'Nova semana' }, { timeout: 3000 });
     expect(within(card).getByRole('button', { name: 'Começar' })).toBeInTheDocument();
     expect(await within(card).findByText('A semana passada foi atípica (Provas). Bem-vindo de volta: começar pelas versões mínimas vale.')).toBeInTheDocument();
+  });
+
+  it('Nova semana: no welcome-back sentence while the return day is still ahead', async () => {
+    await db.weeks.put(atypical(LAST, 'Provas', { atypical: { reason: 'Provas', returnDay: '2026-11-23' } }));
+    await setDayMode('normal');
+    renderAgora();
+    const card = await screen.findByRole('region', { name: 'Nova semana' }, { timeout: 3000 });
+    await within(card).findByRole('button', { name: 'Começar' });
+    expect(within(card).queryByText(/Bem-vindo de volta/)).not.toBeInTheDocument();
   });
 
   it('Nova semana: last week atypical gets a welcome-back sentence', async () => {

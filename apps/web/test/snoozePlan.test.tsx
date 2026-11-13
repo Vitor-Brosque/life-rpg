@@ -127,6 +127,53 @@ describe('SnoozeDialog plan', () => {
   });
 });
 
+describe('SnoozeDialog plan, without a block', () => {
+  it('"Sem bloco" with a typed first step and Amanhã saves the plan: one plan snooze, one postponement', async () => {
+    const user = userEvent.setup();
+    const m = await createMission({ title: 'Escrever', postponeCount: 1 });
+    const onClose = vi.fn();
+    render(<><SnoozeDialog mission={m} today={TODAY} onClose={onClose} /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));
+    expect(screen.getByLabelText('Quando?')).toHaveValue('');
+    await user.type(screen.getByLabelText('Então, o primeiro passo:'), 'abrir o arquivo');
+    await user.click(screen.getByRole('button', { name: 'Amanhã' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const after = await db.missions.get(m.id);
+    expect(after).toMatchObject({ firstStep: 'abrir o arquivo', date: '2026-11-12', postponeCount: 2 });
+    expect(after?.cueBlockId).toBeUndefined();
+    const snoozed = (await db.events.where('missionId').equals(m.id).toArray()).filter((e) => e.type === 'snoozed');
+    expect(snoozed).toHaveLength(1);
+    expect(snoozed[0]?.data).toMatchObject({ plan: true });
+  });
+
+  it('"Mais tarde hoje" with a typed first step keeps the step', async () => {
+    const user = userEvent.setup();
+    const m = await createMission({ title: 'Ler', postponeCount: 1 });
+    const onClose = vi.fn();
+    render(<><SnoozeDialog mission={m} today={TODAY} onClose={onClose} /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));
+    await user.type(screen.getByLabelText('Então, o primeiro passo:'), 'abrir o livro');
+    await user.click(screen.getByRole('button', { name: 'Mais tarde hoje' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const after = await db.missions.get(m.id);
+    expect(after).toMatchObject({ firstStep: 'abrir o livro', postponeCount: 2 });
+    expect(after?.snoozedUntil).toBeDefined();
+  });
+});
+
+describe('SnoozeDialog plan, today in a lighter mode', () => {
+  it("a block that today's stored mode leaves out is kept for the next qualifying day", async () => {
+    const user = userEvent.setup();
+    await setDayMode('recovery'); // only protected blocks happen; Treino (12:30, not started) does not
+    const m = await createMission({ title: 'Treinar', postponeCount: 1 });
+    render(<><SnoozeDialog mission={m} today={TODAY} onClose={vi.fn()} /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));
+    await user.selectOptions(screen.getByLabelText('Quando?'), 'b2');
+    await user.click(await screen.findByRole('button', { name: 'Guardar para o próximo Treino' }));
+    await waitFor(async () => expect((await db.missions.get(m.id))?.date).toBe('2026-11-12'));
+  });
+});
+
 describe('SnoozeDialog plan, block that does not happen', () => {
   it('a Saturday-only block disables the button and explains why', async () => {
     const user = userEvent.setup();
@@ -154,6 +201,16 @@ describe('plan in the Agora', () => {
     expect(within(card).getByText('Estudar SQL')).toBeInTheDocument();
     // the first step is already the headline: not repeated in the plan line
     expect(within(card).getAllByText('abrir o editor')).toHaveLength(1);
+  });
+
+  it('a plan dated before today no longer shows the "Plano:" line, outside the cue block (Facul only starts at 15:00)', async () => {
+    const m = await createMission({ title: 'Plano velho', postponeCount: 1 });
+    await planMission(m.id, { cueBlockId: 'b3', firstStep: 'abrir o editor', date: '2026-11-10' });
+    render(<><AgoraScreen /><ToastHost /></>);
+    const card = await screen.findByRole('region', { name: 'Missão agora' });
+    await within(card).findByText('abrir o editor');
+    await new Promise((r) => setTimeout(r, 150)); // let the blocks load: the line needs the cue block
+    expect(within(card).queryByText(/^Plano:/)).not.toBeInTheDocument();
   });
 
   it('no first step: no plan line even when the mission has a cue', async () => {

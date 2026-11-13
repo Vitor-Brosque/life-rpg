@@ -103,6 +103,7 @@
   box-shadow: inset 3px 0 0 var(--sky);
   overflow-wrap: anywhere;
 }
+.week-line__experiment--atypical { flex-basis: 100%; }
 .week-line__link {
   display: inline-flex;
   align-items: center;

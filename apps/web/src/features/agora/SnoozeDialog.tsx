@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import type { Block, DayKey, Mission } from '@life/shared';
-import { addDays, cueBlockDay } from '@life/shared';
-import { useBlocks, useSettings } from '../../db/hooks';
+import { addDays, cueBlockDay, defaultDayMode } from '@life/shared';
+import { useBlocks, useDayMode, useSettings } from '../../db/hooks';
+import { updateMission } from '../../domain/actions';
 import { FIRST_STEP_MAX } from '../../domain/missionActions';
 import { Button } from '../../ui/Button';
 import { formatDay, WEEKDAY_ABBR } from '../../ui/format';
@@ -35,6 +36,7 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
   const [cueId, setCueId] = useState('');
   const [step, setStep] = useState('');
   const dayStartHour = useSettings()?.dayStartHour ?? 4;
+  const todayMode = useDayMode(today);
   const blocks = useBlocks().filter((b) => b.kind !== 'routine');
   const planId = useId();
   useEffect(() => {
@@ -44,12 +46,26 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
 
   const canPlan = (mission?.postponeCount ?? 0) >= 1;
   const cue = blocks.find((b) => b.id === cueId);
-  const cueDay = cue ? cueBlockDay(cue, Date.now(), dayStartHour) : undefined;
+  const cueDay = cue ? cueBlockDay(cue, Date.now(), dayStartHour, (d) => (d === today ? todayMode : defaultDayMode(d))) : undefined;
 
   const choose = async (option: 'later' | 'tomorrow' | { date: DayKey }) => {
     if (!mission) return;
+    // A typed first step or a chosen block is a plan, whichever way the mission is postponed.
+    const planned = planning && (!!cue || step.trim() !== (mission.firstStep ?? '').trim());
     try {
-      await snoozeWithFeedback(mission.id, option, today);
+      if (planned && option !== 'later') {
+        await planWithFeedback(mission.id, {
+          ...(cue ? { cueBlockId: cue.id } : {}),
+          firstStep: step,
+          date: option === 'tomorrow' ? addDays(today, 1) : option.date,
+        }, today);
+      } else {
+        await snoozeWithFeedback(mission.id, option, today);
+        if (planned) {
+          const first = step.trim().slice(0, FIRST_STEP_MAX).trim();
+          await updateMission(mission.id, { firstStep: first || undefined, cueBlockId: cue?.id });
+        }
+      }
       onClose();
     } catch (e) {
       console.error('snooze failed', e);

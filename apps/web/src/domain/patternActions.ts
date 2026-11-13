@@ -1,5 +1,5 @@
 import type { MonthAnswers, MonthObserved, MonthReview, Settings, Week, WeekAtypical } from '@life/shared';
-import { isValidDayKey, monthReviewId, patternSettingsOf, weekKey } from '@life/shared';
+import { addDays, isValidDayKey, monthReviewId, patternSettingsOf, weekKey } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put, upsert } from '../db/repo';
 import { getToday, withLock } from './common';
@@ -14,17 +14,12 @@ export async function setWeekExperiment(text: string): Promise<void> {
 
 export const ATYPICAL_REASON_MAX = 60;
 
-/**
- * Marks week `weekId` (its Monday) as atypical (exams, travel...: kept out of the Padrões
- * comparisons), or with `undefined` removes the mark. Creates the week record when it is missing.
- */
-export async function setWeekAtypical(weekId: string, value: WeekAtypical | undefined): Promise<void> {
-  const atypical = value && {
-    reason: value.reason.trim().slice(0, ATYPICAL_REASON_MAX).trim() || 'Outro',
-    // A return day before the week's own Monday makes no sense: it counts as absent.
-    ...(value.returnDay && isValidDayKey(value.returnDay) && value.returnDay >= weekId ? { returnDay: value.returnDay } : {}),
-  };
-  await withLock(`week:${weekId}`, async () => {
+/** At most this many weeks (the marked one included) are covered by one mark. */
+export const ATYPICAL_MAX_WEEKS = 6;
+
+/** Writes (or removes) the mark of one week; a record that held nothing but the mark goes away. */
+const applyMark = (weekId: string, atypical: WeekAtypical | undefined): Promise<void> =>
+  withLock(`week:${weekId}`, async () => {
     if (!atypical) {
       const prev = await db.weeks.get(weekId);
       if (!prev || prev.deleted) return;
@@ -36,6 +31,41 @@ export async function setWeekAtypical(weekId: string, value: WeekAtypical | unde
     }
     await upsert<Week>('weeks', weekId, { atypical }, { objectives: [] });
   });
+
+const sameMark = (a: WeekAtypical | undefined, b: WeekAtypical | undefined): boolean =>
+  !!a && !!b && a.reason === b.reason && a.returnDay === b.returnDay;
+
+/**
+ * Marks week `weekId` (its Monday) as atypical (exams, travel...: kept out of the Padrões
+ * comparisons), or with `undefined` removes the mark. Creates the week record when it is missing.
+ * A `returnDay` beyond the next Monday marks every following week that starts before it (at most
+ * ATYPICAL_MAX_WEEKS in all); removing the mark also clears the following weeks that carry the same one.
+ */
+export async function setWeekAtypical(weekId: string, value: WeekAtypical | undefined): Promise<void> {
+  const limit = addDays(weekId, 7 * ATYPICAL_MAX_WEEKS);
+  const atypical = value && {
+    reason: value.reason.trim().slice(0, ATYPICAL_REASON_MAX).trim() || 'Outro',
+    // A return day before the week's own Monday makes no sense: it counts as absent.
+    ...(value.returnDay && isValidDayKey(value.returnDay) && value.returnDay >= weekId
+      ? { returnDay: value.returnDay > limit ? limit : value.returnDay } : {}),
+  };
+  if (atypical) {
+    await applyMark(weekId, atypical);
+    for (let k = 1; k < ATYPICAL_MAX_WEEKS; k++) {
+      const next = addDays(weekId, 7 * k);
+      if (!atypical.returnDay || next >= atypical.returnDay) break;
+      await applyMark(next, atypical);
+    }
+    return;
+  }
+  const prev = (await db.weeks.get(weekId))?.atypical;
+  await applyMark(weekId, undefined);
+  for (let k = 1; k < ATYPICAL_MAX_WEEKS && prev; k++) {
+    const next = addDays(weekId, 7 * k);
+    const w = await db.weeks.get(next);
+    if (!w || w.deleted || !sameMark(w.atypical, prev)) break;
+    await applyMark(next, undefined);
+  }
 }
 
 export const WATCH_DISMISSED_MAX = 50;

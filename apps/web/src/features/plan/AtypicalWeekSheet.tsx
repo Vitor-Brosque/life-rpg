@@ -32,6 +32,7 @@ function AtypicalForm({ weekId, current, onClose }: Omit<AtypicalWeekSheetProps,
   const [saving, setSaving] = useState(false);
   const [askedOther, setAskedOther] = useState(false);
   const otherRef = useRef<HTMLInputElement>(null);
+  const maxDay = addDays(weekId, 42);
   const otherId = useId();
   const dateId = useId();
 
@@ -57,7 +58,7 @@ function AtypicalForm({ weekId, current, onClose }: Omit<AtypicalWeekSheetProps,
     finish(() => setWeekAtypical(weekId, {
       reason: reason === OTHER ? other.trim() || OTHER : reason,
       // Not before the week's Monday (the date field's `min` is not enforced by typing).
-      ...(returnDay && returnDay >= weekId ? { returnDay } : {}),
+      ...(returnDay && returnDay >= weekId ? { returnDay: returnDay > maxDay ? maxDay : returnDay } : {}),
     }));
   };
 
@@ -79,7 +80,7 @@ function AtypicalForm({ weekId, current, onClose }: Omit<AtypicalWeekSheetProps,
       )}
       <label className="field" htmlFor={dateId}>
         <span className="field__label">O ritmo volta em</span>
-        <input id={dateId} type="date" value={returnDay} min={weekId} onChange={(e) => setReturnDay(e.target.value)} />
+        <input id={dateId} type="date" value={returnDay} min={weekId} max={maxDay} onChange={(e) => setReturnDay(e.target.value)} />
       </label>
       <div className="atypical__actions">
         <Button type="submit" variant="primary" disabled={!reason || saving}>Marcar semana</Button>
