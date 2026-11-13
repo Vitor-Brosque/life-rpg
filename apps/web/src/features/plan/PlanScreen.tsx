@@ -1,28 +1,40 @@
 import { useState, type KeyboardEvent } from 'react';
+import { useSearch } from 'wouter';
 import { tabKeyTarget } from '../../ui/tabKeys';
+import { CasaView } from '../casa/CasaView';
 import { RoutineScreen } from '../routine/RoutineScreen';
 import { BoardView } from './BoardView';
 import { WeekView } from './WeekView';
 import './plan.css';
 
-type Tab = 'week' | 'board' | 'routine';
+type Tab = 'week' | 'board' | 'routine' | 'casa';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'week', label: 'Semana' },
   { id: 'board', label: 'Quadro' },
   { id: 'routine', label: 'Rotina' },
+  { id: 'casa', label: 'Casa' },
 ];
 const KEY = 'life-rpg.plan.tab';
 
-function readTab(): Tab {
+/** `?aba=` values (links back from /casa/compras and /casa/receitas). */
+const ABA: Record<string, Tab> = { semana: 'week', quadro: 'board', rotina: 'routine', casa: 'casa' };
+
+function readTab(search: string): Tab {
+  const asked = ABA[new URLSearchParams(search).get('aba') ?? ''];
+  if (asked) {
+    try { localStorage.setItem(KEY, asked); } catch { /* storage may be unavailable */ }
+    return asked;
+  }
   try {
     const saved = localStorage.getItem(KEY);
     return TABS.find((t) => t.id === saved)?.id ?? 'week';
   } catch { return 'week'; }
 }
 
-/** Planejar: missions across days (week) or by state (board), and the block routine. */
+/** Planejar: missions across days (week) or by state (board), and the block routine and the house (menu, freezer). */
 export function PlanScreen() {
-  const [tab, setTab] = useState<Tab>(readTab);
+  const search = useSearch();
+  const [tab, setTab] = useState<Tab>(() => readTab(search));
   const choose = (t: Tab) => {
     setTab(t);
     try { localStorage.setItem(KEY, t); } catch { /* storage may be unavailable */ }
@@ -48,7 +60,7 @@ export function PlanScreen() {
         ))}
       </div>
       <div id="plan-panel" role="tabpanel" aria-labelledby={`plan-tab-${tab}`}>
-        {tab === 'week' ? <WeekView /> : tab === 'board' ? <BoardView /> : <RoutineScreen />}
+        {tab === 'week' ? <WeekView /> : tab === 'board' ? <BoardView /> : tab === 'routine' ? <RoutineScreen /> : <CasaView />}
       </div>
     </section>
   );

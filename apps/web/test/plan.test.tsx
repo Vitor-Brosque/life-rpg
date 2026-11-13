@@ -194,13 +194,15 @@ describe('PlanScreen', () => {
     await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: 'Rotina', selected: true })).toHaveFocus();
     await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'Casa', selected: true })).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
     await user.keyboard('{ArrowLeft}');
-    expect(screen.getByRole('tab', { name: 'Rotina', selected: true })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Casa', selected: true })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
     await user.keyboard('{End}');
-    expect(screen.getByRole('tab', { name: 'Rotina', selected: true })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Casa', selected: true })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
   });
