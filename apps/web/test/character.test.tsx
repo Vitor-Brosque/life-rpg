@@ -145,4 +145,10 @@ describe('relativeTime', () => {
     expect(relativeTime(NOW - 3 * 86_400_000, NOW)).toBe('há 3 dias');
     expect(relativeTime(NOW + 60_000, NOW)).toBe('agora');
   });
+
+  it('has the "Padrões" card with the way to /padroes', async () => {
+    renderCharacter();
+    const card = await screen.findByRole('region', { name: 'Padrões' });
+    expect(within(card).getByRole('link', { name: 'Ver padrões' })).toHaveAttribute('href', '/padroes');
+  });
 });

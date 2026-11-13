@@ -69,4 +69,9 @@ describe('ErrorBoundary', () => {
     expect(screen.getByRole('button', { name: 'Exportar dados' })).toBeInTheDocument();
     spy.mockRestore();
   });
+
+  it('Padrões (/padroes) belongs to Personagem', () => {
+    renderAt('/padroes', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Personagem' })).toHaveAttribute('aria-current', 'page');
+  });
 });

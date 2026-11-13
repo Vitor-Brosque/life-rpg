@@ -11,6 +11,7 @@ import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { WeekDots, workdaysText } from '../../ui/WeekDots';
 import { BodyCard } from '../corpo/BodyCard';
+import { PatternsCard } from '../patterns/PatternsCard';
 import { LookEditor } from './LookEditor';
 import './character.css';
 
@@ -106,6 +107,7 @@ export function CharacterScreen() {
       </Panel>
 
       <BodyCard />
+      <PatternsCard />
 
       <section aria-labelledby="recent-title">
         <h2 id="recent-title" className="section-title">Conquistas recentes</h2>
