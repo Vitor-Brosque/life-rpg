@@ -124,6 +124,15 @@ describe('studyPlan — today', () => {
     expect(empty).toMatchObject({ nothingLeft: true, goalMet: true, reviewsToday: 5 });
     expect(studyPlan(input({ reviews: [today(8000)] }))).toMatchObject({ nothingLeft: true, goalMet: false });
   });
+  it('topic reviews (with coverage) count up to 10 min each, others up to 3 min', () => {
+    const cov = { covered: 2, total: 3 };
+    const topic = (ms: number) => review({ day: TODAY, durationMs: ms, coverage: cov });
+    const five = studyPlan(input({ cards: many(10, dueToday), reviews: Array.from({ length: 5 }, () => topic(180000)) }));
+    expect(five).toMatchObject({ doneSecToday: 900, goalMet: true });
+    expect(studyPlan(input({ reviews: [topic(600000)] })).doneSecToday).toBe(600);
+    expect(studyPlan(input({ reviews: [review({ day: TODAY, durationMs: 600000 })] })).doneSecToday).toBe(180);
+    expect(studyObserved([topic(600000), review({ day: TODAY, durationMs: 600000 })], TODAY).minutesWeek).toBe(13);
+  });
 });
 
 describe('pickNext', () => {

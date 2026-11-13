@@ -15,6 +15,10 @@ import { matchJourney } from './routineDefaults';
 
 const STUDY_AREA = 'area-intelecto';
 const MAX_DURATION_MS = 300_000;
+const MAX_TOPIC_DURATION_MS = 600_000;
+
+/** The longest duration a review keeps: 10 min for topics, 5 min otherwise (a forgotten open screen). */
+export const maxDurationMs = (card: Pick<Card, 'topic'>): number => (card.topic ? MAX_TOPIC_DURATION_MS : MAX_DURATION_MS);
 const live = <T extends { deleted: boolean }>(xs: T[]): T[] => xs.filter((x) => !x.deleted);
 
 // ------------------------------------------------------------------ decks
@@ -146,7 +150,13 @@ export async function captureCardDraft(line: string): Promise<Note | undefined> 
 // ------------------------------------------------------------------ reviews
 
 export interface RateResult { reviewId: ID; xp: number; goalReached: boolean }
-export interface RateOpts { durationMs: number; wrote: boolean; coverage?: { covered: number; total: number } }
+export interface RateOpts {
+  durationMs: number;
+  wrote: boolean;
+  coverage?: { covered: number; total: number };
+  /** When the answer was revealed: FSRS schedules from it, so the saved interval is the one shown. */
+  now?: number;
+}
 
 export const rateCard = (cardId: ID, rating: Rating, opts: RateOpts): Promise<RateResult> =>
   withLock('study', () => rateLocked(cardId, rating, opts));
@@ -169,10 +179,12 @@ async function rateLocked(cardId: ID, rating: Rating, opts: RateOpts): Promise<R
   const now = Date.now();
   const today = dayKeyOf(now, dayStartHour);
   const before = scheduleOf(card);
-  const after = rate(before, rating, now, { dayStartHour, restDays: study.restDays, retention: study.retention, shortTerm: !card.topic });
+  const after = rate(before, rating, opts.now ?? now, {
+    dayStartHour, restDays: study.restDays, retention: study.retention, shortTerm: !card.topic,
+  });
   const review = newRecord<Review>({
     cardId, noteId: card.noteId, ...(card.deckId ? { deckId: card.deckId } : {}), at: now, day: today, rating,
-    durationMs: Math.max(0, Math.min(MAX_DURATION_MS, Math.round(opts.durationMs))), wrote: opts.wrote, before, after,
+    durationMs: Math.max(0, Math.min(maxDurationMs(card), Math.round(opts.durationMs))), wrote: opts.wrote, before, after,
     ...(opts.coverage ? { coverage: opts.coverage } : {}),
   });
   const next: Card = { ...card, ...after, ...(card.introducedDay || before.state !== 'new' ? {} : { introducedDay: today }) };

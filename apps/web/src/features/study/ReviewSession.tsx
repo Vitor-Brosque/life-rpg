@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
 import type { Card, CardFace, ID, Note, Rating, ScheduleCtx, StudyInput, StudyPlan } from '@life/shared';
 import {
@@ -6,7 +6,7 @@ import {
 } from '@life/shared';
 import { db } from '../../db/db';
 import { useDayMode, useSettings, useToday } from '../../db/hooks';
-import { readStudyData } from '../../db/studyData';
+import { isCardOfNote, readStudyData } from '../../db/studyData';
 import { rateCard, setCardSuspended, undoRating } from '../../domain/studyActions';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
@@ -42,7 +42,9 @@ export function ReviewSession() {
   const mode = useDayMode();
   const session = useSession();
   const [view, setView] = useState<View>({ kind: 'loading' });
-  const [revealed, setRevealed] = useState(false);
+  /** When the answer was revealed (ms): the intervals shown and the one saved come from it. */
+  const [revealedAt, setRevealedAt] = useState<number | undefined>(undefined);
+  const revealed = revealedAt !== undefined;
   const [answer, setAnswer] = useState('');
   const [covered, setCovered] = useState<boolean[]>([]);
   const [writeFirst, setWriteFirst] = useState(readWriteFirst);
@@ -71,13 +73,25 @@ export function ReviewSession() {
     setRemaining(remainingOf(scoped, plan));
     if (!alive.current) return;
     const forced = forceCardId ? await db.cards.get(forceCardId) : undefined;
-    const card = forced && !forced.deleted ? forced : pickNext(scoped, plan);
-    const note = card ? await db.notes.get(card.noteId) : undefined;
+    // A card whose note vanished meanwhile (e.g. deleted on another device) is skipped, not the end.
+    const skipped = new Set<ID>();
+    let candidate: Card | undefined = forced && !forced.deleted ? forced : undefined;
+    let card: Card | undefined;
+    let note: Note | undefined;
+    for (let i = 0; i <= scoped.cards.length; i++) {
+      const pick = candidate ?? pickNext({ ...scoped, cards: scoped.cards.filter((c) => !skipped.has(c.id)) }, plan);
+      candidate = undefined;
+      if (!pick) break;
+      const found = await db.notes.get(pick.noteId);
+      if (!alive.current) return;
+      if (isCardOfNote(pick, found)) { card = pick; note = found; break; }
+      skipped.add(pick.id);
+    }
     if (!alive.current) return;
-    setRevealed(false);
+    setRevealedAt(undefined);
     setAnswer('');
     setCovered([]);
-    if (!card || !note || note.deleted) {
+    if (!card || !note) {
       setView({ kind: 'end', nextLearning: nextLearningAt(scoped.cards), plan });
       return;
     }
@@ -114,21 +128,28 @@ export function ReviewSession() {
     }
   }, [view.kind, session.reviewed]);
 
+  const ratingPreviews = useMemo(
+    () => (view.kind === 'card' && revealedAt !== undefined ? previews(scheduleOf(view.card), revealedAt, view.ctx) : undefined),
+    [view, revealedAt],
+  );
+
   const reveal = (): void => {
     if (view.kind !== 'card' || revealed) return;
-    setRevealed(true);
+    setRevealedAt(Date.now());
     requestAnimationFrame(() => document.getElementById('reveal-heading')?.focus());
   };
 
   const onRate = async (rating: Rating): Promise<void> => {
-    if (view.kind !== 'card' || !revealed || busy.current || ratedAt.current === view.shownAt) return;
+    if (view.kind !== 'card' || revealedAt === undefined || busy.current || ratedAt.current === view.shownAt) return;
     busy.current = true;
     ratedAt.current = view.shownAt;
     try {
       const durationMs = Date.now() - view.shownAt;
       const points = view.face.points;
       const coverage = points ? { covered: points.filter((_, i) => covered[i]).length, total: points.length } : undefined;
-      const r = await rateCard(view.card.id, rating, { durationMs, wrote: answer.trim() !== '', ...(coverage ? { coverage } : {}) });
+      const r = await rateCard(view.card.id, rating, {
+        durationMs, wrote: answer.trim() !== '', now: revealedAt, ...(coverage ? { coverage } : {}),
+      });
       useSession.getState().rated(r.reviewId, durationMs, r.xp);
       if (r.goalReached && !useSession.getState().goalShown) {
         useSession.getState().markGoalShown();
@@ -213,7 +234,7 @@ export function ReviewSession() {
     );
   }
 
-  const { card, note, face, ctx } = view;
+  const { note, face } = view;
   const isCode = !!face.code;
   const isCloze = note.type === 'cloze';
   const isTopic = !!face.points;
@@ -271,7 +292,7 @@ export function ReviewSession() {
               ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} />
               : <Button variant="primary" onClick={reveal} aria-keyshortcuts="Space">Mostrar resposta</Button>}
           </Panel>
-          {revealed && <RatingBar previews={previews(scheduleOf(card), Date.now(), ctx)} onRate={(r) => void onRate(r)} suggested={suggested} />}
+          {ratingPreviews && <RatingBar previews={ratingPreviews} onRate={(r) => void onRate(r)} suggested={suggested} />}
           <div className="review__menu">
             <Button size="sm" variant="ghost" disabled={session.undo.length === 0} onClick={() => void onUndo()} aria-keyshortcuts="Z">Desfazer</Button>
             <Button size="sm" variant="ghost" onClick={edit} aria-keyshortcuts="E">Editar</Button>

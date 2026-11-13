@@ -44,6 +44,7 @@ const TOPIC_SAMPLE = 30;
 const TOPIC_MIN_SAMPLES = 5;
 const DEFAULT_TOPIC_COST = 180;
 const DONE_CAP_MS = 180_000;
+const TOPIC_DONE_CAP_MS = 600_000;
 const FORECAST_DAYS = 5;
 const LEARN_AHEAD_MS = 20 * 60_000;
 
@@ -76,6 +77,9 @@ export function topicCostOf(reviews: Review[]): number {
   const xs = reviews.filter((r) => r.coverage).sort((a, b) => b.at - a.at).slice(0, TOPIC_SAMPLE).map((r) => r.durationMs / 1000);
   return xs.length < TOPIC_MIN_SAMPLES ? DEFAULT_TOPIC_COST : clamp(median(xs), 30, 600);
 }
+
+/** Time a review counts toward the day: up to 3 min, or 10 min for a topic (one with coverage). */
+const creditedMs = (r: Review): number => Math.min(r.durationMs, r.coverage ? TOPIC_DONE_CAP_MS : DONE_CAP_MS);
 
 type Costs = Pick<StudyPlan, 'secPerReview' | 'newCost' | 'topicCost'>;
 
@@ -135,7 +139,7 @@ export function studyPlan(input: StudyInput): StudyPlan {
   const learned = cards.filter((c) => c.state !== 'new');
   const due = learned.filter((c) => c.due < end);
   const todayReviews = reviews.filter((r) => r.day === today);
-  const doneSecToday = todayReviews.reduce((s, r) => s + Math.min(r.durationMs, DONE_CAP_MS), 0) / 1000;
+  const doneSecToday = todayReviews.reduce((s, r) => s + creditedMs(r), 0) / 1000;
   const budgetSec = settings.budgetMin * 60;
   const goalSec = mode === 'low' || mode === 'recovery' ? budgetSec / 2 : budgetSec;
   const forecast = studyDaysAfter(today, settings.restDays, FORECAST_DAYS).map((day) => ({
@@ -223,6 +227,6 @@ export function studyObserved(reviews: Review[], today: DayKey): StudyObserved {
   return {
     ...(learned.length ? { accuracy30: learned.filter((r) => r.rating > 1).length / learned.length } : {}),
     reviewsWeek: week.length,
-    minutesWeek: Math.round(week.reduce((s, r) => s + Math.min(r.durationMs, DONE_CAP_MS), 0) / 60_000),
+    minutesWeek: Math.round(week.reduce((s, r) => s + creditedMs(r), 0) / 60_000),
   };
 }

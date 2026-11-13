@@ -149,6 +149,16 @@ describe('ReviewSession', () => {
     expect(screen.getByRole('button', { name: 'Desfazer' })).toBeEnabled();
   });
 
+  it('a live card whose note was deleted (sync) is skipped: the next valid card is shown', async () => {
+    const d = await deck(2);
+    const first = (await db.notes.where('deckId').equals(d.id).toArray()).find((n) => n.front === 'pergunta 0')!;
+    await db.notes.put({ ...first, deleted: true });
+    render(<ReviewSession />);
+    expect(await screen.findByText('pergunta 1')).toBeInTheDocument();
+    expect(screen.queryByText('Nada para revisar agora.')).toBeNull();
+    expect((await db.cards.get(`${first.id}-0`))!.deleted).toBe(false);
+  });
+
   it('with nothing to review says so', async () => {
     render(<ReviewSession />);
     expect(await screen.findByText('Nada para revisar agora.')).toBeInTheDocument();

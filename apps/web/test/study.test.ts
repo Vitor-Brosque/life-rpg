@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Journey } from '@life/shared';
+import type { Journey, ScheduleCtx } from '@life/shared';
+import { DEFAULT_STUDY, previews, scheduleOf } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
@@ -142,6 +143,31 @@ describe('rateCard / undoRating', () => {
     expect((await db.reviews.get(r.reviewId))!.durationMs).toBe(300_000);
   });
 
+  it('topics keep up to 10 minutes of duration', async () => {
+    const d = await saveDeck({ name: 'BD' });
+    const a = await saveNote({ deckId: d.id, type: 'topic', front: 'Explique 1FN', back: '- atômico' });
+    const b = await saveNote({ deckId: d.id, type: 'topic', front: 'Explique 2FN', back: '- parcial' });
+    const r1 = await rateCard(`${a.id}-0`, 3, { durationMs: 480_000, wrote: true, coverage: { covered: 1, total: 1 } });
+    const r2 = await rateCard(`${b.id}-0`, 3, { durationMs: 3_600_000, wrote: true, coverage: { covered: 1, total: 1 } });
+    expect((await db.reviews.get(r1.reviewId))!.durationMs).toBe(480_000);
+    expect((await db.reviews.get(r2.reviewId))!.durationMs).toBe(600_000);
+  });
+
+  it('schedules from opts.now (the reveal time): the interval shown is the one saved', async () => {
+    const [id] = await setup();
+    await db.cards.update(id!, {
+      state: 'review', stability: 6, difficulty: 5, reps: 3, scheduledDays: 4, learningSteps: 0,
+      due: new Date(2026, 10, 12, 4, 0).getTime(), lastReview: new Date(2026, 10, 8, 9, 0).getTime(),
+    });
+    const before = scheduleOf((await db.cards.get(id!))!);
+    const T = Date.now() - 7 * 60_000;
+    const ctx: ScheduleCtx = { dayStartHour: 4, restDays: DEFAULT_STUDY.restDays, retention: DEFAULT_STUDY.retention, shortTerm: true };
+    const r = await rateCard(id!, 3, { durationMs: 9000, wrote: false, now: T });
+    const review = await db.reviews.get(r.reviewId);
+    expect(review!.after).toEqual(previews(before, T, ctx)[3].schedule);
+    expect(review!.at).toBe(Date.now());
+  });
+
   it('topics: no short steps, coverage stored on the review', async () => {
     const d = await saveDeck({ name: 'BD' });
     const n = await saveNote({ deckId: d.id, type: 'topic', front: 'Explique 1FN–3FN', back: '- 1FN\n- 2FN\n- 3FN' });
@@ -199,5 +225,22 @@ describe('readStudyData', () => {
     expect(data.deckOrder.get(d1.id)).toBe(0);
     expect(data.deckOrder.has(d2.id)).toBe(false);
     expect(data.decks.map((d) => d.id)).toEqual([d1.id, d2.id]);
+  });
+
+  it('leaves out live cards whose note is gone, deleted, a draft, or no longer has their ord (without touching them)', async () => {
+    const d = await saveDeck({ name: 'A' });
+    const ok = await saveNote({ deckId: d.id, type: 'basic', front: 'ok', back: 'b' });
+    const gone = await saveNote({ deckId: d.id, type: 'basic', front: 'deleted', back: 'b' });
+    const cl = await saveNote({ deckId: d.id, type: 'cloze', front: '{{1::a}} {{2::b}}', back: '' });
+    const draft = await saveNote({ deckId: d.id, type: 'basic', front: 'draft', back: 'b' });
+    // States that can arrive by sync: the note changed but its cards are still live.
+    await db.notes.put({ ...(await db.notes.get(gone.id))!, deleted: true });
+    await db.notes.put({ ...(await db.notes.get(cl.id))!, front: '{{1::a}} b' });
+    await db.notes.put({ ...(await db.notes.get(draft.id))!, draft: true });
+    await db.cards.put({ ...(await db.cards.get(`${ok.id}-0`))!, id: 'orphan-0', noteId: 'missing-note' });
+    const data = await readStudyData('2026-11-12');
+    expect(data.cards.map((c) => c.id).sort()).toEqual([`${cl.id}-1`, `${ok.id}-0`].sort());
+    expect((await db.cards.get(`${gone.id}-0`))!.deleted).toBe(false);
+    expect((await db.cards.get(`${cl.id}-2`))!.deleted).toBe(false);
   });
 });
