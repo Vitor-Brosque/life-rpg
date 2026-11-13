@@ -49,7 +49,7 @@ function PickerBody({ week, target, onClose }: { week: DayKey; target: PickTarge
       <label className="field">
         <span className="field__label">Prato</span>
         {/* The sheet opens to type a dish: focusing the field is the point here. */}
-        <input autoFocus value={query} placeholder="ex.: frango com arroz" maxLength={RECIPE_NAME_MAX}
+        <input type="text" autoFocus value={query} placeholder="ex.: frango com arroz" maxLength={RECIPE_NAME_MAX}
           onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
       </label>
       {options.length > 0 && (

@@ -14,14 +14,14 @@ export function BodyCard() {
   const today = useToday();
   const logs = useSleepLogs();
   const workouts = useWorkouts();
-  const window = logs ? sleepWindow(logs, lastSleepNight(now)) : undefined;
+  const sleep = logs ? sleepWindow(logs, lastSleepNight(now)) : undefined;
   const week = workouts && today ? workoutWeek(workouts, weekKey(today)) : undefined;
   return (
     <Panel variant="stone" className="body-card" role="region" aria-labelledby={id}>
       <h2 id={id} className="section-title">Corpo</h2>
       <p>
-        {window?.enough
-          ? `Sono: ${formatDuration(window.avgMinutes!)} em média · deitar ±${formatDuration(window.bed!.spreadMin)}`
+        {sleep?.enough
+          ? `Sono: ${formatDuration(sleep.avgMinutes!)} em média · deitar ±${formatDuration(sleep.bed!.spreadMin)}`
           : 'Sono: registre algumas noites para ver a regularidade.'}
       </p>
       <p>{`Treinos nesta semana: ${week?.total ?? 0}`}</p>

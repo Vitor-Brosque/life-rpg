@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { DayKey, ID } from '@life/shared';
-import { freezerLow, freezerStock, freezerTotal, prepMissionId, weekKey } from '@life/shared';
+import { addDays, freezerLow, freezerStock, freezerTotal, prepMissionId, weekKey } from '@life/shared';
 import { useAllRecipes, useFreezerMoves } from '../../db/casaData';
 import { db } from '../../db/db';
 import { eatPortion, ensurePrepMission, fixPortions, undoFreezerMove } from '../../domain/mealActions';
@@ -28,8 +28,11 @@ export function FreezerSection({ week, today }: { week: DayKey; today: DayKey })
   const recipes = useAllRecipes();
   // "Today" is the logical day, so the prep mission belongs to the week of the logical day.
   const prepWeek = weekKey(today);
-  // undefined while loading, null when this week has no prep mission.
-  const mission = useLiveQuery(async () => (await db.missions.get(prepMissionId(prepWeek))) ?? null, [prepWeek]);
+  // undefined while loading, null when neither this week nor last week (marked on a Sunday) has an open prep mission.
+  const mission = useLiveQuery(async () => {
+    const found = await db.missions.bulkGet([prepMissionId(prepWeek), prepMissionId(addDays(prepWeek, -7))]);
+    return found.find((m) => m && !m.deleted && (m.status === 'open' || m.status === 'doing')) ?? null;
+  }, [prepWeek]);
   const [prepOpen, setPrepOpen] = useState(false);
   const [fixing, setFixing] = useState<FixTarget>();
   if (!moves || !recipes || mission === undefined) {
@@ -39,7 +42,7 @@ export function FreezerSection({ week, today }: { week: DayKey; today: DayKey })
   const stock = freezerStock(moves);
   const total = freezerTotal(stock);
   const nameOf = (recipeId: ID): string => recipes.find((r) => r.id === recipeId)?.name ?? 'Prato';
-  const open = mission && !mission.deleted && (mission.status === 'open' || mission.status === 'doing') ? mission : undefined;
+  const open = mission ?? undefined;
   const eat = (recipeId: ID, e: MouseEvent<HTMLButtonElement>) => {
     focusWhenGone(e.currentTarget, () => heading.current);
     safeRun(eatPortion(recipeId).then((r) => {

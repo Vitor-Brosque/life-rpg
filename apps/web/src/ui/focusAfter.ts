@@ -21,8 +21,13 @@ export function mainHeading(): HTMLElement | null {
 /**
  * Once `control` leaves the page, moves focus to `target()` (default: the block heading or the
  * main heading) — only when focus went down with it, so a field the user moved to keeps it.
+ * `options` go to `focus()` (`{ preventScroll: true }` for a list row that must not make the page jump).
  */
-export function focusWhenGone(control: Element | null | undefined, target: () => HTMLElement | null = mainHeading): void {
+export function focusWhenGone(
+  control: Element | null | undefined,
+  target: () => HTMLElement | null = mainHeading,
+  options?: FocusOptions,
+): void {
   if (!control || typeof MutationObserver === 'undefined') return;
   let done = false;
   const finish = () => {
@@ -34,7 +39,7 @@ export function focusWhenGone(control: Element | null | undefined, target: () =>
   const check = () => {
     if (control.isConnected) return;
     finish();
-    if (lost()) target()?.focus();
+    if (lost()) target()?.focus(options);
   };
   const observer = new MutationObserver(check);
   observer.observe(document.body, { childList: true, subtree: true });

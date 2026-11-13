@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { freezerStock } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
+import { completeMission } from '../src/domain/missionActions';
 import {
   addShoppingItem, copyPreviousWeek, eatPortion, ensurePrepMission, ensureRecipe, finishPrep, fixPortions,
   removeShoppingItem, saveRecipe, setMenuSlot, toggleShoppingItem, undoFreezerMove, undoPrep,
@@ -119,5 +120,25 @@ describe('freezer and batch prep', () => {
     expect(events).toEqual(expect.arrayContaining(['created', 'completed', 'uncompleted']));
     await finishPrep([{ recipeId: 'r1', portions: 6 }]);
     expect((await ensurePrepMission(WEEK)).status).toBe('open');
+  });
+
+  it('a prep on the Monday completes the previous week\'s open prep mission (marked on Sunday)', async () => {
+    vi.setSystemTime(at(15, 10));
+    await ensurePrepMission(WEEK);
+    vi.setSystemTime(at(16, 10));
+    const r = await finishPrep([{ recipeId: 'r1', portions: 6 }]);
+    expect(r.mission).toMatchObject({ id: 'prep-2026-11-09', status: 'open' });
+    expect(await db.missions.get('prep-2026-11-09')).toMatchObject({ status: 'done' });
+    expect(await db.missions.get('prep-2026-11-16')).toBeUndefined();
+  });
+
+  it('a prep mission completed by hand the same day leaves no second XP for the prep', async () => {
+    await ensurePrepMission(WEEK);
+    await completeMission('prep-2026-11-09');
+    expect(await db.xpEvents.get('xp-complete-prep-2026-11-09')).toBeDefined();
+    const r = await finishPrep([{ recipeId: 'r1', portions: 6 }]);
+    expect(r.xp).toBe(0);
+    expect(r.portions).toBe(6);
+    expect(await db.xpEvents.get('xp-mealprep-2026-11-13')).toBeUndefined();
   });
 });

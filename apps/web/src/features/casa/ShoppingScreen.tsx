@@ -57,7 +57,7 @@ export function ShoppingScreen() {
         </p>
       )}
       <form className="shopping__add" onSubmit={add}>
-        <input aria-label="Novo item" placeholder="Adicionar item" value={text} maxLength={SHOPPING_TEXT_MAX}
+        <input type="text" enterKeyHint="enter" aria-label="Novo item" placeholder="Adicionar item" value={text} maxLength={SHOPPING_TEXT_MAX}
           onChange={(e) => setText(e.target.value)} />
         <Button type="submit">Adicionar</Button>
       </form>
@@ -90,7 +90,8 @@ function ShoppingItemRow({ row, week, heading }: { row: ShoppingRow; week: DayKe
             // The row hops to the other list (a new element): follow it so focus never falls to <body>.
             const key = row.key;
             focusWhenGone(e.currentTarget, () =>
-              document.querySelector<HTMLElement>(`input[data-shop-key="${CSS.escape(key)}"]`) ?? heading.current);
+              document.querySelector<HTMLElement>(`input[data-shop-key="${CSS.escape(key)}"]`) ?? heading.current,
+            { preventScroll: true });
             safeRun(toggleShoppingItem(week, key));
           }} />
         <span className="shopping-row__text">
@@ -101,7 +102,7 @@ function ShoppingItemRow({ row, week, heading }: { row: ShoppingRow; week: DayKe
       {row.manualId && (
         <Button size="sm" variant="ghost" aria-label={`Remover ${row.text}`}
           onClick={(e) => {
-            focusWhenGone(e.currentTarget, () => heading.current);
+            focusWhenGone(e.currentTarget, () => heading.current, { preventScroll: true });
             safeRun(removeShoppingItem(week, row.manualId!));
           }}>Remover</Button>
       )}

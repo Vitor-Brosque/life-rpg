@@ -133,8 +133,13 @@ describe('Lista de compras', () => {
     const user = userEvent.setup();
     await seedMenu();
     renderAt(`/casa/compras?semana=${WEEK}`, <ShoppingScreen />);
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
     await user.click(await screen.findByRole('checkbox', { name: 'arroz' }));
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'arroz' })).toHaveFocus());
+    await waitFor(() => expect(focus).toHaveBeenCalledWith({ preventScroll: true }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'arroz' })).toHaveFocus());
+    focus.mockRestore();
+    expect(screen.getByRole('textbox', { name: 'Novo item' })).toHaveAttribute('type', 'text');
     await user.type(screen.getByRole('textbox', { name: 'Novo item' }), 'detergente{Enter}');
     await user.click(await screen.findByRole('button', { name: 'Remover detergente' }));
     await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'detergente' })).not.toBeInTheDocument());

@@ -25,12 +25,12 @@ export function CorpoScreen() {
   const logs = useSleepLogs();
   const settings = useSleepSettings();
   const workouts = useWorkouts();
-  const window = logs ? sleepWindow(logs, lastSleepNight(now)) : undefined;
+  const sleep = logs ? sleepWindow(logs, lastSleepNight(now)) : undefined;
   const week = workouts && today ? workoutWeek(workouts, weekKey(today)) : undefined;
   const since = today ? addDays(today, -13) : undefined;
   const recent = workouts && since ? workouts.filter((w) => w.day >= since) : [];
 
-  const remove = (id: string, control: Element) => { focusWhenGone(control); safeRun(async () => {
+  const remove = (id: string, control: Element) => { focusWhenGone(control, undefined, { preventScroll: true }); safeRun(async () => {
     const gone = await removeWorkout(id);
     if (!gone) return;
     useToast.getState().show('Treino apagado.', {
@@ -57,23 +57,23 @@ export function CorpoScreen() {
             </Button>
           </Panel>
         )}
-        {window && (window.enough ? (
+        {sleep && (sleep.enough ? (
           <div className="corpo__observed">
             <p className="corpo__eyebrow">Observado nas últimas 14 noites</p>
             <dl className="corpo__stats">
-              <div><dt>Duração média</dt><dd>{formatDuration(window.avgMinutes!)}</dd></div>
-              <div><dt>Deitar</dt><dd>{spreadText(window.bed!)}<span className="corpo__range">{rangeText(window.bed!)}</span></dd></div>
-              <div><dt>Acordar</dt><dd>{spreadText(window.wake!)}<span className="corpo__range">{rangeText(window.wake!)}</span></dd></div>
-              <div><dt>Noites completas</dt><dd>{`${window.complete} de 14`}</dd></div>
+              <div><dt>Duração média</dt><dd>{formatDuration(sleep.avgMinutes!)}</dd></div>
+              <div><dt>Deitar</dt><dd>{spreadText(sleep.bed!)}<span className="corpo__range">{rangeText(sleep.bed!)}</span></dd></div>
+              <div><dt>Acordar</dt><dd>{spreadText(sleep.wake!)}<span className="corpo__range">{rangeText(sleep.wake!)}</span></dd></div>
+              <div><dt>Noites completas</dt><dd>{`${sleep.complete} de 14`}</dd></div>
             </dl>
           </div>
         ) : (
           <p className="muted">
-            {`Com 3 noites completas (Deitei e Acordei), aparecem aqui os horários médios e quanto eles variam. Até agora: ${window.complete}.`}
+            {`Com 3 noites completas (Deitei e Acordei), aparecem aqui os horários médios e quanto eles variam. Até agora: ${sleep.complete}.`}
           </p>
         ))}
         <h3 className="corpo__subtitle">Últimas 14 noites</h3>
-        {window && <SleepNights nights={window.nights} />}
+        {sleep && <SleepNights nights={sleep.nights} />}
         <div><Button onClick={() => useSleepSheet.getState().open()}>Registrar uma noite</Button></div>
         <details className="corpo__why">
           <summary>Por que olhar para isso?</summary>

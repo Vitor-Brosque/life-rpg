@@ -19,7 +19,7 @@
 .prep-row { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-2); align-items: center; }
 .prep-row__hint { grid-column: 1; color: var(--text-dim); font-size: 0.85em; }
 .prep-row__stepper { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 4px; }
-.prep-row__stepper input { width: 4ch; min-height: 44px; text-align: center; }
+.prep-row__stepper input { width: 4.5em; padding-inline: 4px; min-height: 44px; text-align: center; }
 .casa-screen__bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .casa-screen__bar input { flex: 1; min-width: 12ch; }
 .casa-screen h1:focus { outline: none; }

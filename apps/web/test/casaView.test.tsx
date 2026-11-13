@@ -105,6 +105,25 @@ describe('Planejar → Casa', () => {
 });
 
 describe('Casa → freezer e preparo', () => {
+  it('prep sheet: a typed 45 shows 30 on blur, and adding the last dish focuses its portions field', async () => {
+    const user = userEvent.setup();
+    const r = await saveRecipe({ name: 'Frango com arroz', ingredients: 'frango' });
+    await saveRecipe({ name: 'Omelete', ingredients: 'ovos' });
+    await setMenuSlot(WEEK, '2026-11-10', 'almoco', r.id);
+    renderCasa();
+    const freezer = await section('Freezer');
+    await user.click(await within(freezer).findByRole('button', { name: 'Preparo em lote' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Preparo em lote' });
+    const field = within(sheet).getByLabelText('Porções de Frango com arroz');
+    expect(field).toHaveAttribute('type', 'number');
+    await user.clear(field);
+    await user.type(field, '45');
+    await user.tab();
+    expect(field).toHaveValue(30);
+    await user.selectOptions(within(sheet).getByLabelText('Adicionar outro prato'), 'Omelete');
+    await waitFor(() => expect(within(sheet).getByLabelText('Porções de Omelete')).toHaveFocus());
+  });
+
   it('registers a batch prep, eats one, adjusts and suggests a prep when low', async () => {
     const user = userEvent.setup();
     const r = await saveRecipe({ name: 'Frango com arroz', ingredients: 'frango' });

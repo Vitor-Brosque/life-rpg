@@ -193,15 +193,21 @@ export const finishPrep = (items: Array<{ recipeId: ID; portions: number }>): Pr
     const entries: Array<{ table: SyncTable; record: BaseRecord }> = moves.map((record) => ({ table: 'freezerMoves', record }));
     let xp = 0;
     const xpId = mealprepXpId(day);
-    if (!(await hasLiveXp(xpId))) {
+    // A prep marked last week (say on Sunday) is often done on the Monday: look at both weeks.
+    const ids = [prepMissionId(weekKey(day)), prepMissionId(addDays(weekKey(day), -7))];
+    const found = await Promise.all(ids.map((id) => db.missions.get(id)));
+    const m = found.find((x) => x && !x.deleted && (x.status === 'open' || x.status === 'doing'));
+    // The same effort never earns twice: a prep mission completed by hand today already paid.
+    const rewarded = (await Promise.all(ids.map((id) => db.xpEvents.get(`xp-complete-${id}`))))
+      .some((x) => x && !x.deleted && x.dayKey === day);
+    if (!rewarded && !(await hasLiveXp(xpId))) {
       xp = MEALPREP_XP;
       entries.push({ table: 'xpEvents', record: newRecord<XpEvent>({
         id: xpId, at, amount: xp, reason: 'mealprep', dayKey: day, areaId: CASA_AREA,
       }) });
     }
-    const m = await db.missions.get(prepMissionId(weekKey(day)));
     let mission: PrepResult['mission'];
-    if (m && !m.deleted && (m.status === 'open' || m.status === 'doing')) {
+    if (m) {
       // Same event shape as completeMission (prevStatus, xpIds), so "undo" on the mission keeps working.
       const event = newRecord<LifeEvent>({ at, type: 'completed', missionId: m.id, data: { prevStatus: m.status, xpIds: [], via: 'prep' } });
       mission = { id: m.id, status: m.status, eventId: event.id, ...(m.completedAt !== undefined ? { completedAt: m.completedAt } : {}) };

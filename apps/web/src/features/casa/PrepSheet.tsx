@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { DayKey, ID } from '@life/shared';
 import { PREP_MAX_PORTIONS, freezerStock, portionsOf, prepHints } from '@life/shared';
 import { useAllRecipes, useFreezerMoves, useMenu } from '../../db/casaData';
@@ -29,6 +29,13 @@ function PrepForm({ week, onClose }: { week: DayKey; onClose(): void }) {
   const [added, setAdded] = useState<ID[]>([]);
   const [values, setValues] = useState<Record<ID, string>>({});
   const [busy, setBusy] = useState(false);
+  // The picked dish's row appears and the <select> may vanish (last option): focus its portions field.
+  const [focusId, setFocusId] = useState<ID>();
+  useEffect(() => {
+    if (!focusId) return;
+    document.querySelector<HTMLInputElement>(`input[data-prep-id="${CSS.escape(focusId)}"]`)?.focus();
+    setFocusId(undefined);
+  }, [focusId, added]);
   if (menu === undefined || !recipes || !moves) return null;
 
   const stock = freezerStock(moves);
@@ -76,7 +83,8 @@ function PrepForm({ week, onClose }: { week: DayKey; onClose(): void }) {
               <span className="prep-row__stepper">
                 <Button size="sm" aria-label={`Menos uma porção de ${r.name}`} onClick={() => step(r.recipeId, -1)}>−</Button>
                 <input type="number" inputMode="numeric" min={0} max={PREP_MAX_PORTIONS} aria-label={`Porções de ${r.name}`}
-                  value={value(r.recipeId)} onChange={(e) => set(r.recipeId, e.target.value)} />
+                  data-prep-id={r.recipeId} value={value(r.recipeId)} onChange={(e) => set(r.recipeId, e.target.value)}
+                  onBlur={(e) => set(r.recipeId, String(clampPortions(e.target.value)))} />
                 <Button size="sm" aria-label={`Mais uma porção de ${r.name}`} onClick={() => step(r.recipeId, 1)}>+</Button>
               </span>
             </li>
@@ -86,7 +94,12 @@ function PrepForm({ week, onClose }: { week: DayKey; onClose(): void }) {
       {others.length > 0 && (
         <label className="field">
           <span className="field__label">Adicionar outro prato</span>
-          <select value="" onChange={(e) => { const id = e.target.value; if (id) setAdded((cur) => [...cur, id]); }}>
+          <select value="" onChange={(e) => {
+            const id = e.target.value;
+            if (!id) return;
+            setAdded((cur) => [...cur, id]);
+            setFocusId(id);
+          }}>
             <option value="">Escolher…</option>
             {others.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>

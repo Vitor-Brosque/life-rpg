@@ -110,7 +110,7 @@ function RecipeForm({ recipe, onClose }: { recipe?: Recipe; onClose(): void }) {
     <form className="stack" noValidate onSubmit={(e) => { void save(e); }}>
       <label className="field">
         <span className="field__label">Nome do prato</span>
-        <input value={name} maxLength={RECIPE_NAME_MAX} onChange={(e) => { setName(e.target.value); setError(undefined); }} />
+        <input type="text" value={name} maxLength={RECIPE_NAME_MAX} onChange={(e) => { setName(e.target.value); setError(undefined); }} />
       </label>
       <label className="field">
         <span className="field__label">Ingredientes (um por linha)</span>
