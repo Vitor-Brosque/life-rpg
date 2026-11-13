@@ -36,3 +36,16 @@
 .practice-hidden { display: grid; gap: var(--space-2); padding: var(--space-3); background: var(--bg-2); }
 .practice__delete { justify-self: start; }
 @media (pointer: coarse) { .practice__title { font-size: 16px; } }
+.practice-entries { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.practice-entry { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--bg-2); }
+.practice-entry__meta { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+.practice-entry__text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.practice-entry .btn { justify-self: start; }
+.practice-compare { display: grid; gap: var(--space-3); }
+.practice-compare__side { display: grid; gap: var(--space-1); min-width: 0; }
+.practice-compare__title { margin: 0; font-size: 0.9375rem; }
+@media (min-width: 900px) { .practice-compare { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.practice__confirm, .practice__done { display: grid; gap: var(--space-2); }
+.practice__confirm p, .practice__done p { margin: 0; }
+.practice-fact { margin: 0; padding: var(--space-2) var(--space-3); background: var(--bg-2); color: var(--text); }
+.practice__alert { margin: 0; color: var(--gold); }

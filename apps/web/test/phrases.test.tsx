@@ -10,7 +10,8 @@ describe('phrases', () => {
   it('covers every category with at least 4 phrases and no guilt words', () => {
     expect(CATEGORIES.sort()).toEqual([
       'blockSkip', 'blockStart', 'complete', 'dayFree', 'drop', 'empty', 'escape', 'focusDone', 'greetAfternoon', 'greetMorning',
-      'greetNight', 'hardDay', 'levelUp', 'postponed', 'resumption', 'review', 'shrink', 'snooze', 'start', 'studyDone', 'weekStart',
+      'greetNight', 'hardDay', 'levelUp', 'postponed', 'practiceDone', 'resumption', 'review', 'shrink', 'snooze', 'start',
+      'studyDone', 'weekStart',
     ]);
     for (const cat of CATEGORIES) {
       expect(PHRASES[cat].length, cat).toBeGreaterThanOrEqual(4);

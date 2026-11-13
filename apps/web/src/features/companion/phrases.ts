@@ -5,7 +5,7 @@
 export type PhraseCategory =
   | 'greetMorning' | 'greetAfternoon' | 'greetNight' | 'start' | 'complete' | 'shrink' | 'snooze'
   | 'postponed' | 'hardDay' | 'focusDone' | 'levelUp' | 'empty' | 'review' | 'drop'
-  | 'dayFree' | 'blockStart' | 'blockSkip' | 'resumption' | 'escape' | 'weekStart' | 'studyDone';
+  | 'dayFree' | 'blockStart' | 'blockSkip' | 'resumption' | 'escape' | 'weekStart' | 'studyDone' | 'practiceDone';
 
 export const PHRASES: Record<PhraseCategory, string[]> = {
   greetMorning: [
@@ -139,6 +139,13 @@ export const PHRASES: Record<PhraseCategory, string[]> = {
     'Feito! O que você lembrou hoje fica mais firme amanhã.',
     'Boa, {name}. Lembrar com esforço é justamente o que fixa.',
     'Cards revisados. O resto volta na hora certa, sem pressa.',
+  ],
+  practiceDone: [
+    'Sessão guardada. Fazer sozinho é o que constrói autonomia.',
+    'Mais uma prática fechada. O que travou hoje vira caminho amanhã.',
+    'Problema, passos, código: o método está pegando.',
+    'Registrado. Errar e anotar o porquê também é progresso.',
+    'Prática encerrada. Descansa a cabeça antes da próxima.',
   ],
 };
 

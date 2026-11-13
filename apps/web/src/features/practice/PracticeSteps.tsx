@@ -7,6 +7,9 @@ import { Chip } from '../../ui/Chip';
 import { safeRun } from '../../ui/safeRun';
 import { CodeEditor } from '../study/CodeEditor';
 import { LANG_LABEL } from '../study/noteDraft';
+import { CloseStep } from './CloseStep';
+import { FeedbackStep } from './FeedbackStep';
+import { RebuildStep } from './RebuildStep';
 import { DraftText, JourneyMissionPicker, ListField } from './PracticeFields';
 import { useDraftField } from './useDraftField';
 
@@ -140,7 +143,7 @@ function TestStep({ session }: StepProps) {
   );
 }
 
-/** The current step: its focusable title, then its fields. Steps 7–9 arrive in Task 5. */
+/** The current step: its focusable title, then its fields. */
 export function StepBody({ step, session, go, headingRef }: StepProps & { step: PracticeStep; headingRef: Ref<HTMLHeadingElement> }) {
   const props = { session, go };
   return (
@@ -152,6 +155,9 @@ export function StepBody({ step, session, go, headingRef }: StepProps & { step: 
       {step === 'design' && <DesignStep {...props} />}
       {step === 'code' && <CodeStep {...props} />}
       {step === 'test' && <TestStep {...props} />}
+      {step === 'feedback' && <FeedbackStep {...props} />}
+      {step === 'rebuild' && <RebuildStep {...props} />}
+      {step === 'close' && <CloseStep {...props} />}
     </>
   );
 }
