@@ -332,3 +332,56 @@ describe('Dexie v8 (Marco 5)', () => {
     expect((await db.table('monthReviews').get('month-2026-10')).month).toBe('2026-10');
   });
 });
+
+describe('Dexie v7 → v8 migration (Marco 5)', () => {
+  it('keeps every Marco 3–4 row, restarts the cursor and adds monthReviews', async () => {
+    const v7 = new Dexie(NAME);
+    v7.version(1).stores(V1);
+    v7.version(2).stores(V2_ADDED);
+    v7.version(3).stores(V3_ADDED);
+    v7.version(4).stores(V4_ADDED);
+    v7.version(5).stores(V5_ADDED);
+    v7.version(6).stores({ practiceSessions: 'id,status,journeyId,updatedAt' });
+    v7.version(7).stores({
+      sleepLogs: 'id,night',
+      recipes: 'id',
+      menus: 'id',
+      shoppingLists: 'id',
+      freezerMoves: 'id,at,recipeId',
+      workouts: 'id,day,at',
+    });
+    await v7.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v7.table(table).bulkPut(rows);
+    const hash = 'd'.repeat(64);
+    const rows = {
+      mediaInfo: { hash, mime: 'image/png', size: 3, w: 1, h: 1 },
+      mediaQueue: { hash, addedAt: 7 },
+      practiceSessions: { ...base, id: 'p1', ...newPracticeFields({ title: 'Treino' }) },
+      sleepLogs: { ...base, id: 'sleep-2026-11-13', night: '2026-11-13', bedAt: 5 },
+      workouts: { ...base, id: 'w1', at: 5, day: '2026-11-13', kind: 'cardio', minutes: 10 },
+      freezerMoves: { ...base, id: 'f1', at: 5, day: '2026-11-13', recipeId: 'r1', delta: 4, kind: 'prep' },
+    };
+    for (const [table, row] of Object.entries(rows)) await v7.table(table).put(row);
+    await v7.table('mediaData').put({ hash, bytes: new Uint8Array([1, 2, 3]) });
+    await v7.table('meta').put({ key: 'cursor', value: 42 });
+    v7.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(8);
+    expect(await db.mediaInfo.get(hash)).toEqual(rows.mediaInfo);
+    expect(await db.mediaData.get(hash)).toMatchObject({ hash });
+    expect(await db.mediaQueue.get(hash)).toEqual(rows.mediaQueue);
+    expect(await db.practiceSessions.get('p1')).toEqual(rows.practiceSessions);
+    expect(await db.sleepLogs.get('sleep-2026-11-13')).toEqual(rows.sleepLogs);
+    expect(await db.workouts.get('w1')).toEqual(rows.workouts);
+    expect(await db.freezerMoves.get('f1')).toEqual(rows.freezerMoves);
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    expect(await db.table('monthReviews').count()).toBe(0);
+    await db.table('monthReviews').put({ ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 });
+    expect(await db.table('monthReviews').count()).toBe(1);
+  });
+});

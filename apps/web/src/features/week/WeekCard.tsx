@@ -50,6 +50,17 @@ function ReviewStep({ weekId, stats, experiment, onSave, onLater }: {
     writeReviewDraft(weekId, next);
     return next;
   });
+  /** "Usar no ajuste": adds the suggestion under what is already there, never replacing it. */
+  const useInAdjustment = (t: string) => {
+    setAnswers((a) => {
+      const prev = a.adjustment.trim();
+      if (prev.includes(t)) return a;
+      const next = { ...a, adjustment: prev ? `${prev}\n${t}` : t };
+      writeReviewDraft(weekId, next);
+      return next;
+    });
+    document.getElementById(`${fieldId}-adjustment`)?.focus();
+  };
   const save = (e: MouseEvent<HTMLButtonElement>) => {
     toStep(e);
     setSaving(true);
@@ -69,7 +80,7 @@ function ReviewStep({ weekId, stats, experiment, onSave, onLater }: {
             </div>
           ))}
         </dl>
-        <WatchLines onUse={(t) => change('adjustment', t)} />
+        <WatchLines onUse={useInAdjustment} />
       </section>
 
       <section className="week-card__section" aria-labelledby={readingId}>

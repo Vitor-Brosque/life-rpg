@@ -195,6 +195,30 @@ describe('Nova semana card', () => {
     expect(screen.queryByRole('button', { name: 'Nova semana' })).not.toBeInTheDocument();
   });
 
+  it('"Concluir" with nothing typed closes the card for good, also after a reopen', async () => {
+    const user = userEvent.setup();
+    await setDayMode('normal');
+    const first = renderAgora();
+    const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Concluir' }));
+    await waitFor(() => expect(noWeekCard()).not.toBeInTheDocument());
+    first.unmount();
+    renderAgora();
+    await screen.findByRole('heading', { name: 'Agora' });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(noWeekCard()).not.toBeInTheDocument();
+  });
+
+  it('a week record with no objectives and no experiment shows no card', async () => {
+    await db.weeks.put({ ...base, id: WEEK, objectives: [] } satisfies Week);
+    await setDayMode('normal');
+    renderAgora();
+    await screen.findByRole('heading', { name: 'Agora' });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(noWeekCard()).not.toBeInTheDocument();
+  });
+
   it('is still offered on Tuesday, but not on Wednesday', async () => {
     vi.setSystemTime(at(17, 9, 30));
     await setDayMode('normal');
@@ -406,5 +430,29 @@ describe('Nova semana and Padrões', () => {
     expect(within(await weekCard()).getByLabelText('Que ajuste você quer testar?'))
       .toHaveValue('Nesta semana, a meta de Tech é só a versão mínima (45 min).');
     expect((await db.weeks.get(WEEK))?.experiment).toBeUndefined();
+  });
+
+  it('"Usar no ajuste" adds under the typed text, focuses the field and never duplicates', async () => {
+    const user = userEvent.setup();
+    const sessions: BlockSession[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = addDays('2026-10-05', i);
+      const wd = weekdayOf(d);
+      if (wd === 0 || wd === 6 || (i >= 28 && wd > 2)) continue;
+      sessions.push({ ...base, id: `bs-b1-${d}`, blockId: 'b1', day: d, version: 'normal', startedAt: timestampAt(d, '09:00'), endedAt: timestampAt(d, '10:00') });
+    }
+    await db.blockSessions.bulkPut(sessions);
+    await db.xpEvents.bulkPut([xp('x1', '2026-11-09'), xp('x2', '2026-11-10')]);
+    await setDayMode('normal');
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    const field = within(await weekCard()).getByLabelText('Que ajuste você quer testar?');
+    await user.type(field, 'Deitar 23h30');
+    const note = await within(await weekCard()).findByRole('group', { name: 'Semanas 5–8: Tech' });
+    await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
+    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (45 min).');
+    expect(field).toHaveFocus();
+    await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
+    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (45 min).');
   });
 });

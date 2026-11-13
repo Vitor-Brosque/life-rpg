@@ -27,6 +27,8 @@ export interface MonthReflectionFormProps {
 /** The three optional questions of the month, next to the numbers they refer to (spec §5.7). */
 export function MonthReflectionForm({ month, observed, initial, variant, onDone, onLater }: MonthReflectionFormProps) {
   const [answers, setAnswers] = useState<MonthAnswers>(() => initial ?? readMonthDraft(month) ?? EMPTY_ANSWERS);
+  /** Editing a saved month never touches drafts. */
+  const drafted = initial === undefined;
   const [busy, setBusy] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const fieldId = useId();
@@ -35,7 +37,7 @@ export function MonthReflectionForm({ month, observed, initial, variant, onDone,
 
   const change = (key: keyof MonthAnswers, value: string) => setAnswers((a) => {
     const next = { ...a, [key]: value };
-    writeMonthDraft(month, next);
+    if (drafted) writeMonthDraft(month, next);
     return next;
   });
   /** The card disappears once the record exists: focus goes to the screen heading, never to <body>. */
@@ -43,7 +45,7 @@ export function MonthReflectionForm({ month, observed, initial, variant, onDone,
     if (variant === 'card') focusWhenGone(e.currentTarget);
     setBusy(true);
     safeRun(task.then(() => {
-      writeMonthDraft(month, undefined);
+      if (drafted) writeMonthDraft(month, undefined);
       useToast.getState().show(toast);
       onDone();
     }).finally(() => setBusy(false)));

@@ -71,13 +71,16 @@ export function readMonthDraft(month: MonthKey): MonthAnswers {
   }
 }
 
-/** Stores the draft (undefined removes it) and drops other months' drafts. */
+/** Stores the draft (undefined removes it) and drops older months' drafts. */
 export function writeMonthDraft(month: MonthKey, draft: MonthAnswers | undefined): void {
   try {
-    if (draft) localStorage.setItem(DRAFT_PREFIX + month, JSON.stringify(draft));
+    const own = DRAFT_PREFIX + month;
+    if (draft) localStorage.setItem(own, JSON.stringify(draft));
+    else localStorage.removeItem(own);
+    // Only older months' drafts are dropped; a newer month's partial draft must survive.
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k?.startsWith(DRAFT_PREFIX) && (k !== DRAFT_PREFIX + month || !draft)) localStorage.removeItem(k);
+      if (k && k.startsWith(DRAFT_PREFIX) && k < own) localStorage.removeItem(k);
     }
   } catch { /* private mode / quota: the draft just stays in memory */ }
 }

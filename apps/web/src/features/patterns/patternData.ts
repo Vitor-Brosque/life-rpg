@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type {
   AreaShare, CheckinBreakdown, DayKey, Hypothesis, MethodAssociation, PatternData, PeriodKind, PostponeObserved,
-  Settings, SleepBlocksAssociation, SleepModeAssociation, TrendPoint, WatchNotice,
+  DayIndex, Settings, SleepBlocksAssociation, SleepModeAssociation, TrendPoint, WatchNotice,
 } from '@life/shared';
 import {
   addDays, checkinBreakdown, completedMonths, completedWeeks, dayIndex, effortByArea, patternSettingsOf, periodsSince,
@@ -101,8 +101,7 @@ export interface PatternsView {
 const NO_BREAKDOWN: CheckinBreakdown = { escapesByPart: [], escapesByArea: [], escapesByPlace: [], feelings: [] };
 
 /** Everything the Padrões screen shows, from one PatternData (pure; recomputed when data or kind change). */
-export function buildPatternsView(data: PatternData, kind: PeriodKind): PatternsView {
-  const idx = dayIndex(data);
+export function buildPatternsView(data: PatternData, kind: PeriodKind, idx: DayIndex = dayIndex(data)): PatternsView {
   const firstDay = data.xpEvents.reduce<DayKey | undefined>(
     (m, x) => (x.deleted || (m !== undefined && m <= x.dayKey) ? m : x.dayKey), undefined);
   const weeks = periodsSince(completedWeeks(data.today, TREND_WEEKS), firstDay);

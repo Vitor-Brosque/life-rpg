@@ -5,7 +5,7 @@ import type {
 import { dayKeyOf } from './dates';
 import { defaultDayMode } from './planDay';
 import { countedBlocksOn, type CountedBlock } from './weekStats';
-import { minutesFromNoon, sleepMinutes } from './sleep';
+import { SLEEP_MIN_NIGHTS, minutesFromNoon, sleepMinutes } from './sleep';
 import {
   PARTS_OF_DAY, PART_LABEL, addMonths, monthKeyOf, monthPeriod, partOfDay, periodDays, type MonthKey, type Period,
 } from './periods';
@@ -76,7 +76,7 @@ export function dayIndex(data: PatternData): DayIndex {
 /** Accuracy is shown only from this many reviews of learned cards. */
 export const ACCURACY_MIN = 20;
 /** A period's sleep averages need this many complete nights. */
-export const SLEEP_TREND_MIN_NIGHTS = 3;
+export const SLEEP_TREND_MIN_NIGHTS = SLEEP_MIN_NIGHTS;
 
 export interface TrendPoint {
   period: Period;

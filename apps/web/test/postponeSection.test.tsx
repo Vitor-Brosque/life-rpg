@@ -87,7 +87,7 @@ describe('Adiamentos', () => {
     expect(within(h).getByText('“Lista de cálculo” foi adiada 4 vezes nas últimas 4 semanas e não foi começada.')).toBeInTheDocument();
     expect(screen.getAllByRole('article')).toHaveLength(3);
     expect(screen.getByText('Hipóteses vêm de contagens de 4 semanas: podem ser acaso e mostram associação, não causa. Você decide se vale testar.')).toBeInTheDocument();
-    await user.click(within(h).getByRole('button', { name: 'Abrir missão' }));
+    await user.click(within(h).getByRole('button', { name: 'Abrir missão: Lista de cálculo' }));
     expect(useMissionSheet.getState().openId).toBe('mH1');
     await user.click(within(h).getByRole('button', { name: 'Usar como experimento da semana' }));
     await waitFor(async () => expect((await db.weeks.get('2026-11-09'))?.experiment)

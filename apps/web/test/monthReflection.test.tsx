@@ -11,7 +11,7 @@ import { ensureSeed } from '../src/db/seed';
 import { setDayMode } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
-import { useMonthSession } from '../src/features/patterns/monthCycle';
+import { readMonthDraft, useMonthSession } from '../src/features/patterns/monthCycle';
 import { PatternsScreen } from '../src/features/patterns/PatternsScreen';
 import { useWeekSession } from '../src/features/week/weekCycle';
 import { ToastHost } from '../src/ui/Toast';
@@ -163,5 +163,24 @@ describe('Reflexões do mês in Padrões', () => {
     await db.monthReviews.clear();
     renderPatterns();
     expect(await screen.findByText('No começo de cada mês, o Agora oferece uma reflexão curta e opcional. Ela fica guardada aqui.')).toBeInTheDocument();
+  });
+
+  it('editing a saved month never touches another month\'s draft', async () => {
+    const user = userEvent.setup();
+    await at(13);
+    await xpOn('2026-10-20');
+    await db.monthReviews.put({
+      ...base, id: 'month-2026-09', month: '2026-09', observed: OBS, answeredAt: 1,
+      answers: { progress: 'Ok', obstacle: '', next: '' },
+    } satisfies MonthReview);
+    localStorage.setItem('life-rpg-month-draft:2026-10', JSON.stringify({ progress: '', obstacle: '', next: 'Rascunho de outubro' }));
+    renderPatterns();
+    const article = await screen.findByRole('article', { name: 'Setembro de 2026' });
+    await user.click(within(article).getByRole('button', { name: 'Editar a reflexão de setembro' }));
+    const edit = await screen.findByRole('dialog', { name: 'Reflexão de setembro' });
+    await user.type(within(edit).getByLabelText('O que mais atrapalhou, e em que momentos?'), 'Provas');
+    await user.click(within(edit).getByRole('button', { name: 'Salvar reflexão' }));
+    await waitFor(async () => expect((await db.monthReviews.get('month-2026-09'))!.answers!.obstacle).toBe('Provas'));
+    expect(readMonthDraft('2026-10').next).toBe('Rascunho de outubro');
   });
 });

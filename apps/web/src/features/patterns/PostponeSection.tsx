@@ -73,7 +73,8 @@ export function PostponeSection({ view }: { view: PatternsView }) {
                 <div className="hypothesis__actions">
                   <UseAsExperiment text={h.experiment} />
                   {h.missionId && (
-                    <Button size="sm" variant="ghost" onClick={() => openMission(h.missionId!)}>Abrir missão</Button>
+                    <Button size="sm" variant="ghost" aria-label={`Abrir missão: ${postpone.missions.find((m) => m.missionId === h.missionId)?.title ?? ''}`.replace(/: $/, '')}
+                      onClick={() => openMission(h.missionId!)}>Abrir missão</Button>
                   )}
                 </div>
               </article>

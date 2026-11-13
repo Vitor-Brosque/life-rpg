@@ -60,7 +60,7 @@ export function useWeekCycle(today: DayKey | undefined, day: { asked: boolean; m
 
   const cycleDay = today !== undefined && isCycleDay(today);
   // A week whose record only holds an experiment (chosen in Padrões) still waits for its cycle.
-  const onlyExperiment = !!week && !week.review && week.objectives.length === 0;
+  const onlyExperiment = !!week && !week.review && week.objectives.length === 0 && !!week.experiment?.trim();
   const pending = cycleDay && (week === null || onlyExperiment);
   // Step 1 saved, step 2 never done (app closed, "Fazer depois"): the objectives stay reachable.
   const noObjectives = cycleDay && !!week?.review && week.objectives.length === 0;
@@ -81,7 +81,7 @@ export function useWeekCycle(today: DayKey | undefined, day: { asked: boolean; m
     open: () => useWeekSession.setState({ opened: weekId, started: weekId }),
     start: () => useWeekSession.setState({ started: weekId }),
     later: () => useWeekSession.setState({ dismissed: weekId, opened: undefined, started: undefined }),
-    finish: () => useWeekSession.setState({ opened: undefined }),
+    finish: () => useWeekSession.setState({ opened: undefined, dismissed: weekId }),
   };
 }
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import type { PeriodKind } from '@life/shared';
-import { weekKey } from '@life/shared';
+import { dayIndex, weekKey } from '@life/shared';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import '../settings/settings.css';
@@ -26,7 +26,9 @@ function readKind(): PeriodKind {
 export function PatternsScreen() {
   const [kind, setKind] = useState<PeriodKind>(readKind);
   const data = usePatternData();
-  const view = useMemo(() => (data ? buildPatternsView(data, kind) : undefined), [data, kind]);
+  // The day index depends only on the data: toggling Semanas/Meses reuses it.
+  const idx = useMemo(() => (data ? dayIndex(data) : undefined), [data]);
+  const view = useMemo(() => (data && idx ? buildPatternsView(data, kind, idx) : undefined), [data, idx, kind]);
   const experiment = useMemo(() => {
     const w = data?.weeks.find((x) => x.id === weekKey(data.today));
     return { current: w?.experiment?.trim() || undefined };
