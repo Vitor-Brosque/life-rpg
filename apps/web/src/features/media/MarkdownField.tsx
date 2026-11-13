@@ -1,4 +1,4 @@
-import { useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode, type RefObject } from 'react';
 import type { MediaKind } from '@life/shared';
 import { insertMediaRef } from '@life/shared';
 import { MediaInputError, saveMediaBlob } from '../../db/media';
@@ -68,13 +68,26 @@ export function MarkdownField({
   const working = useRef(false);
   const [sheet, setSheet] = useState<'drawing' | 'audio' | undefined>(undefined);
 
+  /** The selection to show once the textarea holds the new text (React may commit after a frame). */
+  const pendingSel = useRef<{ text: string; start: number; end: number } | null>(null);
+  const applyPendingSel = (): void => {
+    const el = ref.current;
+    const p = pendingSel.current;
+    if (!el || !p || el.value !== p.text) return;
+    pendingSel.current = null;
+    el.focus();
+    el.setSelectionRange(p.start, p.end);
+  };
+  useLayoutEffect(applyPendingSel);
+
   /** The reference at the cursor (end of the text when the field never had focus), label selected. */
   const insert = (kind: MediaKind, hash: string, defaultLabel?: string): void => {
     const el = ref.current;
     const text = el?.value ?? value;
     const r = insertMediaRef(text, el?.selectionStart ?? text.length, el?.selectionEnd ?? text.length, kind, hash, defaultLabel);
+    pendingSel.current = { text: r.text, start: r.selStart, end: r.selEnd };
     onChange(r.text);
-    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(r.selStart, r.selEnd); });
+    requestAnimationFrame(applyPendingSel);
   };
 
   const addImage = async (file: Blob): Promise<void> => {
