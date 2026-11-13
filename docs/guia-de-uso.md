@@ -81,7 +81,7 @@ Basta uma vez por aparelho ou navegador. A seção mostra a **Situação** e qua
 
 O Agora responde "o que faço agora?" sem exigir que você decida antes. De cima para baixo:
 
-- **Faixa de status:** avatar e nível, sua energia atual (toque para alternar baixa, média ou alta),
+- **Faixa de status:** avatar e nível, sua energia atual (definida pelo tipo do dia; toque para ajustar),
   o tempo livre até o próximo compromisso e o indicador de sincronização.
 - **Tipo do dia**, em um chip no topo.
 - **Bloco atual**, quando há um em andamento.
@@ -103,6 +103,11 @@ resposta certa, e dá para trocar depois pelo chip no topo da tela.
 | **Livre** | Sem blocos e sem cobrança. A tela diz "Dia livre. Descanso também conta." |
 
 Sábado e domingo começam como dia livre, sem revisão vencendo e sem cobrança.
+
+A resposta também define a **energia do dia** (Normal e Livre = média; Baixa energia e Recuperação =
+baixa): é uma pergunta só por dia. O botão de energia no topo serve para ajuste fino e vale até você
+escolher o tipo do dia de novo. Se o card aparecer de novo no mesmo dia, confira se os aparelhos estão
+conectados à sincronização: sem ela, cada aparelho pergunta separado.
 
 ### Blocos
 
@@ -190,6 +195,9 @@ aparece como etiqueta que você pode remover:
   `dia 15`, `15/11`, `próxima semana`.
 - **Hora e duração:** `15h`, `20min`.
 - **Jornada, área e urgência:** `#jornada`, `@área`, `!`.
+- **Repetição:** `todo dia`, `toda seg`, `toda seg, qua e sex`, `todas as segundas e quintas`,
+  `toda semana`, `todo dia 5` ou `todo mês dia 5`. A missão repete (e a próxima aparece quando você
+  conclui). Com horário, vira compromisso semanal: `aula 19h toda ter e qui`.
 - **Rascunho de card:** começar a linha com `? ` cria um rascunho de card para completar depois em
   Estudo ("Vira rascunho de card. Complete depois na aba Estudo.").
 - **Várias linhas** viram várias capturas.
@@ -255,7 +263,8 @@ A aba **Planejar** tem quatro visões. Uma lembrança da última escolhida fica 
   ou **Começar sem rotina**. Horários e durações são palpites: ajuste quando a semana mostrar o que
   funciona. **Copiar este dia para…** duplica a estrutura de um dia em outros. **Editar muda a série
   inteira.** Em cada bloco, o interruptor **Revisão espaçada neste bloco** diz se o Agora deve oferecer
-  cards durante ele.
+  cards durante ele. No fim da Rotina, **Recorrentes** lista tudo o que repete: as missões com
+  repetição (com a próxima data) e os compromissos semanais; toque para editar ou tirar a repetição.
 - **Casa:** cardápio, compras e freezer (veja [Corpo e casa](#5-corpo-e-casa)).
 
 Compromissos (aulas, consultas) entram pelo **+** com data e hora ou pela folha de compromisso no
@@ -272,9 +281,17 @@ você ganha um bônus de XP. Uma jornada pode ter área, um baralho de estudo e 
 
 ## 4. Estudo
 
-A aba **Estudo** reúne revisão espaçada, lousas e prática técnica. Ela mostra, de cima para baixo:
+A aba **Estudo** reúne revisão espaçada, lousas, prática técnica e o progresso por matéria. Ela mostra, de cima para baixo:
 **Hoje**, **Rascunhos para completar**, **Baralhos**, **Lousas**, **Prática técnica**, **Próximos dias**,
 **Observado** e **Preferências de estudo**.
+
+### Matérias
+
+**Estudo → Matérias** mostra um cartão por matéria: cada jornada ativa com baralho ou prática ligada, e
+cada baralho sem jornada. Em cada uma: cards aprendidos do total (com uma barra), quanto você lembrou
+dos cards maduros nos últimos 30 dias (a partir de 20 revisões), minutos de revisão nesta semana,
+tópicos, sessões de prática e quantas com Autônomo, e a próxima entrega. Só números observados, sem nota.
+Dali você abre a jornada, o baralho ou a revisão só daquele baralho.
 
 ### Baralhos e notas
 
@@ -433,6 +450,8 @@ Em **Estudo → Preferências de estudo**:
 - **Retenção desejada:** de 80% a 95%. Mais retenção significa mais revisões por dia.
 - **Dias sem revisão:** por padrão, sábado e domingo. Nesses dias nada vence; cards que cairiam neles são
   movidos para o dia de estudo mais próximo.
+- **Lembrete de estudo** (desligado por padrão) e o horário: um aviso por dia de estudo, só se houver
+  cards para hoje e a meta ainda não foi cumprida. No iPhone, só funciona com o app na Tela de Início.
 
 Cards novos só entram enquanto a previsão dos próximos dias couber no orçamento, e o app sempre diz o
 motivo ("o orçamento de hoje já está ocupado pelas revisões", "teto de 10 novos por dia"). Em dia de
