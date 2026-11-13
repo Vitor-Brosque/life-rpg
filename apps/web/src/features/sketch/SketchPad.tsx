@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import type { InkColor, InkWidth, Pt, SketchView, Stroke } from '@life/shared';
 import {
-  DEFAULT_VIEW, ERASER_PX, MIN_STEP_PX, STROKE_MAX_POINTS, canAddStroke, eraseAlong, finishStroke, fitView, panBy,
+  DEFAULT_VIEW, ERASER_PX, MIN_STEP_PX, SKETCH_MAX_POINTS, SKETCH_MAX_STROKES, STROKE_MAX_POINTS, pointCount, canAddStroke, eraseAlong, finishStroke, fitView, panBy,
   pinchView, sketchBounds, toWorld, zoomAt,
 } from '@life/shared';
 import type { IconName } from '../../art/icons';
@@ -22,8 +22,10 @@ const TOOLS: Array<{ tool: SketchTool; label: string; icon: IconName }> = [
 const HISTORY_MAX = 100;
 /** A stroke this short when a second finger lands was the start of a pinch, not a line. */
 const PINCH_DROP_POINTS = 8;
+/** Arrow-key pan step in pixels (Shift: four times that). */
+const KEY_PAN_PX = 40;
 
-type Draw = { kind: 'draw'; id: number; c: InkColor; w: InkWidth; raw: number[]; zoom: number };
+type Draw = { kind: 'draw'; id: number; c: InkColor; w: InkWidth; raw: number[]; zoom: number; joined?: boolean };
 type Erase = { kind: 'erase'; id: number; last: Pt; before: Stroke[] };
 type Gesture =
   | { kind: 'idle' }
@@ -92,7 +94,11 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
     if (frame.current) return;
     frame.current = requestAnimationFrame(() => { frame.current = 0; paint(); });
   };
-  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    if (active.current) { active.current = false; cb.current.onGestureChange?.(false); }
+  }, []);
 
   useLayoutEffect(() => {
     const area = areaRef.current;
@@ -131,15 +137,23 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
     schedule();
     cb.current.onChange(next);
   };
-  const commit = (next: Stroke[], before: Stroke[] = strokes.current): void => {
-    past.current = [...past.current, before].slice(-HISTORY_MAX);
+  const commit = (next: Stroke[], before: Stroke[] = strokes.current, merge = false): void => {
+    if (!merge) past.current = [...past.current, before].slice(-HISTORY_MAX);
     future.current = [];
     setMessage(null);
     show(next);
   };
   const commitStroke = (g: Draw): void => {
-    const p = finishStroke(g.raw, g.zoom);
-    if (p.length >= 2) commit([...strokes.current, { c: g.c, w: g.w, p }]);
+    if (g.joined && g.raw.length < 4) return; // the pointer lifted right after a split: no stray dot
+    let p = finishStroke(g.raw, g.zoom);
+    if (p.length < 2) return;
+    // The caps hold on commit too: a stroke started near the limit is cut to the points that still fit.
+    const budget = SKETCH_MAX_POINTS - pointCount(strokes.current);
+    if (strokes.current.length >= SKETCH_MAX_STROKES || budget < 1) { setMessage('full'); return; }
+    const cut = p.length >> 1 > budget;
+    if (cut) p = p.slice(0, budget * 2);
+    commit([...strokes.current, { c: g.c, w: g.w, p }], strokes.current, g.joined);
+    if (cut) setMessage('full');
   };
   const commitErase = (g: Erase): void => {
     if (strokes.current !== g.before) commit(strokes.current, g.before);
@@ -165,6 +179,11 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
     if (strokes.current.length === 0 || !idle()) return;
     commit([]);
     setMessage('cleared');
+    areaRef.current?.focus({ preventScroll: true });
+  };
+  const undoClear = (): void => {
+    undo();
+    areaRef.current?.focus({ preventScroll: true });
   };
   const fit = (): void => {
     view.current = fitView(sketchBounds(strokes.current), size.current.w, size.current.h);
@@ -192,7 +211,7 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
   const onPointerDown = (e: PointerEvent<HTMLCanvasElement>): void => {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
     areaRef.current?.focus({ preventScroll: true });
-    e.currentTarget.setPointerCapture?.(e.pointerId); // missing in jsdom
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* missing in jsdom, or the pointer is gone */ }
     const pt = local(e);
     pointers.current.set(e.pointerId, pt);
     const g = gesture.current;
@@ -252,7 +271,7 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
     if (g.raw.length / 2 >= STROKE_MAX_POINTS) {
       // A very long stroke goes on as a new one from the same point.
       commitStroke(g);
-      if (canAddStroke(strokes.current)) gesture.current = { ...g, raw: [w.x, w.y] };
+      if (canAddStroke(strokes.current)) gesture.current = { ...g, raw: [w.x, w.y], joined: true };
       else { gesture.current = { kind: 'idle' }; setMessage('full'); }
     }
     schedule();
@@ -301,6 +320,8 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
   }, []);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    const t = e.target as HTMLElement;
+    if (t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return; // typing, not drawing
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
     if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
@@ -309,6 +330,15 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
     else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomCenter(1.25); }
     else if (e.key === '-') { e.preventDefault(); zoomCenter(0.8); }
     else if (e.key === '0') { e.preventDefault(); fit(); }
+    else if (e.target === areaRef.current && e.key.startsWith('Arrow')) {
+      e.preventDefault();
+      const d = e.shiftKey ? KEY_PAN_PX * 4 : KEY_PAN_PX;
+      // The view moves the way the arrow points, so the content slides the other way.
+      const dx = e.key === 'ArrowRight' ? -d : e.key === 'ArrowLeft' ? d : 0;
+      const dy = e.key === 'ArrowDown' ? -d : e.key === 'ArrowUp' ? d : 0;
+      view.current = panBy(view.current, dx, dy);
+      schedule();
+    }
   };
 
   // ---------------------------------------------------------------- markup
@@ -343,18 +373,20 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
         </div>
         {actions}
       </div>
-      <div ref={areaRef} className={`sketch__area sketch__area--${tool}`} tabIndex={0}>
+      <div ref={areaRef} className={`sketch__area sketch__area--${tool}`} tabIndex={0} role="application"
+        aria-label="Lousa: arraste para desenhar; use as teclas + e − para zoom e 0 para ajustar">
         <canvas
           ref={canvasRef} className="sketch__canvas" role="img" aria-label={`${label}: ${plural(n, 'traço', 'traços')}`}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove}
           onPointerUp={(e) => onPointerEnd(e, false)} onPointerCancel={(e) => onPointerEnd(e, true)}
+          onLostPointerCapture={(e) => onPointerEnd(e, true)}
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
       <p className="sketch__msg" role="status">
         {message === 'full' && FULL_MESSAGE}
         {message === 'cleared' && (
-          <>Lousa limpa. <Button size="sm" variant="ghost" aria-label="Desfazer a limpeza" onClick={undo}>Desfazer</Button></>
+          <>Lousa limpa. <Button size="sm" variant="ghost" aria-label="Desfazer a limpeza" onClick={undoClear}>Desfazer</Button></>
         )}
       </p>
     </div>

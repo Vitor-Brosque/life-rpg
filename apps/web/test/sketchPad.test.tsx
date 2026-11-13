@@ -2,8 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Stroke } from '@life/shared';
-import { SKETCH_MAX_STROKES } from '@life/shared';
-import { FULL_MESSAGE, SketchPad } from '../src/features/sketch/SketchPad';
+import { SKETCH_MAX_POINTS, SKETCH_MAX_STROKES } from '@life/shared';
+import { FULL_MESSAGE, SketchPad, type SketchPadProps } from '../src/features/sketch/SketchPad';
 
 // jsdom: no canvas (getContext → null in setup.ts), no layout (the view stays at zoom 1 with the
 // world origin at the canvas corner), so client coordinates are world coordinates here.
@@ -133,5 +133,67 @@ describe('SketchPad', () => {
     const { onChange, canvas } = setup();
     stroke(canvas, Array.from({ length: 2101 }, (_, i): P => [i * 2, 0]));
     expect(onChange).toHaveBeenLastCalledWith([{ c: 0, w: 0, p: [0, 0, 3998, 0] }, { c: 0, w: 0, p: [3998, 0, 4200, 0] }]);
+  });
+  it('a stroke started near the points cap is cut to what fits, with the gentle message', () => {
+    const nearly: Stroke = { c: 0, w: 0, p: Array.from({ length: (SKETCH_MAX_POINTS - 3) * 2 }, (_, i) => (i % 4 < 2 ? 0 : 7)) };
+    const { onChange, canvas } = setup([nearly]);
+    stroke(canvas, [[0, 100], [20, 130], [40, 100], [60, 130], [80, 100], [100, 130]]);
+    const last = onChange.mock.lastCall![0];
+    expect(last).toHaveLength(2);
+    expect(last[1]!.p).toHaveLength(6);
+    expect(screen.getByRole('status')).toHaveTextContent(FULL_MESSAGE);
+  });
+
+  it('a split stroke is one undo step and leaves no stray dot when the pointer lifts at once', async () => {
+    const user = userEvent.setup();
+    const { onChange, canvas } = setup();
+    down(canvas, [0, 0]);
+    for (let i = 1; i <= 1999; i++) move(canvas, [i * 2, 0]);
+    up(canvas, [3998, 0]);
+    expect(onChange.mock.lastCall![0]).toHaveLength(1);
+    stroke(canvas, Array.from({ length: 2101 }, (_, i): P => [i * 2, 50]));
+    expect(onChange.mock.lastCall![0]).toHaveLength(3);
+    await user.click(screen.getByRole('button', { name: 'Desfazer na lousa' }));
+    expect(onChange.mock.lastCall![0]).toHaveLength(1);
+  });
+
+  it('keys typed in a field inside actions are not shortcuts', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const props: SketchPadProps = { label: 'Lousa', initial: [], onChange, actions: <input aria-label="Nota" /> };
+    render(<SketchPad {...props} />);
+    const input = screen.getByRole('textbox', { name: 'Nota' });
+    await user.type(input, '0+z');
+    expect(input).toHaveValue('0+z');
+    const ev = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('the focusable area has a name and arrow keys pan it', () => {
+    const { onChange, canvas } = setup();
+    const area = screen.getByRole('application', { name: /^Lousa: arraste para desenhar/ });
+    fireEvent.keyDown(area, { key: 'ArrowRight' });
+    fireEvent.keyDown(area, { key: 'ArrowDown', shiftKey: true });
+    stroke(canvas, [[10, 10]]);
+    expect(onChange).toHaveBeenLastCalledWith([{ c: 0, w: 0, p: [50, 170] }]);
+  });
+
+  it('keeps the status region in the tree when empty, and returns focus to the area after Limpar', async () => {
+    const user = userEvent.setup();
+    setup([A]);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    const area = screen.getByRole('application');
+    await user.click(screen.getByRole('button', { name: 'Limpar lousa' }));
+    expect(area).toHaveFocus();
+  });
+
+  it('unmounting mid-gesture reports the gesture as over', () => {
+    const gestures: boolean[] = [];
+    const onChange = vi.fn();
+    const { unmount } = render(<SketchPad label="Lousa" initial={[]} onChange={onChange} onGestureChange={(on) => gestures.push(on)} />);
+    down(screen.getByRole('img', { name: /^Lousa:/ }), [5, 5]);
+    unmount();
+    expect(gestures).toEqual([true, false]);
   });
 });

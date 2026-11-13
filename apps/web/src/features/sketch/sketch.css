@@ -1,6 +1,6 @@
 /* Lousa (Marco 3b): a dark board with chalk inks from the palette. No red anywhere. */
 
-.sketch { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.sketch { position: relative; display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
 .sketch__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
 .sketch__bar .btn[aria-pressed='true'] { --btn-bg: rgba(242, 193, 78, 0.16); box-shadow: inset 0 0 0 3px var(--gold); }
 .sketch__inks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
@@ -44,4 +44,5 @@
 .sketch__area--pan { cursor: grab; }
 .sketch__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
 .sketch__msg { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-dim); font-size: 0.875rem; }
-.sketch__msg:empty { display: none; }
+/* The live region stays in the tree (screen readers need it to announce); empty, it takes no room. */
+.sketch__msg:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
