@@ -239,6 +239,7 @@ export interface Review extends BaseRecord {  // append-only: created or soft-de
   durationMs: number;   // capped at 5 min
   wrote: boolean;
   coverage?: { covered: number; total: number };  // topic cards: key points ticked
+  drew?: boolean;       // "Desenhar antes": at least one stroke when the answer was revealed (only when true)
   before: CardSchedule;
   after: CardSchedule;
 }
@@ -255,6 +256,26 @@ export const DEFAULT_STUDY: StudySettings = { budgetMin: 15, maxNewPerDay: 10, r
 /** `settings.study` with every missing field taken from DEFAULT_STUDY. */
 export function studySettingsOf(s?: { study?: Partial<StudySettings> }): StudySettings {
   return { ...DEFAULT_STUDY, ...(s?.study ?? {}) };
+}
+
+// ------------------------------------------------------------------ lousa (Marco 3b)
+
+/** 0 Branco · 1 Azul · 2 Verde · 3 Amarelo (theme colours, resolved when drawing). */
+export type InkColor = 0 | 1 | 2 | 3;
+/** 0 thin (2) · 1 thick (6), in world units. */
+export type InkWidth = 0 | 1;
+
+/** One pen stroke. Short keys: a lousa may hold thousands of them. */
+export interface Stroke {
+  c: InkColor;
+  w: InkWidth;
+  p: number[];          // [x0, y0, x1, y1, …] world units (1 = 1 CSS px at zoom 1), 0.1 precision, ≥ 1 point
+}
+
+export interface Sketch extends BaseRecord {  // a mission's lousa has id `sketch-m-${missionId}`
+  title: string;        // '' → automatic name (sketchTitle)
+  missionId?: ID;
+  strokes: Stroke[];
 }
 
 export const SYNC_TABLES = [
