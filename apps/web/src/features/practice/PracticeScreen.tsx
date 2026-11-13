@@ -12,6 +12,7 @@ import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { ResumeNote } from '../agora/ResumeNote';
 import { useMissionSheet } from '../mission/MissionSheet';
+import { ErrorLog } from './ErrorLog';
 import { PauseSheet } from './PauseSheet';
 import { StepBody } from './PracticeSteps';
 import { practiceBack, usePracticeSession } from './practiceData';
@@ -130,6 +131,8 @@ function PracticeBody({ session }: { session: PracticeSession }) {
         {prev && <Button onClick={() => go(prev)}>Anterior: {stepLabel(prev)}</Button>}
         {next && <Button variant="primary" onClick={() => go(next)}>Próximo: {stepLabel(next)}</Button>}
       </div>
+
+      <ErrorLog session={session} />
 
       <Button variant="ghost" className="practice__delete" onClick={remove}>Apagar sessão</Button>
       <PauseSheet open={pausing} session={session} onClose={() => setPausing(false)} onPaused={() => navigate(back)} />
