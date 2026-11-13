@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256Hex } from '@life/shared';
 import { db } from '../src/db/db';
-import { MEDIA_LEFT_OUT, collectExport } from '../src/db/exportData';
+import { collectExport, mediaLeftOutNote } from '../src/db/exportData';
 import { storeMedia } from '../src/db/media';
 import { setMeta } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
@@ -74,7 +74,7 @@ describe('export and import with media', () => {
     expect(data.mediaNote).toBeUndefined();
     const capped = await collectExport(8);
     expect(capped.media).toBeUndefined();
-    expect(capped.mediaNote).toBe(MEDIA_LEFT_OUT);
+    expect(capped.mediaNote).toBe(mediaLeftOutNote(1));
   });
   it('an exported file brings its media back into an empty device, queued for upload', async () => {
     await storeMedia(PNG_BYTES, { upload: false });
@@ -109,6 +109,6 @@ describe('export and import with media', () => {
     await storeMedia(PNG_BYTES, { upload: false });
     expect(await screen.findByText('Imagens e áudios (16 B) entram na exportação.')).toBeInTheDocument();
     await db.mediaInfo.put({ hash: 'f'.repeat(64), type: 'audio/mp4', size: 26 * MB, addedAt: 1 });
-    expect(await screen.findByText('Imagens e áudios passam de 25 MB e ficam fora da exportação (continuam guardados neste aparelho e, com a sincronização, no servidor).')).toBeInTheDocument();
+    expect(await screen.findByText('Imagens e áudios passam de 25 MB: entram na exportação até esse limite, primeiro os que ainda esperam o envio ao servidor. Os demais continuam guardados neste aparelho e, com a sincronização, no servidor.')).toBeInTheDocument();
   });
 });

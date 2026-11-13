@@ -44,7 +44,7 @@ export function StorageSection() {
   };
 
   return (
-    <SettingsSection title="Armazenamento" icon="chest">
+    <SettingsSection title="Armazenamento" icon="drive">
       <dl className="settings-status">
         <div>
           <dt>Mídias neste aparelho</dt>

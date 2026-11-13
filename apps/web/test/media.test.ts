@@ -9,7 +9,7 @@ import { rateCard, saveDeck, saveNote } from '../src/domain/studyActions';
 import { syncNow } from '../src/sync/client';
 import {
   MEDIA_TIMEOUT_MS, ON_DEMAND_RETRY_MS, UPLOAD_ROUND_FILES, downloadMedia, missingMedia, prefetchMedia, requestMedia, resetMediaSyncState,
-  uploadPendingMedia, useMediaStatus,
+  PREFETCH_ROUND_FILES, uploadPendingMedia, uploadTimeoutMs, useMediaStatus,
 } from '../src/sync/media';
 import { useSyncStatus } from '../src/sync/status';
 import { PNG_BYTES } from './fakeMedia';
@@ -262,5 +262,55 @@ describe('study fields', () => {
     expect('spoke' in (await db.reviews.get(r2.reviewId))!).toBe(false);
     await saveDeck({ id: d.id, name: 'Inglês', speechLang: '' });
     expect((await db.decks.get(d.id))!.speechLang).toBeUndefined();
+  });
+  it('prefetch: a full batch with more missing schedules another run, until nothing is left', async () => {
+    const total = PREFETCH_ROUND_FILES + 5;
+    const files = Array.from({ length: total }, (_, i) => png(i + 40));
+    const hashes = files.map((b) => sha256Hex(b));
+    await db.notes.put(note('n1', hashes.map((h) => `![a](media:${h})`).join(' ')));
+    const f = vi.fn(async (u: string) => res(200, files[hashes.indexOf(u.slice('/api/media/'.length))]));
+    vi.stubGlobal('fetch', f);
+    await prefetchMedia('tok', true);
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(total));
+    for (const h of hashes) expect(await db.mediaInfo.get(h), h).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(f).toHaveBeenCalledTimes(total); // and it stopped
+  });
+  it('prefetch: the follow-up runs end even when the extra files never arrive (cooldown)', async () => {
+    const dead = Array.from({ length: PREFETCH_ROUND_FILES + 3 }, (_, i) => (i + 1).toString(16).padStart(64, '0'));
+    await db.notes.put(note('n1', dead.map((h) => `![a](media:${h})`).join(' ')));
+    const f = vi.fn(async () => res(404)); vi.stubGlobal('fetch', f);
+    await prefetchMedia('tok', true);
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(dead.length));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(f).toHaveBeenCalledTimes(dead.length);
+  });
+  it('upload timeout grows with the size, 60 s to 180 s', () => {
+    expect(uploadTimeoutMs(1000)).toBe(70_000);
+    expect(uploadTimeoutMs(3 * 1024 * 1024)).toBe(90_000);
+    expect(uploadTimeoutMs(8 * 1024 * 1024)).toBe(140_000);
+    expect(uploadTimeoutMs(50 * 1024 * 1024)).toBe(180_000);
+  });
+  it('a file whose upload times out goes to the back of the queue, so the others get their turn', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1000); const slow = await saveMediaBlob(new Blob([png(60)]));
+    vi.setSystemTime(2000); const other = await saveMediaBlob(new Blob([png(61)]));
+    vi.setSystemTime(3000);
+    let stalls = true;
+    // The abort a timeout fires reaches fetch as an AbortError (the timer itself is covered by the download test).
+    const f = vi.fn(async (u: string) => {
+      if (stalls && u.endsWith(slow.hash)) throw new DOMException('aborted', 'AbortError');
+      return res(204);
+    });
+    vi.stubGlobal('fetch', f);
+    expect(await uploadPendingMedia('tok')).toBe('stopped');
+    expect((await db.mediaQueue.get(slow.hash))!.addedAt).toBe(3000);
+    f.mockClear();
+    expect(await uploadPendingMedia('tok')).toBe('stopped'); // `other` goes first and is done; the slow one waits again
+    expect(f.mock.calls[0]![0]).toBe(`/api/media/${other.hash}`);
+    expect(await db.mediaQueue.get(other.hash)).toBeUndefined();
+    stalls = false;
+    expect(await uploadPendingMedia('tok')).toBe('done');
+    expect(await db.mediaQueue.count()).toBe(0);
   });
 });

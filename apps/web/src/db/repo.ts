@@ -1,5 +1,5 @@
 import type { BaseRecord, SyncChange, SyncTable } from '@life/shared';
-import { shouldAccept, ulid } from '@life/shared';
+import { SYNC_TABLES, shouldAccept, ulid } from '@life/shared';
 import { db, tableOf } from './db';
 
 const listeners = new Set<() => void>();
@@ -155,7 +155,7 @@ const warnedTables = new Set<string>();
  */
 export async function applyRemote(change: SyncChange): Promise<boolean> {
   const { table, record } = change;
-  if (!db.tables.some((x) => x.name === table)) {
+  if (!(SYNC_TABLES as readonly string[]).includes(table) || !db.tables.some((x) => x.name === table)) {
     if (!warnedTables.has(table)) {
       warnedTables.add(table);
       console.warn(`sync: skipping changes for unknown table "${table}"`);

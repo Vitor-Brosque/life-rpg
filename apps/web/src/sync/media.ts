@@ -18,6 +18,8 @@ export const ON_DEMAND_RETRY_MS = 30_000;
 export const PREFETCH_COOLDOWN_MS = 10 * 60_000;
 /** Per file: a stalled connection must not hold the sync round forever. */
 export const MEDIA_TIMEOUT_MS = 60_000;
+/** Uploads: 60 s plus 10 s per MB, at most 180 s. */
+export const uploadTimeoutMs = (bytes: number): number => Math.min(180_000, MEDIA_TIMEOUT_MS + Math.ceil(bytes / (1024 * 1024)) * 10_000);
 
 export type MediaStatus = 'downloading' | 'missing';
 /** Download state of files this device lacks (absent key: nothing known yet). */
@@ -64,13 +66,15 @@ export async function uploadPendingMedia(token: string): Promise<UploadOutcome> 
       }
       let res: Response;
       try {
-        res = await withTimeout(MEDIA_TIMEOUT_MS, (signal) => fetch(mediaUrl(item.hash), {
+        res = await withTimeout(uploadTimeoutMs(data.bytes.byteLength), (signal) => fetch(mediaUrl(item.hash), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/octet-stream', Authorization: `Bearer ${token}` },
           body: data.bytes,
           signal,
         }));
-      } catch {
+      } catch (e) {
+        // A timeout sends the file to the back of the queue, so a slow one does not hold the others every round.
+        if ((e as { name?: string } | null)?.name === 'AbortError') await db.mediaQueue.update(item.hash, { addedAt: Date.now() });
         return 'stopped';
       }
       const refused = res.status === 400 || res.status === 413 || res.status === 415;
@@ -191,14 +195,18 @@ export function prefetchMedia(token: string, force = false): Promise<void> {
       const now = Date.now();
       // Files the server could not give wait out a cooldown, so they never starve the ones behind them.
       const wanted = (await missingMedia()).filter((h) => now - (prefetchTried.get(h) ?? -Infinity) >= PREFETCH_COOLDOWN_MS);
+      let offline = false;
       for (const hash of wanted.slice(0, PREFETCH_ROUND_FILES)) {
         const r = await fetchOnce(hash, token);
         if (r === 'offline') {
           lastScan = 0; // not a real scan: the next unforced one may run as soon as the network is back
+          offline = true;
           break;
         }
         if (r !== 'stored') prefetchTried.set(hash, Date.now());
       }
+      // More are missing: another run (each file is stored or put on cooldown, so this ends).
+      if (!offline && wanted.length > PREFETCH_ROUND_FILES) again = true;
     } catch (e) {
       if (!isClosed(e)) console.warn('media prefetch failed', e);
     }

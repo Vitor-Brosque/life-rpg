@@ -1,6 +1,6 @@
 import type { BaseRecord, SyncChange, SyncTable } from '@life/shared';
 import { SYNC_TABLES, base64ToBytes, isMediaHash } from '@life/shared';
-import { storeMedia } from '../../db/media';
+import { MEDIA_MESSAGES, MediaInputError, storeMedia } from '../../db/media';
 import { importRecords } from '../../db/repo';
 import { plural } from '../../ui/format';
 
@@ -47,7 +47,7 @@ export function parseImport(data: unknown): SyncChange[] {
   return changes;
 }
 
-export interface ImportResult { records: number; media: number }
+export interface ImportResult { records: number; media: number; /** Media left out for lack of space on this device. */ noSpace?: number }
 
 /** The export's embedded media (well-formed entries only; the rest is ignored). */
 export function parseImportMedia(data: unknown): Array<{ hash: string; data: string }> {
@@ -63,17 +63,19 @@ export function parseImportMedia(data: unknown): Array<{ hash: string; data: str
   return out;
 }
 
-/** Keeps each media whose bytes match its hash, queued for the server. Returns how many were new. */
-export async function importMedia(entries: Array<{ hash: string; data: string }>): Promise<number> {
+/** Keeps each media whose bytes match its hash, queued for the server: how many were new, and how many did not fit here. */
+export async function importMedia(entries: Array<{ hash: string; data: string }>): Promise<{ added: number; noSpace: number }> {
   let added = 0;
+  let noSpace = 0;
   for (const e of entries) {
     try {
       if ((await storeMedia(base64ToBytes(e.data), { upload: true, expectHash: e.hash })).created) added += 1;
     } catch (err) {
+      if (err instanceof MediaInputError && err.message === MEDIA_MESSAGES.noSpace) noSpace += 1;
       console.warn(`import: media ${e.hash} skipped`, err);
     }
   }
-  return added;
+  return { added, noSpace };
 }
 
 /** Reads an exported JSON file: media first (so their uploads go before the records), then records. */
@@ -86,10 +88,13 @@ export async function importFile(file: Blob): Promise<ImportResult> {
   }
   const changes = parseImport(data);
   const media = await importMedia(parseImportMedia(data));
-  return { records: await importRecords(changes), media };
+  return { records: await importRecords(changes), media: media.added, ...(media.noSpace > 0 ? { noSpace: media.noSpace } : {}) };
 }
 
 export function importSummary(r: ImportResult): string {
-  if (r.media === 0) return r.records === 1 ? '1 registro importado' : `${r.records} registros importados`;
-  return `${plural(r.records, 'registro', 'registros')} e ${plural(r.media, 'mídia', 'mídias')} importados`;
+  const base = r.media === 0
+    ? (r.records === 1 ? '1 registro importado' : `${r.records} registros importados`)
+    : `${plural(r.records, 'registro', 'registros')} e ${plural(r.media, 'mídia', 'mídias')} importados`;
+  if (!r.noSpace) return base;
+  return `${base}. ${r.noSpace === 1 ? '1 mídia não coube' : `${r.noSpace} mídias não couberam`} neste aparelho.`;
 }

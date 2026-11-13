@@ -6,21 +6,41 @@ import { mediaUsage } from './media';
 export interface ExportMedia { hash: string; type: MediaType; data: string } // data: base64
 export type ExportData = { exportedAt: number; media?: ExportMedia[]; mediaNote?: string } & Record<SyncTable, unknown[]>;
 
-export const MEDIA_LEFT_OUT = 'Mídias não incluídas: passam de 25 MB. Elas continuam guardadas no aparelho e, com a sincronização, no servidor.';
+/** What the export says (and the hint under the buttons repeats) when some media did not fit. */
+export const mediaLeftOutNote = (n: number): string =>
+  `${n} ${n === 1 ? 'mídia não coube' : 'mídias não couberam'} na exportação (limite de 25 MB). `
+  + 'Continuam guardadas no aparelho e, com a sincronização, no servidor.';
+
+/** Media hashes in the order they are packed: waiting for the server first (oldest first), then the rest. */
+async function mediaOrder(): Promise<string[]> {
+  const queued = (await db.mediaQueue.orderBy('addedAt').toArray()).map((q) => q.hash);
+  const inQueue = new Set(queued);
+  const rest = (await db.mediaInfo.toArray()).filter((m) => !inQueue.has(m.hash)).sort((x, y) => x.addedAt - y.addedAt).map((m) => m.hash);
+  return [...queued, ...rest];
+}
 
 /**
  * Every record of every synced table (soft-deleted included), keyed by table name, plus the media
- * kept on this device in base64 while they add up to at most `mediaCap` (spec Decisão 14).
+ * kept on this device in base64, as many as fit in `mediaCap` bytes: those still waiting for the
+ * server first (only this device has them), then the others. `mediaNote` says how many were left out.
  */
 export async function collectExport(mediaCap: number = EXPORT_MEDIA_MAX_BYTES): Promise<ExportData> {
   const data = { exportedAt: Date.now() } as ExportData;
   for (const table of SYNC_TABLES) data[table] = await tableOf(table).toArray();
-  const usage = await mediaUsage();
-  if (usage.count > 0 && usage.bytes <= mediaCap) {
-    data.media = (await db.mediaData.toArray()).map((m) => ({ hash: m.hash, type: m.type, data: bytesToBase64(new Uint8Array(m.bytes)) }));
-  } else if (usage.count > 0) {
-    data.mediaNote = MEDIA_LEFT_OUT;
+  const media: ExportMedia[] = [];
+  let bytes = 0;
+  let leftOut = 0;
+  for (const hash of await mediaOrder()) {
+    const info = await db.mediaInfo.get(hash);
+    if (!info) continue;
+    if (bytes + info.size > mediaCap) { leftOut += 1; continue; }
+    const row = await db.mediaData.get(hash);
+    if (!row) continue;
+    bytes += info.size;
+    media.push({ hash, type: row.type, data: bytesToBase64(new Uint8Array(row.bytes)) });
   }
+  if (media.length > 0) data.media = media;
+  if (leftOut > 0) data.mediaNote = mediaLeftOutNote(leftOut);
   return data;
 }
 
@@ -33,16 +53,24 @@ export function exportFileName(date = new Date()): string {
 const isDomError = (e: unknown, name: string): boolean =>
   typeof e === 'object' && e !== null && (e as { name?: unknown }).name === name;
 
-/**
- * Saves the full export as a JSON file. Where files can be shared (the iPhone Home Screen app,
- * which ignores `<a download>`), it opens the share sheet ("Salvar em Arquivos"…); otherwise it
- * downloads through a Blob URL. Closing the share sheet is not an error.
- */
-export async function downloadExport(): Promise<void> {
+export interface PreparedExport { file: File; mediaNote?: string }
+
+/** Builds the export file (the slow part: reads every table and the media). */
+export async function prepareExport(): Promise<PreparedExport> {
   const data = await collectExport();
-  const json = JSON.stringify(data, null, 2);
-  const name = exportFileName();
-  const file = new File([json], name, { type: 'application/json' });
+  const file = new File([JSON.stringify(data, null, 2)], exportFileName(), { type: 'application/json' });
+  return { file, ...(data.mediaNote ? { mediaNote: data.mediaNote } : {}) };
+}
+
+/** The device has a share sheet (the iPhone Home Screen app, which ignores `<a download>`). */
+export const canShareFiles = (): boolean => typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+
+/**
+ * Hands the file over: the share sheet ("Salvar em Arquivos"…) where the device can share it,
+ * otherwise a download through a Blob URL. Call it straight from a tap: share() needs the tap's
+ * user activation, which a long preparation would have used up. Closing the share sheet is not an error.
+ */
+export async function deliverExport(file: File): Promise<void> {
   if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'LIFE RPG — backup' });
@@ -56,11 +84,16 @@ export async function downloadExport(): Promise<void> {
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
-  a.download = name;
+  a.download = file.name;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Prepares and delivers in one go (where no fresh tap is needed: desktop, the error screen). */
+export async function downloadExport(): Promise<void> {
+  await deliverExport((await prepareExport()).file);
 }
 
 /** Asks the browser not to evict this origin's storage (IndexedDB) under pressure. Best effort. */
