@@ -4,6 +4,7 @@ import { weekdayOf } from '@life/shared';
 import { Button } from '../../ui/Button';
 import { WEEKDAY_ABBR, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
+import { forecastMinutes } from './ForecastBars';
 
 export interface TodayCardProps {
   plan: StudyPlan;
@@ -21,7 +22,7 @@ const minutes = (m: number): string => `~${Math.max(1, Math.round(m))} min`;
 /** "Hoje" of the Estudo tab (spec §6): the plan, its reason, or a calm done / free-day state. */
 export function TodayCard({ plan, mode, restDay, hasDecks, hasCards, onReview, onCreateDeck, onNewCard }: TodayCardProps) {
   const next = plan.forecast[0];
-  const nextLine = next ? `Próximo dia de estudo (${WEEKDAY_ABBR[weekdayOf(next.day)]}): ${minutes(next.min)}` : undefined;
+  const nextLine = next ? `Próximo dia de estudo (${WEEKDAY_ABBR[weekdayOf(next.day)]}): ${forecastMinutes(next.min).text}` : undefined;
   const work = plan.dueCount + plan.newAllowed;
   const parts = [
     ...(plan.dueCount > 0 ? [plural(plan.dueCount, 'revisão', 'revisões')] : []),

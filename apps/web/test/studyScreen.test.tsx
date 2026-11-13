@@ -74,6 +74,16 @@ describe('StudyScreen', () => {
     expect(screen.getByRole('link', { name: 'o que é idempotência' })).toHaveAttribute('href', expect.stringMatching(/^\/estudo\/nota\//));
   });
 
+  it('next study day under half a minute: "<1" in the bar and "menos de 1 min" in the text', async () => {
+    await deckWithCards(1);
+    await db.cards.toCollection().modify({ state: 'review', due: new Date(2026, 10, 13, 4, 0).getTime(), scheduledDays: 1 });
+    render(<StudyScreen />);
+    const today = await screen.findByLabelText('Hoje');
+    expect(within(today).getByText('Próximo dia de estudo (sex): menos de 1 min')).toBeInTheDocument();
+    expect(screen.getByLabelText('sex: menos de 1 min')).toHaveTextContent('<1');
+    expect(screen.getByLabelText('seg: nada previsto')).toHaveTextContent('0');
+  });
+
   it('saves study preferences', async () => {
     const user = userEvent.setup();
     await deckWithCards(1);

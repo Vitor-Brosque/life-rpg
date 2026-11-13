@@ -16,6 +16,7 @@ import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { useCompanion } from '../companion/store';
 import { CodeEditor } from './CodeEditor';
+import { forecastMinutes } from './ForecastBars';
 import { RatingBar } from './RatingBar';
 import { RevealPanel } from './RevealPanel';
 import { Rich } from './Rich';
@@ -227,7 +228,7 @@ export function ReviewSession() {
           ) : <p>Nada para revisar agora.</p>}
           {session.goalShown && <p>Meta de hoje feita.</p>}
           {view.nextLearning !== undefined && <p className="muted">Um card em aprendizado volta às {formatClock(view.nextLearning)}.</p>}
-          {next && <p className="muted">Próximo dia de estudo: ~{Math.max(1, Math.round(next.min))} min.</p>}
+          {next && <p className="muted">Próximo dia de estudo: {forecastMinutes(next.min).text}.</p>}
           <div className="study-today__actions"><Button variant="primary" onClick={finish}>Voltar ao Estudo</Button></div>
         </Panel>
       </section>

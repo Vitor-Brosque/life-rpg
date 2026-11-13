@@ -220,7 +220,7 @@ export function NoteEditor({ id }: { id?: string }) {
               <Rich text={f.front} />
               <hr className="note-preview__divider" />
               {f.code ? <CodeView code={f.code.solution} lang={f.code.lang} />
-                : f.points ? <ul className="note-preview__points">{f.points.map((p, j) => <li key={j}>{p}</li>)}</ul>
+                : f.points ? <ul className="note-preview__points">{f.points.map((p, j) => <li key={j}><Rich text={p} /></li>)}</ul>
                 : <Rich text={f.back} />}
               {f.extra && <Rich text={f.extra} className="note-preview__extra" />}
             </article>

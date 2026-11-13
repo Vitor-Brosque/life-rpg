@@ -92,6 +92,8 @@ describe('NoteEditor', () => {
     await user.type(screen.getByLabelText('Pontos-chave (um por linha)'), '- 1FN{enter}- 2FN');
     const preview = screen.getByRole('region', { name: 'Pré-visualização' });
     expect(within(preview).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1FN', '2FN']);
+    await user.type(screen.getByLabelText('Pontos-chave (um por linha)'), '{enter}- área $a^2$');
+    expect(within(preview).getAllByRole('listitem')[2]!.querySelector('.rich__math, .rich__math-src')).not.toBeNull();
     expect(screen.getByLabelText('Por quê? (opcional)')).toBeInTheDocument();
   });
 
