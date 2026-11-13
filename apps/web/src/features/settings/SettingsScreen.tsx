@@ -47,7 +47,7 @@ export function SettingsScreen() {
           <DataSection />
           <SettingsSection title="Sobre" icon="book">
             <p>LIFE RPG, versão {APP_VERSION}.</p>
-            <p className="settings-hint">Marco 1 — Fundação e “Agora”.</p>
+            <p className="settings-hint">Agora, semana em blocos, estudo (revisão espaçada, lousas, mídia e prática técnica), corpo e casa, padrões, mundo RPG e IA opcional. Guia de uso: docs/guia-de-uso.md.</p>
           </SettingsSection>
         </div>
       </div>
