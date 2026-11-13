@@ -131,6 +131,28 @@ describe('creating and cleaning', () => {
   });
 });
 
+describe('normalizePractice optional fields', () => {
+  it('drops wrongly typed optional fields so consumers never crash', () => {
+    const bad = S({ title: 7 as unknown as string, nextAction: 5 as unknown as string, endedAt: '9' as unknown as number,
+      journeyId: 3 as unknown as string, missionId: '' , deckId: {} as unknown as string });
+    const n = normalizePractice(bad);
+    expect(n.title).toBe('');
+    expect('nextAction' in n).toBe(false);
+    expect('endedAt' in n).toBe(false);
+    expect('journeyId' in n).toBe(false);
+    expect('missionId' in n).toBe(false);
+    expect('deckId' in n).toBe(false);
+    expect(() => practicePrompt({
+      mode: 'normal', block: { kind: 'focus' }, sessions: [S({ nextAction: 5 as unknown as string }), n].map(normalizePractice),
+    })).not.toThrow();
+  });
+
+  it('keeps well-typed optional fields', () => {
+    const ok = S({ nextAction: 'ligar', endedAt: 5, journeyId: 'j', missionId: 'm', deckId: 'd' });
+    expect(normalizePractice(ok)).toMatchObject({ nextAction: 'ligar', endedAt: 5, journeyId: 'j', missionId: 'm', deckId: 'd' });
+  });
+});
+
 describe('facts and ratings', () => {
   it('codeLines counts non-blank lines', () => {
     expect(codeLines('a\n\n  \nb\n')).toBe(2);

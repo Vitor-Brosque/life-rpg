@@ -153,7 +153,7 @@ export function normalizePractice(s: PracticeSession): PracticeSession {
   const rb = raw.rebuild as Partial<PracticeRebuild> | undefined;
   const out: PracticeSession = {
     ...s,
-    title: str(raw.title),
+    title: cleanPracticeTitle(str(raw.title)),
     status: raw.status === 'done' ? 'done' : 'open',
     step: isPracticeStep(raw.step) ? raw.step : 'problem',
     problem: str(raw.problem), inputs: str(raw.inputs), outputs: str(raw.outputs),
@@ -162,6 +162,12 @@ export function normalizePractice(s: PracticeSession): PracticeSession {
     language: LANGS.includes(raw.language as CodeLang) ? (raw.language as CodeLang) : 'python',
     code: str(raw.code), feedback, errors, ratings, explanation: str(raw.explanation),
   };
+  // Optional fields: a wrong type (sync, import) is dropped rather than carried into `.trim()` and friends.
+  if (typeof raw.nextAction !== 'string') delete out.nextAction;
+  if (typeof raw.endedAt !== 'number') delete out.endedAt;
+  for (const k of ['journeyId', 'missionId', 'deckId'] as const) {
+    if (typeof raw[k] !== 'string' || raw[k] === '') delete out[k];
+  }
   if (rb && typeof rb === 'object' && typeof rb.startedAt === 'number') {
     out.rebuild = { ...rb, code: str(rb.code), startedAt: rb.startedAt } as PracticeRebuild;
   } else delete out.rebuild;
