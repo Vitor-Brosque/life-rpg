@@ -24,7 +24,7 @@ export function PracticeHistory({ sessions }: { sessions: readonly PracticeSessi
           </li>
         ))}
       </ul>
-      <p className="practice-history__hints">{`${hints === 0 ? 'Pistas: nenhuma' : `Pistas: ${hints}`} nas últimas ${h.count} sessões.`}</p>
+      <p className="practice-history__hints">{hints === 0 ? `Nenhuma pista nas últimas ${h.count} sessões.` : `Pistas: ${hints} nas últimas ${h.count} sessões.`}</p>
       <p className="practice-history__legend">Pista é parte do método; o que importa é o Autônomo nas reconstruções.</p>
       <p className="practice-history__legend">
         Cada barra é uma sessão encerrada. São autoavaliações, não notas: servem para ver tendência. Os três ficam separados de propósito.

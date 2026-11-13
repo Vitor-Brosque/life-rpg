@@ -47,7 +47,7 @@ export const dayKeyMonth = (day: DayKey): string => `${day.slice(8, 10)}/${day.s
 /** A retest's meta (P2): "Reconstrução · 16/11" before its day, "Reconstrução · hoje" on it or after. */
 export function retestMeta(s: Pick<PracticeSession, 'retestOf' | 'availableFrom'>, today?: DayKey): string | undefined {
   if (!s.retestOf) return undefined;
-  return s.availableFrom && today && s.availableFrom > today ? `Reconstrução · ${dayKeyMonth(s.availableFrom)}` : 'Reconstrução · hoje';
+  return s.availableFrom && (!today || s.availableFrom > today) ? `Reconstrução · ${dayKeyMonth(s.availableFrom)}` : 'Reconstrução · hoje';
 }
 
 /** "Reconstrução · hoje · Tech News · há 2 dias · Passo: Implementar". */

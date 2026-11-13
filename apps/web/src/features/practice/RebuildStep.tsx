@@ -32,7 +32,6 @@ export function RebuildStep({ session, go }: StepProps) {
     }
     return (
       <>
-        {early && <p className="practice__hint" role="note">{`Marcada para ${dayKeyMonth(session.availableFrom!)}. Pode começar antes, se quiser.`}</p>}
         <p className="practice__hint">
           Reescreva a solução sem olhar. A sua implementação fica escondida até você comparar. Fazer isso em outro dia é um teste ainda melhor.
         </p>
@@ -44,7 +43,14 @@ export function RebuildStep({ session, go }: StepProps) {
   }
 
   // Keyed by startedAt: "Sim, refazer" mounts a fresh draft, never showing the previous rebuild's code.
-  if (rb.comparedAt === undefined) return <RebuildEditor key={rb.startedAt} session={session} />;
+  if (rb.comparedAt === undefined) {
+    return (
+      <>
+        {early && <p className="practice__hint" role="note">{`Marcada para ${dayKeyMonth(session.availableFrom!)}. Pode começar antes, se quiser.`}</p>}
+        <RebuildEditor key={rb.startedAt} session={session} />
+      </>
+    );
+  }
 
   return (
     <>

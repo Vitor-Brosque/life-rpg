@@ -259,6 +259,12 @@ describe('errors and XP', () => {
 describe('practicePrompt', () => {
   const focus = { kind: 'focus' as const, journeyId: 'j-tech' };
 
+  it('while today is unknown, a retest with availableFrom is not offered', () => {
+    const retest = S({ id: 'rt', journeyId: 'j-tech', availableFrom: '2026-11-16', retestOf: 'x' });
+    expect(practicePrompt({ mode: 'normal', block: focus, sessions: [retest] })).toEqual({ kind: 'start' });
+    expect(practicePrompt({ mode: 'normal', block: focus, sessions: [retest], today: '2026-11-16' })).toMatchObject({ kind: 'resume' });
+  });
+
   it('nothing outside focus and study blocks, nor on free or recovery days', () => {
     expect(practicePrompt({ mode: 'normal', sessions: [] })).toBeUndefined();
     for (const kind of ['body', 'routine', 'light'] as const) {

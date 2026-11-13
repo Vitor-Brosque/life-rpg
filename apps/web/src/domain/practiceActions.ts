@@ -163,10 +163,11 @@ export const createRetest = (id: ID, days: number): Promise<PracticeSession> => 
     .find((s) => s.retestOf === id && s.status === 'open');
   if (existing) return existing;
   const today = await getToday();
+  const span = Number.isInteger(days) && days >= 1 ? days : 3;
   const again = (xs: ChecklistItem[]): ChecklistItem[] => xs.map((x) => ({ ...x, done: false }));
   return put(T, newRecord<PracticeSession>({
     ...newPracticeFields({
-      title: `${src.title} · de novo`,
+      title: `${src.title.replace(/( · de novo)+$/, '')} · de novo`.slice(0, PRACTICE_LIMITS.title),
       ...(src.journeyId ? { journeyId: src.journeyId } : {}),
       ...(src.missionId ? { missionId: src.missionId } : {}),
       ...(src.deckId ? { deckId: src.deckId } : {}),
@@ -174,7 +175,9 @@ export const createRetest = (id: ID, days: number): Promise<PracticeSession> => 
     step: 'rebuild',
     problem: src.problem, inputs: src.inputs, outputs: src.outputs, language: src.language, code: src.code,
     basics: src.basics.map((x) => ({ ...x })), plan: again(src.plan), tests: again(src.tests),
-    retestOf: id, availableFrom: addDays(today, Math.max(1, Math.round(days))),
+    // Born with the rebuild started (not compared, not peeked): every hiding rule keeps the code out of sight.
+    rebuild: { code: '', startedAt: Date.now() },
+    retestOf: id, availableFrom: addDays(today, span),
   }));
 });
 

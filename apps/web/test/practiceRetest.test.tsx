@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PracticeSession } from '@life/shared';
-import { PRACTICE_LIMITS } from '@life/shared';
+import { PRACTICE_LIMITS, hintRequestOf, hintStepState } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import {
@@ -60,7 +60,7 @@ describe('createRetest', () => {
     expect(r.tests.map((p) => [p.text, p.done])).toEqual([['vazio → []', false]]);
     expect(r.feedback).toEqual([]);
     expect(r.errors).toEqual([]);
-    expect(r.rebuild).toBeUndefined();
+    expect(r.rebuild).toEqual({ code: '', startedAt: Date.now() });
     expect(r.explanation).toBe('');
     expect(r.nextAction).toBeUndefined();
     expect(r.ratings).toEqual({});
@@ -138,12 +138,13 @@ describe('Reconstruir de novo (screen)', () => {
     expect(screen.queryByRole('group', { name: 'Reconstruir de novo, sem consultar' })).toBeNull();
   });
 
-  it('a retest before its day opens on Reconstruir with a calm notice and the start button; the code stays hidden', async () => {
+  it('a retest before its day opens straight into the rebuild editor with a calm notice; the code stays hidden', async () => {
     const o = await original();
     const r = await createRetest(o.id, 3);
     await openScreen(r.id);
     expect(await screen.findByText('Marcada para 16/11. Pode começar antes, se quiser.', {}, SLOW)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Começar reconstrução' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Comparar com a implementação' }, SLOW)).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Começar reconstrução' })).toBeNull();
     expect(screen.queryByText(/def dedup/)).toBeNull();
   });
 
@@ -152,8 +153,62 @@ describe('Reconstruir de novo (screen)', () => {
     const r = await createRetest(o.id, 3);
     vi.setSystemTime(new Date(2026, 10, 16, 10, 0));
     await openScreen(r.id);
-    await screen.findByRole('button', { name: 'Começar reconstrução' }, SLOW);
+    await screen.findByRole('button', { name: 'Comparar com a implementação' }, SLOW);
     expect(screen.queryByText(/Marcada para/)).toBeNull();
+  });
+
+  it('on a fresh retest the Implementar step does not show the implementation', async () => {
+    const o = await original();
+    const r = await createRetest(o.id, 3);
+    await updatePractice(r.id, { step: 'code' });
+    window.history.pushState({}, '', `/pratica/${r.id}`);
+    render(<PracticeScreen id={r.id} />);
+    expect(await screen.findByRole('note', { name: 'Implementação escondida' }, SLOW)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/def dedup/)).toBeNull();
+    expect(screen.queryByText(/def dedup/)).toBeNull();
+  });
+});
+
+describe('retest leak guards', () => {
+  it('hints on a fresh retest are paused and never carry the code', async () => {
+    const o = await original();
+    const r = await createRetest(o.id, 3);
+    expect(hintStepState(r, 'code').kind).toBe('paused');
+    expect(hintStepState(r, 'test').kind).toBe('paused');
+    expect(hintRequestOf(r, 'code', 1).code).toBe('');
+    expect(hintRequestOf(r, 'test', 1).code).toBe('');
+  });
+
+  it('comparing reveals the implementation and awards the rebuild bonus exactly once', async () => {
+    const o = await original();
+    const r = await createRetest(o.id, 3);
+    await db.practiceSessions.update(r.id, { rebuild: { code: 'def dedup(xs): return list(set(xs))', startedAt: 1 } });
+    const first = await compareRebuild(r.id);
+    expect((await get(r.id)).rebuild?.comparedAt).toBeDefined();
+    expect(hintStepState(await get(r.id), 'code').kind).toBe('ready');
+    const again = await compareRebuild(r.id);
+    expect(again.xp).toBe(0);
+    expect(first.xp).toBeGreaterThanOrEqual(0);
+    const xp = (await db.xpEvents.toArray()).filter((x) => !x.deleted && x.id.includes(r.id));
+    expect(xp.length).toBe(first.xp > 0 ? 1 : 0);
+  });
+
+  it('a retest of a retest does not stack the suffix', async () => {
+    const o = await original();
+    const r = await createRetest(o.id, 3);
+    expect(r.title).toBe('Dedup · de novo');
+    const rr = await createRetest(r.id, 3);
+    expect(rr.title).toBe('Dedup · de novo');
+  });
+
+  it('days must be a finite integer >= 1, else 3', async () => {
+    const o = await original();
+    for (const bad of [NaN, Infinity, 0, -2, 1.5]) {
+      const r = await createRetest(o.id, bad);
+      expect(r.availableFrom, String(bad)).toBe('2026-11-16');
+      await deletePractice(r.id);
+    }
+    expect((await createRetest(o.id, 1)).availableFrom).toBe('2026-11-14');
   });
 });
 
@@ -198,5 +253,12 @@ describe('Pistas no histórico (P7)', () => {
     expect(row('Sem pistas')).toHaveTextContent('Pistas: nenhuma');
     expect(screen.getByText('Pista é parte do método; o que importa é o Autônomo nas reconstruções.')).toBeInTheDocument();
     expect(screen.getByText(/Pistas: 2 nas últimas 2 sessões/)).toBeInTheDocument();
+  });
+
+  it('the history sentence with no hints reads "Nenhuma pista nas últimas N sessões."', async () => {
+    await finished('Sem pistas', 0, 2000);
+    await finished('Outra sem pistas', 0, 3000);
+    render(<PracticeListScreen />);
+    expect(await screen.findByText('Nenhuma pista nas últimas 2 sessões.', {}, SLOW)).toBeInTheDocument();
   });
 });

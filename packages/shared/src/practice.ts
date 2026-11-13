@@ -345,7 +345,7 @@ export function practicePrompt(p: {
   if (p.mode === 'free' || p.mode === 'recovery') return undefined;
   // A retest scheduled for a later day stays out of the line until its day (ajustes da pesquisa, P2).
   const mine = p.sessions.filter((s) => !s.deleted && (s.journeyId || undefined) === (block.journeyId || undefined)
-    && !(p.today && s.availableFrom && s.availableFrom > p.today));
+    && !(s.availableFrom && (!p.today || s.availableFrom > p.today)));
   const open = mine.filter((s) => s.status === 'open').sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (open) return { kind: 'resume', session: open };
   const last = mine.filter((s) => s.status === 'done').sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0];
