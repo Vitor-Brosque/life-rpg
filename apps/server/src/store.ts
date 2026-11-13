@@ -39,6 +39,18 @@ export class RecordStore {
     return row ? Number(row.value) : 0;
   }
 
+  /** A value of the `meta` table ('rev' belongs to the sync and is never touched through here). */
+  getMeta(key: string): string | undefined {
+    const row = this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined;
+    return row?.value;
+  }
+
+  setMeta(key: string, value: string): void {
+    this.db
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run(key, value);
+  }
+
   apply(changes: SyncChange[]): { accepted: number; rev: number } {
     const getExisting = this.db.prepare('SELECT updatedAt FROM records WHERE tbl = ? AND id = ?');
     const upsert = this.db.prepare(

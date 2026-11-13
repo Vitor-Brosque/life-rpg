@@ -39,3 +39,15 @@ describe('RecordStore', () => {
     s.close();
   });
 });
+
+describe('meta', () => {
+  it('stores values by key without touching the sync revision', () => {
+    const store = new RecordStore(':memory:');
+    expect(store.getMeta('aiUsage')).toBeUndefined();
+    store.setMeta('aiUsage', '{"day":"2026-11-13","count":1}');
+    store.setMeta('aiUsage', '{"day":"2026-11-13","count":2}');
+    expect(store.getMeta('aiUsage')).toBe('{"day":"2026-11-13","count":2}');
+    expect(store.currentRev()).toBe(0);
+    store.close();
+  });
+});
