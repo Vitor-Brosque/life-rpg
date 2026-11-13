@@ -19,3 +19,5 @@ export * from './sha256';
 export * from './media';
 export * from './practice';
 export * from './sleep';
+export * from './meals';
+export * from './workouts';
