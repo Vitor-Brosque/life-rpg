@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { FeedbackSource } from '@life/shared';
-import { PRACTICE_LIMITS } from '@life/shared';
+import { PRACTICE_LIMITS, stepLabel } from '@life/shared';
 import { useNow } from '../../db/hooks';
 import { addPracticeFeedback, removePracticeFeedback } from '../../domain/practiceActions';
 import { Button } from '../../ui/Button';
@@ -45,7 +45,7 @@ export function FeedbackStep({ session }: StepProps) {
         <ul className="practice-entries">
           {session.feedback.map((f) => (
             <li key={f.id} className="practice-entry">
-              <p className="practice-entry__meta">{SOURCE_LABEL[f.source]} · {relativeTime(f.at, now)}</p>
+              <p className="practice-entry__meta">{f.hint ? `IA · Pista ${f.hint.level} · ${stepLabel(f.hint.step)}` : SOURCE_LABEL[f.source]} · {relativeTime(f.at, now)}</p>
               <p className="practice-entry__text">{f.text}</p>
               <Button size="sm" variant="ghost" aria-label={`Remover feedback: ${f.text.slice(0, 40)}`}
                 onClick={() => safeRun(removePracticeFeedback(session.id, f.id))}>

@@ -13,6 +13,7 @@ import { useToast } from '../../ui/Toast';
 import { ResumeNote } from '../agora/ResumeNote';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { ErrorLog } from './ErrorLog';
+import { HintPanel } from './HintPanel';
 import { PauseSheet } from './PauseSheet';
 import { StepBody } from './PracticeSteps';
 import { practiceBack, usePracticeSession } from './practiceData';
@@ -133,6 +134,7 @@ function PracticeBody({ session }: { session: PracticeSession }) {
       <div className="practice__step">
         <StepBody key={session.id} step={step} session={session} go={go} headingRef={headingRef} />
       </div>
+      <HintPanel session={session} step={step} />
       <div className="practice__nav">
         {prev && <Button onClick={() => go(prev)}>Anterior: {stepLabel(prev)}</Button>}
         {next && <Button variant="primary" onClick={() => go(next)}>Próximo: {stepLabel(next)}</Button>}
