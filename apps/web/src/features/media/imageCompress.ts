@@ -42,10 +42,16 @@ export async function encodeSmallest(width: number, height: number, encode: Enco
 function decodeImage(file: Blob): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(file);
   const img = new Image();
-  img.src = url;
-  return img.decode()
-    .then(() => img, () => { throw new MediaInputError(IMAGE_MESSAGES.cantOpen); })
-    .finally(() => URL.revokeObjectURL(url)); // the decoded image stays drawable
+  // The load event, not img.decode(): decode() can stall while the page isn't being painted
+  // (a hidden or background tab), and older WebKit rejects it for some valid large images.
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new MediaInputError(IMAGE_MESSAGES.cantOpen));
+    img.src = url;
+  }).finally(() => {
+    img.onload = img.onerror = null;
+    URL.revokeObjectURL(url); // the loaded image stays drawable
+  });
 }
 
 function canvasEncode(img: HTMLImageElement, w: number, h: number, type: string, quality: number): Promise<Blob | null> {

@@ -4,7 +4,7 @@ import { IMAGE_MESSAGES, compressImage, encodeSmallest } from '../src/features/m
 import { PNG_BYTES } from './fakeMedia';
 
 const blob = (size: number, type: string) => new Blob([new Uint8Array(size)], { type });
-afterEach(() => { vi.restoreAllMocks(); delete (HTMLImageElement.prototype as { decode?: unknown }).decode; });
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe('encodeSmallest', () => {
   it('stops at the first attempt that fits the target', async () => {
@@ -73,11 +73,14 @@ describe('compressImage decisions', () => {
   const file = (bytes: Uint8Array, type: string, pad = 0) => new File([bytes as BlobPart, new Uint8Array(pad)], 'x', { type });
   const canvases: HTMLCanvasElement[] = [];
   const fills: string[] = [];
-  const setup = (w: number, h: number, decode: () => Promise<void> = async () => {}) => {
+  const setup = (w: number, h: number, outcome: 'load' | 'error' = 'load') => {
     canvases.length = 0; fills.length = 0;
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    Object.defineProperty(HTMLImageElement.prototype, 'decode', { configurable: true, writable: true, value: decode });
+    // jsdom loads no images: fire the outcome when a real source is set.
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (this: HTMLImageElement, v: string) {
+      if (v) queueMicrotask(() => this.dispatchEvent(new Event(outcome)));
+    });
     vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(w);
     vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(h);
     const ctx = {
@@ -122,7 +125,7 @@ describe('compressImage decisions', () => {
     expect((await compressImage(file(PNG_BYTES, 'image/png', 400 * 1024))).size).toBe(1000);
   });
   it('turns a decode failure into cantOpen', async () => {
-    setup(1, 1, async () => { throw new Error('bad'); });
+    setup(1, 1, 'error');
     await expect(compressImage(file(PNG_BYTES, 'image/png'))).rejects.toThrow(IMAGE_MESSAGES.cantOpen);
   });
 });
