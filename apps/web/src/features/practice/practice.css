@@ -1,0 +1,16 @@
+/* Prática técnica (Marco 3d). Tokens of the app theme; no alarm colours anywhere. */
+.practice-field textarea, .practice-field input, .practice-list input[type='text'] { width: 100%; font: inherit; }
+.practice-field__hint { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+.practice-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+.practice-list__items { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.practice-list__item, .practice-list__add { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.practice-list__text { flex: 1 1 auto; min-width: 0; }
+.practice-score { margin: 0; padding: 0; border: 0; min-width: 0; }
+.practice-score__options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.practice-score__option { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-3); color: var(--text); background: var(--stone-light); box-shadow: 0 0 0 2px var(--outline); cursor: pointer; }
+.practice-score__option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.practice-score__option:focus-within { outline: 2px solid var(--sky); outline-offset: 2px; }
+.practice-score__option.is-on { color: var(--ink); background: var(--gold); }
+@media (pointer: coarse) {
+  .practice-field textarea, .practice-field input, .practice-list input[type='text'] { font-size: 16px; }
+}
