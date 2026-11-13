@@ -13,6 +13,7 @@ import { Panel } from '../../ui/Panel';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { FieldError } from '../routine/BlockFields';
+import { MarkdownField } from '../media/MarkdownField';
 import { CodeEditor } from './CodeEditor';
 import { CodeView, Rich } from './Rich';
 import { LANG_LABEL, NOTE_TYPES, TYPE_LABEL, emptyForm, formOf, isNoteType, previewFaces, type NoteForm } from './noteDraft';
@@ -149,25 +150,24 @@ export function NoteEditor({ id }: { id?: string }) {
             <FieldError id="note-deck-error" text={errors.deck} />
           </div>
 
-          <div className="field">
-            <label className="field__label" htmlFor="note-front">{FRONT_LABEL[form.type]}</label>
+          <MarkdownField id="note-front" label={FRONT_LABEL[form.type]} name={FRONT_LABEL[form.type]}
+            rows={form.type === 'cloze' ? 6 : 3} value={form.front} onChange={(v) => set('front', v)}
+            textareaRef={frontRef} describedBy="note-front-error" onStatus={setStatus}
+            tools={form.type === 'cloze'
+              ? <Button size="sm" onPointerDown={(e) => e.preventDefault()} onClick={lacuna} aria-keyshortcuts="Control+Shift+L">Lacuna</Button>
+              : undefined}>
             {form.type === 'cloze' && (
-              <div className="note-editor__tools">
-                <Button size="sm" onPointerDown={(e) => e.preventDefault()} onClick={lacuna} aria-keyshortcuts="Control+Shift+L">Lacuna</Button>
-                <span className="block-form__hint">Selecione um trecho e toque em Lacuna (Ctrl+Shift+L). Lacunas com o mesmo número viram um card só.</span>
-              </div>
+              <p className="block-form__hint">Selecione um trecho e toque em Lacuna (Ctrl+Shift+L). Lacunas com o mesmo número viram um card só.</p>
             )}
-            <textarea id="note-front" ref={frontRef} rows={form.type === 'cloze' ? 6 : 3} value={form.front}
-              aria-describedby="note-front-error" onChange={(e) => set('front', e.target.value)} />
+            <p className="block-form__hint">Dá para colar ou arrastar imagens em qualquer campo.</p>
             <FieldError id="note-front-error" text={errors.front} />
-          </div>
+          </MarkdownField>
 
           {(form.type === 'basic' || form.type === 'reversible') && (
-            <div className="field">
-              <label className="field__label" htmlFor="note-back">Verso</label>
-              <textarea id="note-back" rows={3} value={form.back} aria-describedby="note-back-error" onChange={(e) => set('back', e.target.value)} />
+            <MarkdownField id="note-back" label="Verso" name="Verso" rows={3} value={form.back}
+              onChange={(v) => set('back', v)} describedBy="note-back-error" onStatus={setStatus}>
               <FieldError id="note-back-error" text={errors.back} />
-            </div>
+            </MarkdownField>
           )}
 
           {form.type === 'code' && (
@@ -184,20 +184,17 @@ export function NoteEditor({ id }: { id?: string }) {
           )}
 
           {form.type === 'topic' && (
-            <div className="field">
-              <label className="field__label" htmlFor="note-back">Pontos-chave (um por linha)</label>
-              <textarea id="note-back" rows={5} value={form.back} aria-describedby="note-back-hint note-back-error"
-                onChange={(e) => set('back', e.target.value)} />
+            <MarkdownField id="note-back" label="Pontos-chave (um por linha)" name="Pontos-chave" rows={5} value={form.back}
+              onChange={(v) => set('back', v)} describedBy="note-back-hint note-back-error" onStatus={setStatus}>
               <p id="note-back-hint" className="block-form__hint">O que uma boa explicação precisa conter: conceitos, passos de uma dedução, exemplos. Na revisão, você marca o que conseguiu lembrar.</p>
               <FieldError id="note-back-error" text={errors.back} />
-            </div>
+            </MarkdownField>
           )}
 
-          <div className="field">
-            <label className="field__label" htmlFor="note-extra">Por quê? (opcional)</label>
-            <textarea id="note-extra" rows={2} value={form.extra} aria-describedby="note-extra-hint" onChange={(e) => set('extra', e.target.value)} />
+          <MarkdownField id="note-extra" label="Por quê? (opcional)" name="Por quê?" rows={2} value={form.extra}
+            onChange={(v) => set('extra', v)} describedBy="note-extra-hint" onStatus={setStatus}>
             <p id="note-extra-hint" className="block-form__hint">Entender o porquê ajuda a lembrar: escreva a explicação ou a intuição por trás.</p>
-          </div>
+          </MarkdownField>
 
           <p className="note-editor__status" role="status">{status}</p>
           <div className="commit-form__actions">

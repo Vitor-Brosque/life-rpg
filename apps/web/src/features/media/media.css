@@ -4,3 +4,6 @@
 .rich__media-caption { font-style: italic; }
 .audio-player { display: inline-flex; vertical-align: middle; }
 .audio-player audio { display: none; }
+.markdown-field__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.media-sheet__pad { height: min(55vh, 460px); }
+.media-sheet__msg { margin: 0; min-height: 1.25em; color: var(--text-dim); }

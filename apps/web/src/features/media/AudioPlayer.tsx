@@ -30,6 +30,7 @@ export interface AudioPlayerProps {
 export function AudioPlayer({ url, label, status, names }: AudioPlayerProps) {
   const ref = useRef<HTMLAudioElement>(null);
   const [on, setOn] = useState(false);
+  const pending = useRef(false); // play() called, not settled yet
   useEffect(() => {
     const el = ref.current;
     return () => {
@@ -39,17 +40,28 @@ export function AudioPlayer({ url, label, status, names }: AudioPlayerProps) {
   const toggle = (): void => {
     const el = ref.current;
     if (!el || !url) return;
-    if (on) { el.pause(); return; }
+    if (on || pending.current) { el.pause(); return; }
     if (playing && playing !== el) playing.pause();
     playing = el;
     const p = el.play();
-    if (p && typeof p.catch === 'function') p.catch(() => { setOn(false); useToast.getState().show(PLAY_FAILED); });
+    if (p && typeof p.then === 'function') {
+      pending.current = true;
+      p.then(() => { pending.current = false; }, (err: unknown) => {
+        pending.current = false;
+        // AbortError: another sound started or the card changed while play() was pending; not a failure.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (playing === el) playing = undefined;
+        setOn(false);
+        useToast.getState().show(PLAY_FAILED);
+      });
+    }
   };
   const playName = names?.play ?? `Tocar áudio: ${label}`;
   const pauseName = names?.pause ?? `Pausar áudio: ${label}`;
+  const waiting = !url && status ? ` · ${status}` : '';
   return (
     <span className="audio-player">
-      <Button size="sm" icon={on ? 'pause' : 'play'} disabled={!url} onClick={toggle} aria-label={on ? pauseName : playName}>
+      <Button size="sm" icon={on ? 'pause' : 'play'} disabled={!url} onClick={toggle} aria-label={on ? pauseName : `${playName}${waiting}`}>
         {!url && status ? `${label} · ${status}` : label}
       </Button>
       {url && (
