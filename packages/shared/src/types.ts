@@ -259,6 +259,7 @@ export interface StudySettings {
   maxNewPerDay: number;
   retention: number;
   restDays: number[];   // 0 = Sunday; at least one study day remains
+  reminderAt?: HHmm;    // "Lembrete de estudo" time; absent = off
 }
 
 export const DEFAULT_STUDY: StudySettings = { budgetMin: 15, maxNewPerDay: 10, retention: 0.9, restDays: [0, 6] };

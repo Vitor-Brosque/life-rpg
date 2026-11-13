@@ -1,5 +1,5 @@
 import { addDays, daysInMonth, formatHHmm, isValidDayKey, weekdayOf } from './dates';
-import type { DayKey, HHmm } from './types';
+import type { DayKey, HHmm, Recurrence } from './types';
 
 export type CaptureTokenType = 'date' | 'time' | 'duration' | 'journey' | 'area' | 'important';
 export interface CaptureToken {
@@ -17,6 +17,7 @@ export interface ParsedCapture {
   journeyName?: string;
   areaQuery?: string;
   important: boolean;
+  recurrence?: Recurrence;   // "todo dia", "toda seg e qui"… (missions; commitments use its weekdays)
   tokens: CaptureToken[];
 }
 
