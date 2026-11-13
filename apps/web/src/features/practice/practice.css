@@ -14,3 +14,25 @@
 @media (pointer: coarse) {
   .practice-field textarea, .practice-field input, .practice-list input[type='text'] { font-size: 16px; }
 }
+
+.practice__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.practice__title { flex: 1 1 12rem; min-width: 0; font: inherit; font-weight: 700; }
+.practice__meta { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.practice__link { min-height: 36px; padding: 0; border: 0; background: none; color: var(--sky); font: inherit; text-decoration: underline; cursor: pointer; }
+.practice-steps__list { display: flex; gap: var(--space-2); margin: 0; padding: 0 0 var(--space-1); list-style: none; overflow-x: auto; scroll-snap-type: x proximity; }
+.practice-steps__step { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 40px; padding: 0 var(--space-2); border: 0; color: var(--text); background: var(--stone-light); font: inherit; white-space: nowrap; scroll-snap-align: start; cursor: pointer; }
+.practice-steps__step.is-current { color: var(--ink); background: var(--gold); }
+.practice-steps__n { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.practice__step { display: grid; gap: var(--space-3); }
+.practice__step-title { margin: 0; }
+.practice__hint { margin: 0; color: var(--text-dim); }
+.practice__nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
+.practice__nav > :only-child { margin-left: auto; }
+.practice__empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.practice-plan { margin: 0; padding: 0; border: 0; }
+.practice-plan__items { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.practice-plan__item { display: flex; align-items: center; gap: var(--space-2); min-height: 36px; }
+.practice-plan__item .is-done { color: var(--text-dim); text-decoration: line-through; }
+.practice-hidden { display: grid; gap: var(--space-2); padding: var(--space-3); background: var(--bg-2); }
+.practice__delete { justify-self: start; }
+@media (pointer: coarse) { .practice__title { font-size: 16px; } }
