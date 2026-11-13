@@ -31,7 +31,12 @@ describe('sleep actions', () => {
     expect(await db.xpEvents.get('xp-sleep-2026-11-13')).toMatchObject({
       amount: 2, reason: 'sleep', areaId: 'area-equilibrio', dayKey: '2026-11-14', deleted: false,
     });
-    expect((await logWake(NIGHT)).xp).toBe(0);
+    vi.setSystemTime(at(14, 7, 30));
+    const again = await logWake(NIGHT); // a second tap (stale tab, other device) keeps the first time
+    expect(again).toMatchObject({ xp: 0, created: false });
+    expect(again.log.wakeAt).toBe(at(14, 7, 10).getTime());
+    expect((await logBedtime(NIGHT)).log.bedAt).toBe(at(13, 23, 40).getTime());
+    expect((await db.sleepLogs.get('sleep-2026-11-13'))!.wakeAt).toBe(at(14, 7, 10).getTime());
     expect(await db.sleepLogs.count()).toBe(1);
   });
 

@@ -51,12 +51,20 @@ async function writeNight(night: DayKey, times: Times): Promise<{ log: SleepLog;
 }
 
 /** "Deitei": now is the night's bedtime. */
-export const logBedtime = (night: DayKey): Promise<{ log: SleepLog; xp: number }> =>
-  withLock('sleep', () => writeNight(night, { bedAt: Date.now() }));
+export const logBedtime = (night: DayKey): Promise<TapResult> => tapTime(night, 'bedAt');
 
 /** "Acordei": now is the night's wake time. */
-export const logWake = (night: DayKey): Promise<{ log: SleepLog; xp: number }> =>
-  withLock('sleep', () => writeNight(night, { wakeAt: Date.now() }));
+export const logWake = (night: DayKey): Promise<TapResult> => tapTime(night, 'wakeAt');
+
+/** `created: false` = the time was already there (another tab or device): nothing was written. */
+export interface TapResult { log: SleepLog; xp: number; created: boolean }
+
+/** A tap never overwrites a time already stored (the sheet is the place to change it). */
+const tapTime = (night: DayKey, field: 'bedAt' | 'wakeAt'): Promise<TapResult> => withLock('sleep', async () => {
+  const prev = await liveLog(night);
+  if (prev && prev[field] !== undefined) return { log: prev, xp: 0, created: false };
+  return { ...(await writeNight(night, { [field]: Date.now() })), created: true };
+});
 
 /** "Desfazer" after a tap: removes that time again (and the XP, if the night stops being complete). */
 export const clearSleepTime = (night: DayKey, field: 'bedAt' | 'wakeAt'): Promise<{ log: SleepLog; xp: number }> =>

@@ -14,14 +14,16 @@ import { useSleepSheet } from './SleepSheet';
 const toast = (msg: string, action?: ToastAction) => useToast.getState().show(msg, action);
 
 async function tapBed(night: DayKey): Promise<void> {
-  const { log } = await logBedtime(night);
+  const { log, created } = await logBedtime(night);
+  if (!created) { toast(`Já registrado: deitou às ${formatClock(log.bedAt!)}.`); return; }
   toast(`Boa noite. Deitou às ${formatClock(log.bedAt!)}.`, {
     label: 'Desfazer', run: () => safeRun(clearSleepTime(night, 'bedAt')),
   });
 }
 
 async function tapWake(night: DayKey): Promise<void> {
-  const { log, xp } = await logWake(night);
+  const { log, xp, created } = await logWake(night);
+  if (!created) { toast(`Já registrado: acordou às ${formatClock(log.wakeAt!)}.`); return; }
   if (log.bedAt === undefined) {
     toast('Bom dia. Que horas deitou?', { label: 'Informar', run: () => useSleepSheet.getState().open(night) });
     return;
