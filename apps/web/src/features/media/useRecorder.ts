@@ -86,20 +86,18 @@ export function useRecorder(): Recorder {
     teardown();
     const id = run.current;
     setState({ kind: 'asking' });
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      if (run.current !== id) { stopTracks(stream); return; }
+    const fail = (message: string): void => {
+      if (run.current !== id) return;
+      teardown();
+      setState({ kind: 'error', message });
+    };
+    const setup = (stream: MediaStream): void => {
       const type = pickRecorderType((t) => MediaRecorder.isTypeSupported(t));
       let recorder: MediaRecorder;
       try {
         recorder = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: AUDIO_BITS_PER_SECOND });
       } catch {
-        try {
-          recorder = new MediaRecorder(stream);
-        } catch {
-          stopTracks(stream);
-          setState({ kind: 'error', message: RECORDER_MESSAGES.failed });
-          return;
-        }
+        recorder = new MediaRecorder(stream); // the options were refused: try without them
       }
       const chunks: Blob[] = [];
       const startedAt = Date.now();
@@ -117,6 +115,7 @@ export function useRecorder(): Recorder {
       };
       active.current = a;
       recorder.ondataavailable = (e: BlobEvent) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      recorder.onerror = () => fail(RECORDER_MESSAGES.failed);
       recorder.onstop = () => {
         if (run.current !== id) return;
         clearInterval(a.timer);
@@ -130,8 +129,21 @@ export function useRecorder(): Recorder {
         url.current = URL.createObjectURL(blob);
         setState({ kind: 'done', blob, url: url.current, durationMs: Math.min(AUDIO_MAX_MS, Date.now() - startedAt), capped: a.capped });
       };
+      // An interruption (a call on the iPhone) ends the track: stop cleanly instead of counting up to the cap.
+      for (const t of stream.getTracks()) {
+        t.onended = () => { if (run.current === id && recorder.state !== 'inactive') recorder.stop(); };
+      }
       recorder.start(1000);
       setState({ kind: 'recording', elapsedMs: 0 });
+    };
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      if (run.current !== id) { stopTracks(stream); return; }
+      try {
+        setup(stream);
+      } catch {
+        stopTracks(stream); // teardown() below only knows streams that reached `active`
+        fail(RECORDER_MESSAGES.failed);
+      }
     }, (e: unknown) => {
       if (run.current === id) setState({ kind: 'error', message: errorMessage(e) });
     });

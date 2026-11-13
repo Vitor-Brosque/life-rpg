@@ -13,6 +13,7 @@ import { Panel } from '../../ui/Panel';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { FieldError } from '../routine/BlockFields';
+import { SpeakButton } from '../media/SpeakButton';
 import { MarkdownField } from '../media/MarkdownField';
 import { CodeEditor } from './CodeEditor';
 import { CodeView, Rich } from './Rich';
@@ -121,6 +122,7 @@ export function NoteEditor({ id }: { id?: string }) {
   };
   const allSuspended = !!cards && cards.length > 0 && cards.every((c) => c.suspended);
   const faces = previewFaces(form);
+  const speechLang = decks.find((d) => d.id === form.deckId)?.speechLang;
 
   return (
     <section className="screen note-editor" aria-labelledby="note-title">
@@ -223,10 +225,11 @@ export function NoteEditor({ id }: { id?: string }) {
             <article key={i} className="note-preview__card">
               {faces.length > 1 && <p className="note-preview__count">Card {i + 1} de {faces.length}</p>}
               <Rich text={f.front} />
+              <SpeakButton text={f.front} lang={speechLang} label="Ouvir a frente" />
               <hr className="note-preview__divider" />
               {f.code ? <CodeView code={f.code.solution} lang={f.code.lang} />
                 : f.points ? <ul className="note-preview__points">{f.points.map((p, j) => <li key={j}><Rich text={p} /></li>)}</ul>
-                : <Rich text={f.back} />}
+                : <><Rich text={f.back} /><SpeakButton text={f.back} lang={speechLang} label="Ouvir o verso" /></>}
               {f.extra && <Rich text={f.extra} className="note-preview__extra" />}
             </article>
           ))}

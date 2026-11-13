@@ -17,6 +17,11 @@ import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { pickPhrase } from '../companion/phrases';
 import { useCompanion } from '../companion/store';
+import { stopAllAudio } from '../media/AudioPlayer';
+import { SpeakButton } from '../media/SpeakButton';
+import { SpokenAnswer, type SpokenKind } from '../media/SpokenAnswer';
+import { stopSpeaking } from '../media/speech';
+import { recordingSupported } from '../media/useRecorder';
 import { SketchPad } from '../sketch/SketchPad';
 import { CodeEditor } from './CodeEditor';
 import { noteTitle } from './noteDraft';
@@ -29,7 +34,7 @@ import './study.css';
 
 type View =
   | { kind: 'loading' }
-  | { kind: 'card'; card: Card; note: Note; face: CardFace; shownAt: number; ctx: ScheduleCtx }
+  | { kind: 'card'; card: Card; note: Note; face: CardFace; shownAt: number; ctx: ScheduleCtx; speechLang?: string }
   | { kind: 'end'; nextLearning?: number; plan: StudyPlan };
 
 const WRITE_KEY = 'life-rpg.study.writeFirst';
@@ -38,6 +43,9 @@ const storeWriteFirst = (on: boolean): void => { try { localStorage.setItem(WRIT
 const DRAW_KEY = 'life-rpg.study.drawFirst';
 const readDrawFirst = (): boolean => { try { return localStorage.getItem(DRAW_KEY) === '1'; } catch { return false; } };
 const storeDrawFirst = (on: boolean): void => { try { localStorage.setItem(DRAW_KEY, on ? '1' : '0'); } catch { /* storage may be unavailable */ } };
+const SPEAK_KEY = 'life-rpg.study.speakFirst';
+const readSpeakFirst = (): boolean => { try { return localStorage.getItem(SPEAK_KEY) === '1'; } catch { return false; } };
+const storeSpeakFirst = (on: boolean): void => { try { localStorage.setItem(SPEAK_KEY, on ? '1' : '0'); } catch { /* storage may be unavailable */ } };
 /** Fields that take typed keys; a ticked checkbox or radio is not one (rating keys keep working). */
 const isTypingTarget = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName)
@@ -64,6 +72,11 @@ export function ReviewSession() {
   const [drawing, setDrawing] = useState<Stroke[]>([]);
   const [savedDrawing, setSavedDrawing] = useState<{ id: ID; strokes: Stroke[] } | undefined>(undefined);
   const drewAtReveal = useRef(false);
+  const [speakFirst, setSpeakFirst] = useState(readSpeakFirst);
+  /** "Responder falando": the recorder's state (from SpokenAnswer) and whether a recording existed at reveal. */
+  const spokenKind = useRef<SpokenKind>('idle');
+  const spokeAtReveal = useRef(false);
+  const onSpokenKind = useCallback((kind: SpokenKind) => { spokenKind.current = kind; }, []);
   const [remaining, setRemaining] = useState({ count: 0, minutes: 0 });
   const [goal, setGoal] = useState(false);
   const busy = useRef(false);
@@ -77,7 +90,7 @@ export function ReviewSession() {
   const phraseSeed = useRef(Math.random());
   useEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; };
+    return () => { alive.current = false; stopAllAudio(); stopSpeaking(); };
   }, []);
 
   const load = useCallback(async (forceCardId?: ID): Promise<void> => {
@@ -109,6 +122,12 @@ export function ReviewSession() {
       skipped.add(pick.id);
     }
     if (!alive.current) return;
+    const deck = card?.deckId ? await db.decks.get(card.deckId) : undefined;
+    if (!alive.current) return;
+    stopAllAudio();
+    stopSpeaking();
+    spokenKind.current = 'idle';
+    spokeAtReveal.current = false;
     setRevealedAt(undefined);
     setAnswer('');
     setCovered([]);
@@ -120,6 +139,7 @@ export function ReviewSession() {
     setView({
       kind: 'card', card, note, face: cardFace(note, card.ord), shownAt: Date.now(),
       ctx: { dayStartHour: settings.dayStartHour, restDays: study.restDays, retention: study.retention, shortTerm: !card.topic },
+      speechLang: deck && !deck.deleted ? deck.speechLang : undefined,
     });
   }, [settings, today, mode, deckFilter]);
 
@@ -165,6 +185,7 @@ export function ReviewSession() {
   const reveal = (): void => {
     if (view.kind !== 'card' || revealed) return;
     drewAtReveal.current = drawFirst && drawing.length > 0;
+    spokeAtReveal.current = speakFirst && (spokenKind.current === 'recording' || spokenKind.current === 'done');
     setRevealedAt(Date.now());
     requestAnimationFrame(() => document.getElementById('reveal-heading')?.focus());
   };
@@ -178,7 +199,7 @@ export function ReviewSession() {
       const points = view.face.points;
       const coverage = points ? { covered: points.filter((_, i) => covered[i]).length, total: points.length } : undefined;
       const r = await rateCard(view.card.id, rating, {
-        durationMs, wrote: answer.trim() !== '', drew: drewAtReveal.current, now: revealedAt, ...(coverage ? { coverage } : {}),
+        durationMs, wrote: answer.trim() !== '', drew: drewAtReveal.current, spoke: spokeAtReveal.current, now: revealedAt, ...(coverage ? { coverage } : {}),
       });
       useSession.getState().rated(r.reviewId, Math.min(durationMs, maxDurationMs(view.card)), r.xp);
       if (r.goalReached && !useSession.getState().goalShown) {
@@ -322,6 +343,7 @@ export function ReviewSession() {
         <>
           <Panel variant="stone" className="review__card">
             <Rich text={isCloze && revealed ? face.back : face.front} className="review__front" />
+            <SpeakButton text={isCloze && revealed ? face.back : face.front} lang={view.speechLang} label="Ouvir a pergunta" />
             {isCode && (
               <CodeEditor label="Sua resposta (código)" language={face.code!.lang} value={answer} onChange={setAnswer} readOnly={revealed} rows={6} />
             )}
@@ -333,6 +355,10 @@ export function ReviewSession() {
                 )}
                 <Button size="sm" variant="ghost" aria-pressed={drawFirst}
                   onClick={() => { setDrawFirst(!drawFirst); storeDrawFirst(!drawFirst); }}>Desenhar antes</Button>
+                {recordingSupported() && (
+                  <Button size="sm" variant="ghost" aria-pressed={speakFirst}
+                    onClick={() => { setSpeakFirst(!speakFirst); storeSpeakFirst(!speakFirst); }}>Responder falando</Button>
+                )}
               </div>
             )}
             {!isCode && !isTopic && writeFirst && !revealed && (
@@ -351,6 +377,7 @@ export function ReviewSession() {
             {!revealed && !isCode && answer.includes('$') && (
               <div className="review__preview" role="region" aria-label="Pré-visualização da resposta"><Rich text={answer} /></div>
             )}
+            {speakFirst && <SpokenAnswer key={`${view.card.id}:${view.shownAt}`} revealed={revealed} onKind={onSpokenKind} />}
             <div className={drawFirst && revealed ? 'review__work review__work--split' : 'review__work'}>
               {drawFirst && (
                 <SketchPad key={`${view.card.id}:${view.shownAt}`} className="review__pad" label="Desenho da resposta" initial={drawing}
@@ -360,7 +387,7 @@ export function ReviewSession() {
                     : undefined} />
               )}
               {revealed
-                ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} />
+                ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} speechLang={view.speechLang} />
                 : <Button variant="primary" onClick={reveal} aria-keyshortcuts="Space">Mostrar resposta</Button>}
             </div>
           </Panel>

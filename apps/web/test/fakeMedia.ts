@@ -53,3 +53,30 @@ export function installFakeMic(opts: FakeMicOptions = {}) {
     uninstall(): void { delete (navigator as unknown as Record<string, unknown>).mediaDevices; },
   };
 }
+
+/** speechSynthesis + SpeechSynthesisUtterance doubles: cancel() fires onerror like browsers do. */
+export function installFakeSpeech(voices: Array<{ lang: string; localService?: boolean; name?: string }> = []) {
+  class FakeUtterance {
+    text: string;
+    lang = '';
+    voice: unknown = null;
+    onend: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    constructor(text: string) { this.text = text; }
+  }
+  const pending: FakeUtterance[] = [];
+  const synth = {
+    speak: vi.fn((u: FakeUtterance) => { pending.push(u); }),
+    cancel: vi.fn(() => { for (const u of pending.splice(0)) u.onerror?.(); }),
+    getVoices: () => voices,
+  };
+  vi.stubGlobal('speechSynthesis', synth);
+  vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+  return {
+    synth,
+    /** The utterance being read (the last one spoken and not finished). */
+    current: () => pending[pending.length - 1],
+    /** Ends the current utterance (fires onend). */
+    finish(): void { pending.pop()?.onend?.(); },
+  };
+}

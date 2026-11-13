@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { CardFace } from '@life/shared';
+import { SpeakButton } from '../media/SpeakButton';
 import { CodeView, Rich } from './Rich';
 
 export interface RevealPanelProps {
@@ -9,6 +10,7 @@ export interface RevealPanelProps {
   /** Topic cards: which key points the user ticked. */
   covered: boolean[];
   onToggle(index: number): void;
+  speechLang?: string;
 }
 
 /** Key points of a topic as checkboxes, with "N de M cobertos". */
@@ -32,12 +34,12 @@ function Checklist({ points, covered, onToggle }: { points: string[]; covered: b
  * The revealed side: the answer — a topic's key points to tick — next to the user's own answer
  * (rendered with Markdown and formulas; side by side on wide screens), plus "Por quê?".
  */
-export function RevealPanel({ face, answer, cloze, covered, onToggle }: RevealPanelProps) {
+export function RevealPanel({ face, answer, cloze, covered, onToggle, speechLang }: RevealPanelProps) {
   const wrote = answer.trim() !== '';
   let correct: ReactNode = null;
   if (face.code) correct = <CodeView code={face.code.solution} lang={face.code.lang} />;
   else if (face.points) correct = <Checklist points={face.points} covered={covered} onToggle={onToggle} />;
-  else if (!cloze) correct = <Rich text={face.back} />;
+  else if (!cloze) correct = <><Rich text={face.back} /><SpeakButton text={face.back} lang={speechLang} label="Ouvir a resposta" /></>;
   const mine = face.code ? <CodeView code={answer} lang={face.code.lang} /> : <Rich text={answer} className="reveal__mine" />;
   const mineLabel = face.points ? 'Sua explicação' : 'Sua resposta';
   const answerLabel = face.points ? 'Pontos-chave' : 'Resposta';

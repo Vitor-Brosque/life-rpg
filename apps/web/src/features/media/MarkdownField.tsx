@@ -102,6 +102,7 @@ export function MarkdownField({
       insert('audio', (await saveAudioFile(file)).hash);
       onStatus(FIELD_STATUS.audio);
     } catch (e) {
+      onStatus('');
       showError(e, 'audio');
     } finally {
       working.current = false;
