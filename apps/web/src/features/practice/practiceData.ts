@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { FeedbackSource, Journey, PracticeSession } from '@life/shared';
+import type { DayKey, FeedbackSource, Journey, PracticeSession } from '@life/shared';
 import { normalizePractice, stepLabel } from '@life/shared';
 import { db } from '../../db/db';
 import { relativeTime } from '../../ui/format';
@@ -41,9 +41,19 @@ export function dayMonth(ts: number): string {
 const journeyTitle = (s: PracticeSession, journeys: readonly Journey[]): string | undefined =>
   (s.journeyId ? journeys.find((j) => j.id === s.journeyId && !j.deleted)?.title : undefined);
 
-/** "Tech News · há 2 dias · Passo: Implementar". */
-export function openMeta(s: PracticeSession, journeys: readonly Journey[], now: number): string {
-  return [journeyTitle(s, journeys), relativeTime(s.updatedAt, now), `Passo: ${stepLabel(s.step)}`].filter(Boolean).join(' · ');
+/** "16/11" from a logical day. */
+export const dayKeyMonth = (day: DayKey): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+
+/** A retest's meta (P2): "Reconstrução · 16/11" before its day, "Reconstrução · hoje" on it or after. */
+export function retestMeta(s: Pick<PracticeSession, 'retestOf' | 'availableFrom'>, today?: DayKey): string | undefined {
+  if (!s.retestOf) return undefined;
+  return s.availableFrom && today && s.availableFrom > today ? `Reconstrução · ${dayKeyMonth(s.availableFrom)}` : 'Reconstrução · hoje';
+}
+
+/** "Reconstrução · hoje · Tech News · há 2 dias · Passo: Implementar". */
+export function openMeta(s: PracticeSession, journeys: readonly Journey[], now: number, today?: DayKey): string {
+  return [retestMeta(s, today), journeyTitle(s, journeys), relativeTime(s.updatedAt, now), `Passo: ${stepLabel(s.step)}`]
+    .filter(Boolean).join(' · ');
 }
 
 /** "13/11 · Tech News". */

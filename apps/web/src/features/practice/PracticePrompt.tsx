@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import type { BlockOccurrence, DayMode, Mission } from '@life/shared';
 import { PRACTICE_LIMITS, practicePrompt } from '@life/shared';
+import { useToday } from '../../db/hooks';
 import { NewPracticeSheet } from './NewPracticeSheet';
 import { usePracticeSessions } from './practiceData';
 import './practice.css';
@@ -17,10 +18,11 @@ export interface PracticePromptProps {
 /** The Agora's discreet practice line (spec §5.6): resume the open session of the block's journey, or start one. */
 export function PracticePrompt({ mode, current, focusMission }: PracticePromptProps) {
   const sessions = usePracticeSessions();
+  const today = useToday();
   const [creating, setCreating] = useState(false);
   const block = current?.block;
   if (!sessions || !block) return null;
-  const prompt = practicePrompt({ mode, block: { kind: block.kind, journeyId: block.journeyId }, sessions });
+  const prompt = practicePrompt({ mode, block: { kind: block.kind, journeyId: block.journeyId }, sessions, ...(today ? { today } : {}) });
   if (!prompt) return null;
 
   if (prompt.kind === 'resume') {

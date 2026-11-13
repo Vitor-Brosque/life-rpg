@@ -3,7 +3,7 @@ import type {
   PracticeScore, PracticeSession,
 } from '@life/shared';
 import {
-  PRACTICE_LIMITS, PRACTICE_REBUILD_XP, PRACTICE_XP, cleanErrorFields, cleanItems, cleanPracticeTitle, earnsPracticeXp,
+  PRACTICE_LIMITS, PRACTICE_REBUILD_XP, PRACTICE_XP, addDays, cleanErrorFields, cleanItems, cleanPracticeTitle, earnsPracticeXp,
   earnsRebuildXp, errorCardDraft, newPracticeFields, normalizePractice, practiceXpAllowed, practiceXpId, ratingsComplete,
   rebuildXpId, sanitizePracticePatch, ulid,
 } from '@life/shared';
@@ -152,6 +152,31 @@ export const peekImplementation = (id: ID): Promise<PracticeSession> =>
     const rb = normalizePractice(prev).rebuild;
     return rb && rb.comparedAt === undefined && !rb.peeked ? { rebuild: { ...rb, peeked: true } } : undefined;
   });
+
+/**
+ * "Reconstruir de novo, sem consultar" (ajustes da pesquisa, P2): a new session that opens on Reconstruir,
+ * offered `days` after today (logical day). One at a time: while a live, open retest of `id` exists it is returned.
+ */
+export const createRetest = (id: ID, days: number): Promise<PracticeSession> => withLock(`practice-retest-${id}`, async () => {
+  const src = await storedSession(id);
+  const existing = live(await db.practiceSessions.toArray()).map(normalizePractice)
+    .find((s) => s.retestOf === id && s.status === 'open');
+  if (existing) return existing;
+  const today = await getToday();
+  const again = (xs: ChecklistItem[]): ChecklistItem[] => xs.map((x) => ({ ...x, done: false }));
+  return put(T, newRecord<PracticeSession>({
+    ...newPracticeFields({
+      title: `${src.title} · de novo`,
+      ...(src.journeyId ? { journeyId: src.journeyId } : {}),
+      ...(src.missionId ? { missionId: src.missionId } : {}),
+      ...(src.deckId ? { deckId: src.deckId } : {}),
+    }),
+    step: 'rebuild',
+    problem: src.problem, inputs: src.inputs, outputs: src.outputs, language: src.language, code: src.code,
+    basics: src.basics.map((x) => ({ ...x })), plan: again(src.plan), tests: again(src.tests),
+    retestOf: id, availableFrom: addDays(today, Math.max(1, Math.round(days))),
+  }));
+});
 
 // ------------------------------------------------------------------ XP (spec §6)
 

@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import type { PracticeSession } from '@life/shared';
-import { practiceHistory } from '@life/shared';
+import { hintCount, historySessions, practiceHistory } from '@life/shared';
 import { Panel } from '../../ui/Panel';
 
 /** "Observado · suas autoavaliações" (spec §5.5.1): one row per indicator, never a total. */
@@ -8,6 +8,7 @@ export function PracticeHistory({ sessions }: { sessions: readonly PracticeSessi
   const titleId = useId();
   const h = practiceHistory(sessions);
   if (h.count < 2) return null;
+  const hints = historySessions(sessions).reduce((n, s) => n + hintCount(s), 0);
   return (
     <Panel variant="stone" className="study-section practice-history" role="region" aria-labelledby={titleId}>
       <h2 id={titleId} className="study__subtitle">Observado · suas autoavaliações</h2>
@@ -23,6 +24,8 @@ export function PracticeHistory({ sessions }: { sessions: readonly PracticeSessi
           </li>
         ))}
       </ul>
+      <p className="practice-history__hints">{`${hints === 0 ? 'Pistas: nenhuma' : `Pistas: ${hints}`} nas últimas ${h.count} sessões.`}</p>
+      <p className="practice-history__legend">Pista é parte do método; o que importa é o Autônomo nas reconstruções.</p>
       <p className="practice-history__legend">
         Cada barra é uma sessão encerrada. São autoavaliações, não notas: servem para ver tendência. Os três ficam separados de propósito.
       </p>

@@ -1,5 +1,6 @@
+import { isValidDayKey } from './dates';
 import type {
-  BaseRecord, BlockKind, ChecklistItem, CodeLang, DayMode, FeedbackSource, ID, PracticeError, PracticeFeedback,
+  BaseRecord, DayKey, BlockKind, ChecklistItem, CodeLang, DayMode, FeedbackSource, ID, PracticeError, PracticeFeedback,
   PracticeRatings, PracticeRebuild, PracticeScore, PracticeSession, PracticeStep,
 } from './types';
 
@@ -186,6 +187,9 @@ export function normalizePractice(s: PracticeSession): PracticeSession {
   for (const k of ['journeyId', 'missionId', 'deckId'] as const) {
     if (typeof raw[k] !== 'string' || raw[k] === '') delete out[k];
   }
+  // Retest (ajustes da pesquisa, P2): the origin and the first day it is offered.
+  if (typeof raw.retestOf !== 'string' || raw.retestOf === '') delete out.retestOf;
+  if (typeof raw.availableFrom !== 'string' || !isValidDayKey(raw.availableFrom)) delete out.availableFrom;
   if (rb && typeof rb === 'object' && typeof rb.startedAt === 'number') {
     out.rebuild = { ...rb, code: str(rb.code), startedAt: rb.startedAt } as PracticeRebuild;
   } else delete out.rebuild;
@@ -257,6 +261,10 @@ export function ratingsComplete(r: PracticeRatings): r is Required<PracticeRatin
   return isScore(r.delivered) && isScore(r.understood) && isScore(r.autonomous);
 }
 
+/** "Pistas: N" (P7): hints asked in the app (AI feedback with a hint). Observed data, never a score. */
+export const hintCount = (s: Pick<PracticeSession, 'feedback'>): number =>
+  s.feedback.filter((f) => f.source === 'ai' && f.hint).length;
+
 export function ratingsLine(r: PracticeRatings): string {
   return INDICATORS.map((i) => {
     const v = r[i.key];
@@ -277,12 +285,17 @@ export function seriesSummary(values: readonly PracticeScore[]): string {
   return prev.length === 5 ? `${head} · nas 5 anteriores: ${top(prev)}` : head;
 }
 
-/** The last `limit` closed sessions with all three ratings, oldest first, one series per indicator. */
-export function practiceHistory(sessions: readonly PracticeSession[], limit = 10): PracticeHistory {
-  const done = sessions
+/** The last `limit` closed sessions with all three ratings, oldest first. */
+export function historySessions(sessions: readonly PracticeSession[], limit = 10): PracticeSession[] {
+  return sessions
     .filter((s) => !s.deleted && s.status === 'done' && typeof s.endedAt === 'number' && ratingsComplete(s.ratings))
     .sort((a, b) => a.endedAt! - b.endedAt!)
     .slice(-limit);
+}
+
+/** One series per indicator over `historySessions`. */
+export function practiceHistory(sessions: readonly PracticeSession[], limit = 10): PracticeHistory {
+  const done = historySessions(sessions, limit);
   return {
     count: done.length,
     series: INDICATORS.map(({ key, label }) => {
@@ -325,12 +338,14 @@ export type PracticePromptResult = { kind: 'resume'; session: PracticeSession } 
 
 /** The Agora line (spec §4.6): only in focus/study blocks, never on free or recovery days. */
 export function practicePrompt(p: {
-  mode: DayMode; block?: { kind: BlockKind; journeyId?: ID }; sessions: readonly PracticeSession[];
+  mode: DayMode; block?: { kind: BlockKind; journeyId?: ID }; sessions: readonly PracticeSession[]; today?: DayKey;
 }): PracticePromptResult | undefined {
   const { block } = p;
   if (!block || (block.kind !== 'focus' && block.kind !== 'study')) return undefined;
   if (p.mode === 'free' || p.mode === 'recovery') return undefined;
-  const mine = p.sessions.filter((s) => !s.deleted && (s.journeyId || undefined) === (block.journeyId || undefined));
+  // A retest scheduled for a later day stays out of the line until its day (ajustes da pesquisa, P2).
+  const mine = p.sessions.filter((s) => !s.deleted && (s.journeyId || undefined) === (block.journeyId || undefined)
+    && !(p.today && s.availableFrom && s.availableFrom > p.today));
   const open = mine.filter((s) => s.status === 'open').sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (open) return { kind: 'resume', session: open };
   const last = mine.filter((s) => s.status === 'done').sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0];

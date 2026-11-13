@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import type { PracticeSession } from '@life/shared';
 import { compareFact } from '@life/shared';
-import { compareRebuild, setRebuildCode, startRebuild } from '../../domain/practiceActions';
+import { useToday } from '../../db/hooks';
+import { compareRebuild, createRetest, setRebuildCode, startRebuild } from '../../domain/practiceActions';
 import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
@@ -9,13 +11,15 @@ import { useToast } from '../../ui/Toast';
 import { CodeEditor } from '../study/CodeEditor';
 import { CodeView } from '../study/Rich';
 import type { StepProps } from './PracticeSteps';
-import { focusStepTitle } from './practiceData';
+import { dayKeyMonth, focusStepTitle, usePracticeSessions } from './practiceData';
 import { useDraftField } from './useDraftField';
 
 /** "Reconstruir sem consulta" (spec §5.2, step 8): the implementation stays hidden until "Comparar". */
 export function RebuildStep({ session, go }: StepProps) {
   const rb = session.rebuild;
   const [confirm, setConfirm] = useState(false);
+  const today = useToday();
+  const early = !!session.availableFrom && !!today && session.availableFrom > today;
 
   if (!rb) {
     if (!session.code.trim()) {
@@ -28,6 +32,7 @@ export function RebuildStep({ session, go }: StepProps) {
     }
     return (
       <>
+        {early && <p className="practice__hint" role="note">{`Marcada para ${dayKeyMonth(session.availableFrom!)}. Pode começar antes, se quiser.`}</p>}
         <p className="practice__hint">
           Reescreva a solução sem olhar. A sua implementação fica escondida até você comparar. Fazer isso em outro dia é um teste ainda melhor.
         </p>
@@ -67,7 +72,39 @@ export function RebuildStep({ session, go }: StepProps) {
       ) : (
         <Button variant="ghost" onClick={() => setConfirm(true)}>Refazer reconstrução</Button>
       )}
+      <RetestGroup session={session} />
     </>
+  );
+}
+
+const RETEST_CHOICES: ReadonlyArray<{ label: string; days: number }> = [
+  { label: 'Em 3 dias', days: 3 }, { label: 'Em 1 semana', days: 7 }, { label: 'Em 2 semanas', days: 14 },
+];
+
+/** "Reconstruir de novo, sem consultar" (P2): schedule a fresh rebuild session; one at a time. */
+function RetestGroup({ session }: { session: PracticeSession }) {
+  const sessions = usePracticeSessions();
+  if (!sessions) return null;
+  const pending = sessions.find((s) => s.retestOf === session.id && s.status === 'open');
+  if (pending) {
+    return (
+      <p className="practice__hint practice-retest">
+        {`Reconstrução marcada para ${pending.availableFrom ? dayKeyMonth(pending.availableFrom) : 'hoje'}. `}
+        <Link className="practice__link" href={`/pratica/${pending.id}?voltar=${encodeURIComponent(`/pratica/${session.id}`)}`}>Abrir</Link>
+      </p>
+    );
+  }
+  return (
+    <div className="practice-retest" role="group" aria-label="Reconstruir de novo, sem consultar">
+      <p className="practice__hint">Uma nova tentativa mais tarde mostra o que ficou.</p>
+      <div className="cluster">
+        {RETEST_CHOICES.map(({ label, days }) => (
+          <Button key={days} onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); safeRun(createRetest(session.id, days)); }}>
+            {label}
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 

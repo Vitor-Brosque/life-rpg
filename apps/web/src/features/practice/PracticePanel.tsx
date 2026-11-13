@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import type { ID, Journey, PracticeSession } from '@life/shared';
-import { ratingsLine } from '@life/shared';
-import { useJourneys, useNow } from '../../db/hooks';
+import type { DayKey } from '@life/shared';
+import { hintCount, ratingsLine } from '@life/shared';
+import { useJourneys, useNow, useToday } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { Panel } from '../../ui/Panel';
 import { NewPracticeSheet } from './NewPracticeSheet';
@@ -11,18 +12,25 @@ import './practice.css';
 
 const SHOWN = 3;
 
+/** "Pistas: 2" / "Pistas: nenhuma" (P7): observed data, no score, no colour. */
+export const hintsLabel = (s: PracticeSession): string => {
+  const n = hintCount(s);
+  return n === 0 ? 'Pistas: nenhuma' : `Pistas: ${n}`;
+};
+
 /** One session in a list: title, then the meta line (and the next action, or the three ratings). */
-export function PracticeRow({ session, journeys, now, from }: {
-  session: PracticeSession; journeys: readonly Journey[]; now: number; from: string;
+export function PracticeRow({ session, journeys, now, from, today }: {
+  session: PracticeSession; journeys: readonly Journey[]; now: number; from: string; today?: DayKey;
 }) {
   const open = session.status === 'open';
   return (
     <li>
       <Link className="study-list__item practice-row" href={`/pratica/${session.id}?voltar=${encodeURIComponent(from)}`}>
         <span className="practice-row__title">{session.title}</span>{' '}
-        <span className="practice-row__meta">{open ? openMeta(session, journeys, now) : doneMeta(session, journeys)}</span>{' '}
+        <span className="practice-row__meta">{open ? openMeta(session, journeys, now, today) : doneMeta(session, journeys)}</span>{' '}
         {open && session.nextAction && <span className="practice-row__next">Próxima ação: {session.nextAction}</span>}
-        {!open && <span className="practice-row__meta">{ratingsLine(session.ratings)}</span>}
+        {!open && <span className="practice-row__meta">{ratingsLine(session.ratings)}</span>}{' '}
+        {!open && <span className="practice-row__meta">{hintsLabel(session)}</span>}
       </Link>
     </li>
   );
@@ -33,6 +41,7 @@ export function PracticePanel() {
   const sessions = usePracticeSessions();
   const journeys = useJourneys();
   const now = useNow();
+  const today = useToday();
   const [creating, setCreating] = useState(false);
   if (sessions === undefined) return null;
   const open = sessions.filter((s) => s.status === 'open').slice(0, SHOWN);
@@ -50,7 +59,7 @@ export function PracticePanel() {
         <>
           {open.length > 0 && (
             <ul className="study-list">
-              {open.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from="/estudo" />)}
+              {open.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from="/estudo" {...(today ? { today } : {})} />)}
             </ul>
           )}
           <Link className="practice-panel__all" href="/estudo/praticas">Ver todas</Link>

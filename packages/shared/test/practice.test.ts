@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PracticeScore, PracticeSession } from '../src/types';
 import {
   INDICATORS, PRACTICE_DAILY_SESSIONS, PRACTICE_LIMITS, PRACTICE_STEPS, cleanErrorFields, cleanItems, cleanPracticeTitle,
-  codeLines, compareFact, earnsPracticeXp, earnsRebuildXp, errorCardDraft, isPracticeStep, listOps, newPracticeFields,
+  codeLines, compareFact, hintCount, earnsPracticeXp, earnsRebuildXp, errorCardDraft, isPracticeStep, listOps, newPracticeFields,
   nextStep, normalizePractice, practiceHistory, practicePrompt, practiceSketchId, practiceXpAllowed, practiceXpId,
   practiceXpSession, prevStep, ratingsComplete, ratingsLine, rebuildFact, rebuildXpId, resumeSuggestion,
   sanitizePracticePatch, seriesSummary, stepFilled, stepLabel,
@@ -291,5 +291,36 @@ describe('practicePrompt', () => {
     expect(practicePrompt({ mode: 'normal', block: focus, sessions })).toEqual({ kind: 'start', firstAction: 'ligar a segunda fonte' });
     expect(practicePrompt({ mode: 'normal', block: focus, sessions: [S({ journeyId: 'j-tech', status: 'done', endedAt: 1, nextAction: '  ' })] }))
       .toEqual({ kind: 'start' });
+  });
+});
+
+describe('retests and hints (ajustes da pesquisa, P2 e P7)', () => {
+  it('normalizePractice keeps retestOf and a valid availableFrom, drops the rest', () => {
+    const ok = normalizePractice(S({ retestOf: 'p0', availableFrom: '2026-11-16' }));
+    expect(ok).toMatchObject({ retestOf: 'p0', availableFrom: '2026-11-16' });
+    for (const bad of [5, '', {}, null]) {
+      const n = normalizePractice(S({ retestOf: bad as unknown as string, availableFrom: bad as unknown as string }));
+      expect(n.retestOf).toBeUndefined();
+      expect(n.availableFrom).toBeUndefined();
+    }
+    expect(normalizePractice(S({ availableFrom: '2026-13-45' })).availableFrom).toBeUndefined();
+    expect(normalizePractice(S({ availableFrom: 'amanhã' })).availableFrom).toBeUndefined();
+  });
+
+  it('practicePrompt skips sessions that are not available yet, and offers them on the day', () => {
+    const focus = { kind: 'focus' as const };
+    const later = S({ id: 'r1', retestOf: 'p1', availableFrom: '2026-11-16' });
+    expect(practicePrompt({ mode: 'normal', block: focus, sessions: [later], today: '2026-11-13' })).toEqual({ kind: 'start' });
+    expect(practicePrompt({ mode: 'normal', block: focus, sessions: [later], today: '2026-11-16' }))
+      .toEqual({ kind: 'resume', session: later });
+    expect(practicePrompt({ mode: 'normal', block: focus, sessions: [later], today: '2026-11-20' }))
+      .toEqual({ kind: 'resume', session: later });
+  });
+
+  it('hintCount counts only AI feedback with a hint', () => {
+    const fb = (id: string, source: 'ai' | 'person', hint?: { step: 'code'; level: 1 }) =>
+      ({ id, at: 1, source, text: 'x', ...(hint ? { hint } : {}) });
+    expect(hintCount(S())).toBe(0);
+    expect(hintCount(S({ feedback: [fb('a', 'ai', { step: 'code', level: 1 }), fb('b', 'ai'), fb('c', 'person'), fb('d', 'ai', { step: 'code', level: 1 })] }))).toBe(2);
   });
 });

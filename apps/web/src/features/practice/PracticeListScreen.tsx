@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
-import { useJourneys, useNow } from '../../db/hooks';
+import { useJourneys, useNow, useToday } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { FOCUS_PAGE, focusWhenGone } from '../../ui/focusAfter';
@@ -19,6 +19,7 @@ export function PracticeListScreen() {
   const sessions = usePracticeSessions();
   const journeys = useJourneys();
   const now = useNow();
+  const today = useToday();
   const [creating, setCreating] = useState(false);
   if (sessions === undefined) return <section className="screen" aria-busy="true" aria-label="Prática técnica" />;
 
@@ -52,13 +53,13 @@ export function PracticeListScreen() {
           {open.length > 0 && (
             <Panel variant="stone" className="study-section">
               <h2 className="study__subtitle">{`Em aberto (${open.length})`}</h2>
-              <ul className="study-list">{open.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from={from} />)}</ul>
+              <ul className="study-list">{open.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from={from} {...(today ? { today } : {})} />)}</ul>
             </Panel>
           )}
           {done.length > 0 && (
             <Panel variant="stone" className="study-section">
               <h2 className="study__subtitle">{`Encerradas (${done.length})`}</h2>
-              <ul className="study-list">{done.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from={from} />)}</ul>
+              <ul className="study-list">{done.map((s) => <PracticeRow key={s.id} session={s} journeys={journeys} now={now} from={from} {...(today ? { today } : {})} />)}</ul>
             </Panel>
           )}
           <PracticeHistory sessions={shown} />
