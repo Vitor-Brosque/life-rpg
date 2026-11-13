@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,11 +7,18 @@ import type { FastifyInstance } from 'fastify';
 import { MEDIA_MAX_BYTES } from '@life/shared';
 import { buildApp } from '../src/app';
 import type { ServerConfig } from '../src/config';
+import * as fs from 'node:fs';
 import { MediaStore, backupMedia } from '../src/media';
 import { RecordStore } from '../src/store';
 
+// Spies over the real fs, so a test can make links or copies fail.
+vi.mock('node:fs', async (orig) => {
+  const actual = await orig<typeof import('node:fs')>();
+  return { ...actual, linkSync: vi.fn(actual.linkSync), copyFileSync: vi.fn(actual.copyFileSync) };
+});
+
 const dirs: string[] = [];
-afterEach(() => { while (dirs.length) rmSync(dirs.pop()!, { recursive: true, force: true }); });
+afterEach(() => { vi.restoreAllMocks(); while (dirs.length) rmSync(dirs.pop()!, { recursive: true, force: true }); });
 const tmp = () => { const d = mkdtempSync(join(tmpdir(), 'liferpg-media-')); dirs.push(d); return d; };
 const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
 const webp = (n = 32) => { const b = Buffer.alloc(n, 7); b.write('RIFF', 0, 'latin1'); b.write('WEBP', 8, 'latin1'); return b; };
@@ -103,5 +110,28 @@ describe('MediaStore and backupMedia', () => {
     expect(readdirSync(target).sort()).toEqual([sha(a), sha(b)].sort());
     expect(statSync(join(target, sha(b))).size).toBe(41);
     expect(backupMedia(join(dir, 'nothing'), target)).toBe(0);
+  });
+  it('without links it copies aside then renames, and one bad file does not stop the mirror', async () => {
+    const dir = tmp();
+    const store = new MediaStore(join(dir, 'media'));
+    const a = webp(50);
+    const b = webp(51);
+    store.put(sha(a), a);
+    store.put(sha(b), b);
+    const real = (await vi.importActual<typeof import('node:fs')>('node:fs')).copyFileSync;
+    vi.mocked(fs.linkSync).mockImplementation(() => { throw new Error('EXDEV'); });
+    vi.mocked(fs.copyFileSync).mockImplementation((src, dest, mode) => {
+      if (String(src).endsWith(sha(a))) { writeFileSync(dest, 'half'); throw new Error('disk full'); } // a partial file is left behind
+      real(src, dest, mode);
+    });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const target = join(dir, 'backups', 'media');
+    expect(backupMedia(join(dir, 'media'), target)).toBe(1);
+    expect(err).toHaveBeenCalledTimes(1);
+    expect(readdirSync(target)).toEqual([sha(b)]); // no partial file at a's final name, no leftover temp file
+    expect(statSync(join(target, sha(b))).size).toBe(51);
+    vi.mocked(fs.copyFileSync).mockImplementation(real);
+    expect(backupMedia(join(dir, 'media'), target)).toBe(1); // the failed one is tried again
+    expect(readdirSync(target).sort()).toEqual([sha(a), sha(b)].sort());
   });
 });

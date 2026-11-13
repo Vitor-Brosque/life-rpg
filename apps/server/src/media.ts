@@ -65,13 +65,22 @@ export function backupMedia(mediaDir: string, targetDir: string): number {
   for (const hash of new MediaStore(mediaDir).list()) {
     const dest = join(targetDir, hash);
     if (existsSync(dest)) continue;
-    mkdirSync(targetDir, { recursive: true });
+    // One bad file must not stop the mirror: log it and go on (it is tried again next time).
+    const tmp = join(targetDir, `.${hash}.${randomBytes(4).toString('hex')}.tmp`);
     try {
-      linkSync(join(mediaDir, hash), dest);
-    } catch {
-      copyFileSync(join(mediaDir, hash), dest);
+      mkdirSync(targetDir, { recursive: true });
+      try {
+        linkSync(join(mediaDir, hash), dest);
+      } catch {
+        // No links here: copy aside, then rename, so the final name never holds a partial file.
+        copyFileSync(join(mediaDir, hash), tmp);
+        renameSync(tmp, dest);
+      }
+      added += 1;
+    } catch (e) {
+      rmSync(tmp, { force: true });
+      console.error(`media backup: could not mirror ${hash}`, e);
     }
-    added += 1;
   }
   return added;
 }
