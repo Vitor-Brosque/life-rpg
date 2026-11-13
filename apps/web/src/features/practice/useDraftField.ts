@@ -32,12 +32,21 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
   const chain = useRef<Promise<void>>(Promise.resolve());
   const latest = useRef({ saved, save });
   latest.current = { saved, save };
+  // The `save` of the moment of the last edit: a reused field never writes an old draft to a new record.
+  const editSave = useRef(save);
+  const mounted = useRef(true);
 
-  useEffect(() => {
-    if (dirty.current || focused.current) return;
-    current.current = saved;
-    setValue(saved);
-  }, [saved]);
+  /** Shows the stored value when nothing of ours is pending, being typed or in flight. */
+  const followSaved = useCallback((): void => {
+    if (dirty.current || focused.current || pending.current > 0) return;
+    const s = latest.current.saved;
+    if (current.current === s) return;
+    current.current = s;
+    setValue(s);
+  }, []);
+
+  // Fires only when `saved` changes; the end of the save queue re-runs it (see flush).
+  useEffect(() => { followSaved(); }, [saved, followSaved]);
 
   const stopTimer = (): void => {
     if (timer.current !== undefined) clearTimeout(timer.current);
@@ -49,20 +58,27 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
     if (dirty.current) {
       dirty.current = false;
       const v = current.current;
+      const run = editSave.current;
       pending.current += 1;
       chain.current = chain.current
-        .then(() => latest.current.save(v))
+        .then(() => run(v))
         .then(() => undefined, (e: unknown) => {
+          // Keep the text and mark it unsaved again: the next blur or edit tries once more.
+          dirty.current = true;
           console.error('save draft failed', e);
           useToast.getState().show(FAILURE_TOAST);
         })
-        .finally(() => { pending.current -= 1; });
+        .finally(() => {
+          pending.current -= 1;
+          if (pending.current === 0 && mounted.current) followSaved();
+        });
     }
     return chain.current;
-  }, []);
+  }, [followSaved]);
 
   const onChange = useCallback((v: string): void => {
     current.current = v;
+    editSave.current = latest.current.save;
     setValue(v);
     dirty.current = true;
     stopTimer();
@@ -73,11 +89,10 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
     focused.current = false;
     if (dirty.current) { void flush(); return; }
     // Nothing of ours is pending: show what is stored (it may have changed while the field was focused).
-    if (pending.current === 0 && current.current !== latest.current.saved) {
-      current.current = latest.current.saved;
-      setValue(latest.current.saved);
-    }
-  }, [flush]);
+    followSaved();
+  }, [flush, followSaved]);
+
+  const onFocus = useCallback((): void => { focused.current = true; }, []);
 
   const reset = useCallback((): void => {
     stopTimer();
@@ -86,8 +101,11 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
     setValue(latest.current.saved);
   }, []);
 
-  useEffect(() => () => { void flush(); }, [flush]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; void flush(); };
+  }, [flush]);
   usePageHide(() => { void flush(); });
 
-  return { value, onChange, onFocus: () => { focused.current = true; }, onBlur, flush, reset };
+  return { value, onChange, onFocus, onBlur, flush, reset };
 }

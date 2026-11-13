@@ -48,12 +48,16 @@ interface RowProps {
 function ItemRow({ item, index, noun, onEdit, checkLabel }: RowProps) {
   const [text, setText] = useState(item.text);
   const editing = useRef(false);
-  useEffect(() => { if (!editing.current) setText(item.text); }, [item.text]);
+  const touched = useRef(false);
+  // A row being edited (focused or with local changes) keeps its text when the list changes from outside.
+  useEffect(() => { if (!editing.current && !touched.current) setText(item.text); }, [item.text]);
   const n = index + 1;
   const commit = (): void => {
     editing.current = false;
+    if (!touched.current) { setText(item.text); return; }
+    touched.current = false;
     const t = text.trim();
-    if (t === item.text) return;
+    if (t === item.text) { setText(t); return; }
     onEdit((xs) => (t ? listOps.set(xs, item.id, { text: t }) : listOps.remove(xs, item.id)));
   };
   return (
@@ -65,11 +69,11 @@ function ItemRow({ item, index, noun, onEdit, checkLabel }: RowProps) {
       <input type="text" className="practice-list__text" aria-label={`${cap(noun)} ${n}`} value={text}
         maxLength={PRACTICE_LIMITS.item} enterKeyHint="done"
         onFocus={() => { editing.current = true; }}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { touched.current = true; setText(e.target.value); }}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setText(item.text); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); touched.current = false; setText(item.text); }
         }} />
       {index > 0 && (
         <Button size="sm" variant="ghost" aria-label={`Subir ${noun} ${n}`} onClick={() => onEdit((xs) => listOps.moveUp(xs, item.id))}>↑</Button>
@@ -155,7 +159,8 @@ export interface JourneyMissionPickerProps {
 export function JourneyMissionPicker({ journeyId, missionId, onChange }: JourneyMissionPickerProps) {
   const journeys = useJourneys().filter((j) => j.status === 'active' || j.id === journeyId).sort((a, b) => a.order - b.order);
   const missions = useMissions().filter((m) => journeyId !== undefined && m.journeyId === journeyId
-    && (m.status === 'open' || m.status === 'doing' || m.id === missionId));
+    && (m.status === 'open' || m.status === 'doing' || m.id === missionId))
+    .sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
   return (
     <div className="practice-links">
       <fieldset className="attr">

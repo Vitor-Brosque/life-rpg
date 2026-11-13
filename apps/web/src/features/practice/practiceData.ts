@@ -23,9 +23,9 @@ export function usePracticeSession(id: string): PracticeDoc {
   return session ? { status: 'ready', session } : { status: 'missing' };
 }
 
-/** `?voltar=` only when it is an internal path ("/…" but not "//…"); else the list. */
+/** `?voltar=` only when it is an internal path ("/…", not "//…", no backslash); else the list. */
 export function practiceBack(v: string | null): string {
-  return v && v.startsWith('/') && !v.startsWith('//') ? v : '/estudo/praticas';
+  return v && v.startsWith('/') && !v.startsWith('//') && !v.includes('\\') ? v : '/estudo/praticas';
 }
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
