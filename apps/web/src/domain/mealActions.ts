@@ -221,7 +221,8 @@ export const undoPrep = (r: PrepResult): Promise<void> => withLock('freezer', as
   }
   const otherPrep = (await liveMoves()).some((m) => m.kind === 'prep' && m.day === r.day && !r.moveIds.includes(m.id));
   const x = await db.xpEvents.get(mealprepXpId(r.day));
-  if (r.xp > 0 && !otherPrep && x && !x.deleted) entries.push({ table: 'xpEvents', record: { ...x, deleted: true } });
+  // Whichever prep of the day is undone last takes the day's XP with it (r.xp is 0 for the later ones).
+  if (!otherPrep && x && !x.deleted) entries.push({ table: 'xpEvents', record: { ...x, deleted: true } });
   if (r.mission) {
     const m = await db.missions.get(r.mission.id);
     if (m && !m.deleted && m.status === 'done') {

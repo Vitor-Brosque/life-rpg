@@ -86,6 +86,16 @@ describe('freezer and batch prep', () => {
     expect(await finishPrep([])).toMatchObject({ moveIds: [], portions: 0, xp: 0 });
   });
 
+  it('two preps on one day: the XP stays while one stands and goes with the last undo', async () => {
+    const a = await finishPrep([{ recipeId: 'r1', portions: 4 }]);
+    const b = await finishPrep([{ recipeId: 'r2', portions: 4 }]);
+    expect([a.xp, b.xp]).toEqual([10, 0]);
+    await undoPrep(a);
+    expect((await db.xpEvents.get('xp-mealprep-2026-11-13'))!.deleted).toBeFalsy();
+    await undoPrep(b);
+    expect((await db.xpEvents.get('xp-mealprep-2026-11-13'))!.deleted).toBe(true);
+  });
+
   it('eating down to fewer than 3 portions reports the freezer as low', async () => {
     await finishPrep([{ recipeId: 'r1', portions: 3 }]);
     expect(await eatPortion('r1')).toMatchObject({ total: 2, low: true });
