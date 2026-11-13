@@ -266,9 +266,10 @@ function kindLines(c: NpcCtx, add: (id: string, text: string, now?: boolean) => 
     }
     case 'intendente': {
       const fz = w.freezer;
+      if (free) add('i-free', 'Dia livre. A despensa também descansa hoje.', true);
       if (fz && fz.everPrepped && fz.portions > 0 && fz.portions < 3) {
         const head = fz.portions === 1 ? 'Resta 1 marmita no freezer.' : `Restam ${fz.portions} marmitas no freezer.`;
-        add('i-low', `${head} Se fizer sentido, o preparo em lote pode entrar na semana.`, true);
+        add('i-low', `${head} Se fizer sentido, o preparo em lote pode entrar na semana.`, !free); // no nudge on free days
       } else if (fz && fz.everPrepped && fz.portions === 0) {
         add('i-empty', 'O freezer está vazio por enquanto. A aba Casa ajuda a planejar o próximo preparo.');
       } else if (fz && fz.portions >= 3) {

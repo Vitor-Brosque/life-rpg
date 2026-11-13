@@ -158,6 +158,13 @@ describe('npcLines', () => {
       .toEqual(['i-first', 'i-prep', 'stage']);
   });
 
+  it('intendente on a free day: rest first, the low freezer is no longer time-sensitive', () => {
+    const c = ctx({ kind: 'intendente', world: world({ mode: 'free', freezer: { portions: 1, everPrepped: true } }) });
+    const lines = npcLines(c);
+    expect(lines[0]).toMatchObject({ id: 'i-free', now: true });
+    expect(lines.find((l) => l.id === 'i-low')).toMatchObject({ now: false });
+  });
+
   it('bardo is gentle about people missions and has no "open" nudge', () => {
     const c = ctx({ kind: 'bardo', facts: facts({ openMissions: 2 }) });
     expect(ids(c)).toEqual(['b-open', 'stage']);
