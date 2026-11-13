@@ -130,6 +130,7 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   checkinCard?: boolean;         // absent = true
   study?: StudySettings;           // Marco 3; absent = DEFAULT_STUDY (see studySettingsOf)
   sleep?: SleepSettings;           // Marco 4; absent = DEFAULT_SLEEP (see sleepSettingsOf)
+  patterns?: PatternSettings;      // Marco 5; absent = { watchDismissed: [] } (see patternSettingsOf)
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
@@ -413,6 +414,48 @@ export interface Workout extends BaseRecord {       // append-only: created or s
   minutes: number;      // 1–300
   minimum?: boolean;    // "versão mínima do cardio" (only when true)
   blockId?: ID;         // logged from the body block's banner
+}
+
+// ------------------------------------------------------------------ padrões (Marco 5)
+
+/** Numbers of the month, copied when its reflection is first saved (what was on screen). */
+export interface MonthObserved {
+  workdays: number;          // non-free days of the month
+  activeWorkdays: number;    // of those, with some XP
+  blocksPlanned: number;
+  blocksStarted: number;
+  minimumUsed: number;
+  resumptions: number;
+  reviews: number;
+  accuracy?: number;         // 0–1, only with ≥ 20 reviews of learned cards
+  practiceClosed: number;    // practice sessions closed (Marco 3d)
+  workouts: number;          // Marco 4
+  sleepAvgMin?: number;      // only with ≥ 3 complete nights (Marco 4)
+  escapes: number;
+}
+
+export interface MonthAnswers {
+  progress: string;          // "O que mostra que você avançou neste mês?"
+  obstacle: string;          // "O que mais atrapalhou, e em que momentos?"
+  next: string;              // "Que mudança pequena você quer levar para o próximo mês?"
+}
+
+export interface MonthReview extends BaseRecord {  // id = `month-${YYYY-MM}`
+  month: string;             // 'YYYY-MM', the month reflected upon
+  answers?: MonthAnswers;    // absent when skipped
+  skipped?: boolean;         // "Pular este mês" (only when true)
+  observed: MonthObserved;
+  answeredAt: number;        // first save
+}
+
+export interface PatternSettings {
+  watchDismissed: string[];  // dismissed weeks 5–8 notices (WatchNotice.key)
+}
+
+/** `settings.patterns` with defaults: a missing or broken list is empty. */
+export function patternSettingsOf(s?: { patterns?: Partial<PatternSettings> }): PatternSettings {
+  const list: unknown = s?.patterns?.watchDismissed;
+  return { watchDismissed: Array.isArray(list) ? list.filter((k): k is string => typeof k === 'string') : [] };
 }
 
 export const SYNC_TABLES = [

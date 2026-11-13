@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Block, BlockSession, Checkin, Commitment, DayState, XpEvent } from '../src/types';
 import { timestampAt } from '../src/dates';
-import { weekKey, weekStats, type WeekStatsInput } from '../src/weekStats';
+import { countedBlocksOn, weekKey, weekStats, type WeekStatsInput } from '../src/weekStats';
 
 function blk(p: Partial<Block> & { id: string }): Block {
   return {
@@ -136,5 +136,41 @@ describe('weekKey', () => {
     expect(weekKey('2026-11-11')).toBe('2026-11-09');
     expect(weekKey('2026-11-15')).toBe('2026-11-09');
     expect(weekKey('2026-11-09')).toBe('2026-11-09');
+  });
+});
+
+describe('countedBlocksOn', () => {
+  const D = '2026-11-09';
+  const b = (p: Partial<Block> & { id: string }): Block => blk({ name: p.id, ...p });
+  const blocks: Block[] = [
+    b({ id: 'r', order: 0, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' }),
+    b({ id: 'c1', order: 1, targetStart: '09:00', durationMin: 180, minimumMin: 45 }),
+    b({ id: 'c3', order: 2, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study' }),
+    b({ id: 'c9', order: 3, targetStart: '16:00', durationMin: 30, minimumMin: 10, kind: 'study', createdAt: timestampAt(D, '16:30') }),
+    b({ id: 'c5', order: 4, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light' }),
+    b({ id: 'c6', order: 5, targetStart: '19:30', durationMin: 30, minimumMin: 10, kind: 'light' }),
+  ];
+  const lived = (blockId: string, version: 'normal' | 'minimum', start: string, end: string): BlockSession => ({
+    id: `bs-${blockId}-${D}`, createdAt: 1, updatedAt: 1, deleted: false, blockId, day: D, version,
+    startedAt: timestampAt(D, start), endedAt: timestampAt(D, end),
+  });
+  const base = {
+    day: D, blocks, commitments: [aula], dayStartHour: 4, dayEndHour: 0,
+    sessions: [lived('c1', 'normal', '09:00', '12:00'), lived('c3', 'minimum', '15:00', '15:30')],
+  };
+
+  it('skips routine, no-room and created-later blocks; marks started and minimum', () => {
+    expect(countedBlocksOn({ ...base, mode: 'normal' }).map((c) => [c.block.id, c.started, c.minimum])).toEqual([
+      ['c1', true, false], ['c3', true, true], ['c5', false, false],
+    ]);
+  });
+  it('a free day counts nothing', () => {
+    expect(countedBlocksOn({ ...base, mode: 'free' })).toEqual([]);
+  });
+  it('ignores sessions of other days and deleted ones', () => {
+    const other = { ...lived('c5', 'normal', '18:00', '18:40'), id: 'x', day: '2026-11-10' };
+    const gone = { ...lived('c5', 'normal', '18:00', '18:40'), id: 'y', deleted: true };
+    const out = countedBlocksOn({ ...base, mode: 'normal', sessions: [...base.sessions, other, gone] });
+    expect(out.find((c) => c.block.id === 'c5')!.started).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import type { Block, BlockSession, Checkin, Commitment, DayKey, DayState, XpEvent } from './types';
+import type { Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayState, XpEvent } from './types';
 import { addDays, dayEndTimestamp, dayKeyOf, weekdayOf } from './dates';
 import { defaultDayMode, planDay } from './planDay';
 
@@ -30,6 +30,48 @@ export function weekKey(day: DayKey): DayKey {
   return addDays(day, -((weekdayOf(day) + 6) % 7));
 }
 
+/** One work block of a day that counts as planned (the weekly review's rule). */
+export interface CountedBlock { block: Block; started: boolean; minimum: boolean }
+
+export interface CountedBlocksInput {
+  day: DayKey;
+  mode: DayMode;
+  dayStartedAt?: number;
+  blocks: Block[];
+  commitments: Commitment[];
+  /** Any sessions: only the live ones of `day` are used. */
+  sessions: BlockSession[];
+  dayStartHour: number;
+  dayEndHour: number;
+}
+
+/**
+ * The day's work blocks that count as planned (§8): none on a free day; routine blocks and blocks
+ * without room ('sem-tempo') don't count; a block created after its target time counts only when
+ * it was started. `started`: not skipped and the session has `startedAt`; `minimum`: started in the
+ * minimum version.
+ */
+export function countedBlocksOn(input: CountedBlocksInput): CountedBlock[] {
+  const { day, mode, dayStartHour, dayEndHour } = input;
+  if (mode === 'free') return [];
+  const occs = planDay({
+    day, mode, now: dayEndTimestamp(day, dayStartHour, dayEndHour),
+    dayStartHour, dayEndHour, dayStartedAt: input.dayStartedAt,
+    blocks: input.blocks, commitments: input.commitments,
+    sessions: input.sessions.filter((s) => s.day === day && !s.deleted),
+  });
+  const out: CountedBlock[] = [];
+  for (const o of occs) {
+    // Routine blocks are checklists (start of day, wind-down), not work blocks: they don't count.
+    if (o.block.kind === 'routine' || o.skipReason === 'sem-tempo') continue;
+    const started = o.state !== 'skipped' && o.session?.startedAt !== undefined;
+    // A block that did not exist yet at its target time was not planned (unless it was started).
+    if (o.block.createdAt > o.plannedStart && !started) continue;
+    out.push({ block: o.block, started, minimum: started && o.version === 'minimum' });
+  }
+  return out;
+}
+
 export function weekStats(input: WeekStatsInput): WeekStats {
   const { weekStart, today, dayStartHour, dayEndHour } = input;
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -46,22 +88,14 @@ export function weekStats(input: WeekStatsInput): WeekStats {
   let started = 0;
   let minimumUsed = 0;
   for (const { day, mode } of counted) {
-    const occs = planDay({
-      day, mode, now: dayEndTimestamp(day, dayStartHour, dayEndHour),
-      dayStartHour, dayEndHour, dayStartedAt: stateOf(day)?.startedAt,
-      blocks: input.blocks, commitments: input.commitments,
-      sessions: input.sessions.filter((s) => s.day === day && !s.deleted),
-    });
-    for (const o of occs) {
-      // Routine blocks are checklists (start of day, wind-down), not work blocks: they don't count.
-      if (o.block.kind === 'routine' || o.skipReason === 'sem-tempo') continue;
-      const isStarted = o.state !== 'skipped' && o.session?.startedAt !== undefined;
-      // A block that did not exist yet at its target time was not planned (unless it was started).
-      if (o.block.createdAt > o.plannedStart && !isStarted) continue;
+    for (const c of countedBlocksOn({
+      day, mode, dayStartedAt: stateOf(day)?.startedAt, dayStartHour, dayEndHour,
+      blocks: input.blocks, commitments: input.commitments, sessions: input.sessions,
+    })) {
       planned += 1;
-      if (isStarted) {
+      if (c.started) {
         started += 1;
-        if (o.version === 'minimum') minimumUsed += 1;
+        if (c.minimum) minimumUsed += 1;
       }
     }
   }
