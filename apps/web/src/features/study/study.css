@@ -158,3 +158,11 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 .checklist__item input { flex-shrink: 0; width: 20px; height: 20px; margin-top: 2px; }
 .checklist__text { flex: 1; min-width: 0; }
 .checklist__count { margin: 0; color: var(--gold); font-weight: 700; }
+
+/* ------------------------------------------------------------------ Agora and Painel */
+
+.review-prompt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.review-prompt__title { margin: 0; color: var(--gold); font-family: var(--font-pixel); font-size: 1rem; }
+.review-prompt__meta { margin: 2px 0 0; color: var(--text-dim); font-size: 0.875rem; }
+.review-line, .study-status { margin: 0; font-size: 0.875rem; }
+.review-line a, .study-status a { color: var(--text-dim); }

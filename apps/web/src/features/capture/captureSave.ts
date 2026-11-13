@@ -1,9 +1,12 @@
-import type { Commitment, DayKey, Mission } from '@life/shared';
+import type { Commitment, DayKey, Mission, Note } from '@life/shared';
 import { dayKeyToDate, parseCapture } from '@life/shared';
 import { captureLines } from '../../domain/actions';
+import { captureCardDraft, isCardCapture } from '../../domain/studyActions';
 
-export type Captured = Mission | Commitment;
+export type Captured = Mission | Commitment | Note;
 export const isMission = (r: Captured): r is Mission => 'status' in r;
+/** A "? …" line became a card draft (Marco 3). */
+export const isCardDraft = (r: Captured): r is Note => 'front' in r;
 
 interface Span { start: number; end: number }
 
@@ -44,6 +47,11 @@ export async function saveCapture(text: string, opts: SaveOptions): Promise<Capt
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
   const out: Captured[] = [];
   for (const line of lines) {
+    if (isCardCapture(line)) {
+      const note = await captureCardDraft(line);
+      if (note) out.push(note);
+      continue;
+    }
     const p = parseCapture(line, opts.today);
     if (p.title === '') continue;
     const hasDate = p.tokens.some((t) => t.type === 'date');

@@ -4,13 +4,14 @@ import { create } from 'zustand';
 import type { CaptureToken, DayKey, Mission } from '@life/shared';
 import { dayKeyOf, parseCapture } from '@life/shared';
 import { useAreas, useToday } from '../../db/hooks';
+import { isCardCapture } from '../../domain/studyActions';
 import { Button } from '../../ui/Button';
 import { formatDay, plural } from '../../ui/format';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
 import { usePageHide } from '../../ui/usePageHide';
 import { CaptureChips, QuickDetails } from './CaptureChips';
-import { isMission, removeSpans, saveCapture, type Captured } from './captureSave';
+import { isCardDraft, isMission, removeSpans, saveCapture, type Captured } from './captureSave';
 import './capture.css';
 
 // ------------------------------------------------------------------ global opener
@@ -124,6 +125,7 @@ function feedbackFor(items: Captured[], today: DayKey): Omit<Feedback, 'key'> | 
   if (items.length === 0) return undefined;
   if (items.length > 1) return { message: `${plural(items.length, 'item capturado', 'itens capturados')}.` };
   const item = items[0]!;
+  if (isCardDraft(item)) return { message: 'Rascunho de card salvo. Complete na aba Estudo.' };
   if (isMission(item)) return { message: `Capturada: ${item.title}`, mission: item };
   return { message: `Compromisso salvo: ${item.title} · ${formatDay(item.date, today)} ${item.start}` };
 }
@@ -162,8 +164,12 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
   usePageHide(() => { if (textRef.current.trim()) writeDraft(textRef.current); });
 
   const lines = useMemo(() => text.split(/\r?\n/).filter((l) => l.trim() !== ''), [text]);
-  const single = useMemo(() => (lines.length === 1 ? parseCapture(lines[0]!, today) : undefined), [lines, today]);
-  const canSave = lines.length > 1 || (single !== undefined && single.title !== '');
+  const cardLine = lines.length === 1 && isCardCapture(lines[0]!);
+  const single = useMemo(
+    () => (lines.length === 1 && !isCardCapture(lines[0]!) ? parseCapture(lines[0]!, today) : undefined),
+    [lines, today],
+  );
+  const canSave = lines.length > 1 || cardLine || (single !== undefined && single.title !== '');
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -235,7 +241,9 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
         <Button type="submit" variant="primary" icon="check" aria-label="Salvar" disabled={!canSave} />
       </div>
       {defaultDate && <p className="capture__hint">Para {formatDay(defaultDate, today)}</p>}
-      {single ? (
+      {cardLine ? (
+        <p className="capture__hint">Vira rascunho de card. Complete depois na aba Estudo.</p>
+      ) : single ? (
         <CaptureChips
           parsed={single}
           today={today}

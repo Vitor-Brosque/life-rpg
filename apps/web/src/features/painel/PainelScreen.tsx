@@ -11,6 +11,7 @@ import { AgoraNow, showsMainCard } from '../agora/AgoraNow';
 import { MorningCard } from '../agora/MorningCard';
 import { pickDayMode } from '../agora/blockFeedback';
 import { ResumeNote, useResumeNote } from '../agora/ResumeNote';
+import { StudyStatusLine } from '../study/StudyStatusLine';
 import { ShrinkDialog } from '../agora/ShrinkDialog';
 import { SnoozeDialog } from '../agora/SnoozeDialog';
 import { StatusStrip } from '../agora/StatusStrip';
@@ -161,6 +162,7 @@ export function PainelScreen() {
 
       <section className="painel__col painel__apoio" aria-label="Apoio" ref={apoioRef}>
         <ResumeNote text={note} className="painel__resume" />
+        <StudyStatusLine />
         <PainelTimer />
         <PainelCompanion />
         <Panel variant="stone" className="painel__capture">

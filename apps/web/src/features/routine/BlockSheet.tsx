@@ -114,6 +114,15 @@ function BlockForm({ block, weekday, onClose }: Omit<BlockSheetProps, 'open'>) {
         <p className="block-form__hint">Continua no dia de recuperação, na versão mínima.</p>
       </div>
 
+      <div>
+        <button type="button" role="switch" aria-checked={d.reviews} className="switch-row"
+          onClick={() => set('reviews', !d.reviews)}>
+          <span className="switch-row__track" aria-hidden="true"><span className="switch-row__thumb" /></span>
+          <span>Revisão espaçada neste bloco</span>
+        </button>
+        <p className="block-form__hint">Durante o bloco, o Agora mostra os cards para revisar.</p>
+      </div>
+
       {d.kind === 'routine' && (
         <ChecklistFields items={d.checklist} onChange={(change) => setD((prev) => ({ ...prev, checklist: change(prev.checklist) }))} />
       )}

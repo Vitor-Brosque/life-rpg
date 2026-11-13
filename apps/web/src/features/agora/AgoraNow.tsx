@@ -2,6 +2,7 @@ import type { Area, BlockOccurrence, DayKey, DayMode, Mission } from '@life/shar
 import { isOfBlock } from '@life/shared';
 import { useBlocks, useWeek } from '../../db/hooks';
 import { useTimer } from '../../timer/store';
+import { ReviewPrompt } from '../study/ReviewPrompt';
 import { sameNameIds } from '../week/weekData';
 import { Alternatives } from './Alternatives';
 import { BetweenBlocks, fitsIn } from './BetweenBlocks';
@@ -82,6 +83,7 @@ export function AgoraNow({
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
+        <ReviewPrompt mode={mode} current={current} />
         {current.block.kind !== 'routine' && main}
       </>
     );
@@ -93,10 +95,18 @@ export function AgoraNow({
     const c = engine.nextCommitment;
     const commitment = c && c.startTs < next.start ? { title: c.commitment.title, startTs: c.startTs } : undefined;
     return (
-      <BetweenBlocks next={next} commitment={commitment} freeMinutes={freeMinutes} items={items} areas={areas}
-        onPick={actions.open} />
+      <>
+        <ReviewPrompt mode={mode} />
+        <BetweenBlocks next={next} commitment={commitment} freeMinutes={freeMinutes} items={items} areas={areas}
+          onPick={actions.open} />
+      </>
     );
   }
 
-  return main;
+  return (
+    <>
+      {main}
+      <ReviewPrompt mode={mode} />
+    </>
+  );
 }

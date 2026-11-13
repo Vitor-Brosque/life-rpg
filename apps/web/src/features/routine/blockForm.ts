@@ -12,6 +12,8 @@ export interface BlockDraft {
   minimum: string;
   kind: BlockKind;
   protected: boolean;
+  /** Spaced-repetition reviews are offered during this block. */
+  reviews: boolean;
   /** '' (no link), 'area:<id>' or 'journey:<id>'. */
   link: string;
   weekdays: number[];
@@ -31,12 +33,13 @@ export function draftOf(block: Block | undefined, weekday: number): BlockDraft {
   if (block) {
     return {
       name: block.name, targetStart: block.targetStart, duration: String(block.durationMin),
-      minimum: String(block.minimumMin), kind: block.kind, protected: block.protected, link: linkOf(block),
+      minimum: String(block.minimumMin), kind: block.kind, protected: block.protected, reviews: block.reviews ?? block.kind === 'light',
+      link: linkOf(block),
       weekdays: [...block.weekdays], checklist: block.checklist.map((c) => ({ ...c })),
     };
   }
   return {
-    name: '', targetStart: '09:00', duration: '60', minimum: '15', kind: 'focus', protected: false, link: '',
+    name: '', targetStart: '09:00', duration: '60', minimum: '15', kind: 'focus', protected: false, reviews: false, link: '',
     weekdays: isWeekend(weekday) ? [weekday] : [1, 2, 3, 4, 5], checklist: [],
   };
 }
@@ -69,6 +72,7 @@ export function fieldsOf(d: BlockDraft): Partial<Block> {
     minimumMin: minutes(d.minimum),
     kind: d.kind,
     protected: d.protected,
+    reviews: d.reviews,
     weekdays: [...d.weekdays].sort((a, b) => a - b),
     checklist: d.checklist,
     areaId: type === 'area' ? id : undefined,
