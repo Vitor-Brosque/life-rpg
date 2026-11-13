@@ -310,6 +310,15 @@ describe('cleanHint: other code forms', () => {
     expect(cleanHint('a\n~~~\n1\n2\n3\n~~~\nb')).toBe(`a\n${O}\nb`);
     expect(cleanHint('a\n~~~\n1\n~~~\nb')).toBe('a\n~~~\n1\n~~~\nb');
   });
+  it('indented code is caught at any depth, with tabs and with blank lines inside', () => {
+    const nested = ['Veja:', '    def f(xs):', '        for x in xs:', '            print(x)', 'Fim.'].join('\n');
+    expect(cleanHint(nested)).toBe(['Veja:', HINT_CODE_OMITTED, 'Fim.'].join('\n'));
+    const tabs = ['Antes', '\tif x:', '\t\treturn 1', '', '\t\treturn 2', 'Depois'].join('\n');
+    expect(cleanHint(tabs)).toBe(['Antes', HINT_CODE_OMITTED, 'Depois'].join('\n'));
+    const two = ['Olhe:', '    x = 1', '', '    y = 2', 'Ok.'].join('\n'); // only 2 code lines: kept
+    expect(cleanHint(two)).toContain('    y = 2');
+  });
+
   it('drops runs of 3+ indented code lines', () => {
     expect(cleanHint('a\n    x = 1\n    y = 2\n    z = 3\nb')).toBe(`a\n${O}\nb`);
     expect(cleanHint('a\n\tx = 1\n\ty = 2\n\tz = 3\nb')).toBe(`a\n${O}\nb`);

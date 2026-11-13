@@ -175,7 +175,8 @@ export const hintPreview = (r: HintRequest): string => {
 };
 
 const OPEN_RE = /^ {0,3}(`{3,}[^`]*|~{3,}.*)$/;
-const INDENT_RE = /^(?: {4}|\t)\S/;
+/** An indented code line: 4+ spaces or a tab, at any depth (blank lines are handled apart). */
+const INDENT_RE = /^(?: {4}|\t)/;
 
 /** Index of the line closing the fence opened at `from`, or -1. */
 function fenceCloser(lines: string[], from: number): number {
@@ -205,7 +206,8 @@ export function cleanHint(raw: string): string {
   const out: string[] = [];
   let run: string[] = [];
   const flush = (): void => {
-    if (run.length >= 3) out.push(HINT_CODE_OMITTED); else out.push(...run);
+    const code = run.filter((l) => l.trim() !== '').length; // blank lines inside a block don't count
+    if (code >= 3) out.push(HINT_CODE_OMITTED); else out.push(...run);
     run = [];
   };
   for (let i = 0; i < lines.length; i++) {
@@ -218,7 +220,8 @@ export function cleanHint(raw: string): string {
       if (body.filter((l) => l.trim() !== '').length > AI_LIMITS.hintCodeLines) out.push(HINT_CODE_OMITTED);
       else out.push(...lines.slice(i, c + 1));
       i = c;
-    } else if (INDENT_RE.test(line)) run.push(line);
+    } else if (line.trim() !== '' && INDENT_RE.test(line)) run.push(line);
+    else if (line.trim() === '' && run.length > 0) run.push(line); // a blank line keeps an indented block together
     else { flush(); out.push(line); }
   }
   flush();
