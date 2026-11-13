@@ -175,6 +175,14 @@ describe('semana atípica (P3)', () => {
     expect(o.atypicalWeeks).toBe(1);
     expect(all.atypicalWeeks).toBe(0);
   });
+  it('start-card feelings of an atypical week are out of the tally too', () => {
+    const cards = [
+      checkin('2026-11-03', '10:00', { kind: 'start', feelings: ['ansiedade'], outcome: 'continued' }),
+      checkin('2026-11-10', '10:00', { kind: 'start', feelings: ['ansiedade'], outcome: 'stopped' }),
+    ];
+    const o = postponeObserved(emptyData({ checkins: cards, weeks: [atypicalWeek('2026-11-02')] }));
+    expect(o.feelings.map((f) => [f.feeling, f.count, f.withOutcome, f.continued])).toEqual([['ansiedade', 1, 1, 0]]);
+  });
   it('an atypical week outside the window is not counted', () => {
     expect(postponeObserved(emptyData({ ...data, weeks: [atypicalWeek('2026-08-03')] })).atypicalWeeks).toBe(0);
   });

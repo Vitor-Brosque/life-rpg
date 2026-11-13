@@ -3,7 +3,7 @@ import { addDays, dayKeyOf, weekdayOf } from './dates';
 import { weekKey } from './weekStats';
 import { defaultDayMode } from './planDay';
 import { PART_LABEL, WEEKDAY_NAMES, partOfDay, type PartOfDay } from './periods';
-import { atypicalWeekSet, overlapsAtypical, type PatternData } from './trends';
+import { atypicalWeekSet, type PatternData } from './trends';
 
 export const POSTPONE_WINDOW_DAYS = 28;
 /** No hypothesis about missions or groups before this many postponements in the window. */
@@ -77,6 +77,10 @@ export function classifyEvent(e: LifeEvent, dayStartHour: number): PostponeKind 
   }
 }
 
+/** How many atypical weeks (by Monday) overlap [from, to]. */
+const countOverlapping = (mondays: ReadonlySet<DayKey>, from: DayKey, to: DayKey): number =>
+  [...mondays].filter((m) => m <= to && addDays(m, 6) >= from).length;
+
 /** Counts of the last 28 logical days (today included), for live missions only. */
 export function postponeObserved(
   data: Pick<PatternData, 'today' | 'dayStartHour' | 'events' | 'missions' | 'areas' | 'checkins' | 'dayStates'>
@@ -85,7 +89,7 @@ export function postponeObserved(
   const from = addDays(data.today, -(POSTPONE_WINDOW_DAYS - 1));
   const to = data.today;
   const atypical = atypicalWeekSet(data.weeks);
-  const atypicalWeeks = [...atypical].filter((m) => overlapsAtypical(new Set([m]), from, to)).length;
+  const atypicalWeeks = countOverlapping(atypical, from, to);
   const missions = new Map(data.missions.filter((m) => !m.deleted).map((m) => [m.id, m]));
   const areas = new Map(data.areas.map((a) => [a.id, a.name]));
   const states = new Map(data.dayStates.filter((d) => !d.deleted).map((d) => [d.id, d]));
@@ -134,7 +138,7 @@ export function postponeObserved(
   for (const c of data.checkins) {
     if (c.deleted || c.kind !== 'start') continue;
     const day = dayKeyOf(c.at, data.dayStartHour);
-    if (day < from || day > to) continue;
+    if (day < from || day > to || atypical.has(weekKey(day))) continue;
     for (const f of c.feelings) {
       let t = feelings.get(f);
       if (!t) {

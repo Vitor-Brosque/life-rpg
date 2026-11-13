@@ -11,6 +11,7 @@ import './atypical.css';
 export const ATYPICAL_REASONS = ['Provas', 'Viagem', 'Saúde', 'Outro'] as const;
 type Reason = (typeof ATYPICAL_REASONS)[number];
 
+const ddmm = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
 const OTHER: Reason = 'Outro';
 const isPreset = (r: string): r is Reason => (ATYPICAL_REASONS as readonly string[]).includes(r);
 
@@ -55,12 +56,14 @@ function AtypicalForm({ weekId, current, onClose }: Omit<AtypicalWeekSheetProps,
     if (!reason) return;
     finish(() => setWeekAtypical(weekId, {
       reason: reason === OTHER ? other.trim() || OTHER : reason,
-      ...(returnDay ? { returnDay } : {}),
+      // Not before the week's Monday (the date field's `min` is not enforced by typing).
+      ...(returnDay && returnDay >= weekId ? { returnDay } : {}),
     }));
   };
 
   return (
     <form className="atypical" onSubmit={submit}>
+      <p className="muted">{`Semana de ${ddmm(weekId)}`}</p>
       <p className="muted">Numa semana atípica, versões mínimas contam tanto quanto. Os Padrões não comparam esta semana com as outras.</p>
       <div role="group" aria-label="Motivo" className="atypical__chips">
         {ATYPICAL_REASONS.map((r) => (

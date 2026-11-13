@@ -59,12 +59,29 @@ describe('setWeekAtypical', () => {
     expect(w?.atypical).toEqual({ reason: 'Outro' });
   });
 
-  it('undefined removes the mark and keeps the record', async () => {
+  it('undefined removes the mark and keeps a record that holds something else', async () => {
+    await setWeekExperiment('Celular longe');
     await setWeekAtypical(WEEK, { reason: 'Viagem' });
     await setWeekAtypical(WEEK, undefined);
     const w = await db.weeks.get(WEEK);
-    expect(w).toBeDefined();
+    expect(w?.deleted).toBe(false);
+    expect(w?.experiment).toBe('Celular longe');
     expect(w?.atypical).toBeUndefined();
+  });
+
+  it('undefined soft-deletes a record that held nothing but the mark, and marking again revives it', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Viagem' });
+    await setWeekAtypical(WEEK, undefined);
+    expect((await db.weeks.get(WEEK))?.deleted).toBe(true);
+    await setWeekAtypical(WEEK, { reason: 'Provas' });
+    const w = await db.weeks.get(WEEK);
+    expect(w?.deleted).toBe(false);
+    expect(w?.atypical?.reason).toBe('Provas');
+  });
+
+  it('a return day before the Monday of the week is ignored', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Provas', returnDay: '2026-11-10' });
+    expect((await db.weeks.get(WEEK))?.atypical).toEqual({ reason: 'Provas' });
   });
 });
 
@@ -90,8 +107,9 @@ describe('Agora', () => {
     first.unmount();
     await setWeekAtypical(WEEK, { reason: 'Viagem', returnDay: '2026-11-18' });
     renderAgora();
-    await screen.findByRole('region', { name: 'Bloco atual' });
-    await new Promise((r) => setTimeout(r, 150));
+    // The experiment comes from the same week record: once it shows, the record was read.
+    await setWeekExperiment('Começar pelo teste');
+    expect(await screen.findByText('Experimento da semana: Começar pelo teste')).toBeInTheDocument();
     expect(screen.queryByText(/Semana atípica/)).not.toBeInTheDocument();
   });
 
@@ -100,6 +118,23 @@ describe('Agora', () => {
     await setDayMode('normal');
     renderAgora();
     expect(await screen.findByRole('region', { name: 'Nova semana' }, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('Nova semana: marking then unmarking the week on a Monday leaves the card pending', async () => {
+    await setWeekAtypical(WEEK, { reason: 'Viagem' });
+    await setWeekAtypical(WEEK, undefined);
+    await setDayMode('normal');
+    renderAgora();
+    expect(await screen.findByRole('region', { name: 'Nova semana' }, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('Nova semana: the welcome-back sentence shows on the collapsed card too', async () => {
+    await db.weeks.put(atypical(LAST, 'Provas'));
+    await setDayMode('normal');
+    renderAgora();
+    const card = await screen.findByRole('region', { name: 'Nova semana' }, { timeout: 3000 });
+    expect(within(card).getByRole('button', { name: 'Começar' })).toBeInTheDocument();
+    expect(await within(card).findByText('A semana passada foi atípica (Provas). Bem-vindo de volta: começar pelas versões mínimas vale.')).toBeInTheDocument();
   });
 
   it('Nova semana: last week atypical gets a welcome-back sentence', async () => {
@@ -135,8 +170,12 @@ describe('Planejar → Semana', () => {
     vi.setSystemTime(at(11, 10, 20)); // Wednesday, week 2026-11-09
     render(<WeekView />);
     const opener = await screen.findByRole('button', { name: /Semana atípica/ });
+    expect(opener).toHaveAccessibleName('Semana atípica, semana de 09/11');
     await user.click(opener);
     const sheet = await screen.findByRole('dialog', { name: 'Semana atípica' });
+    expect(within(sheet).getByText('Semana de 09/11')).toBeInTheDocument();
+    // A return day before the week's Monday is not offered.
+    expect(within(sheet).getByLabelText('O ritmo volta em')).toHaveAttribute('min', LAST);
     expect(within(sheet).getByText('Numa semana atípica, versões mínimas contam tanto quanto. Os Padrões não comparam esta semana com as outras.')).toBeInTheDocument();
     for (const name of ['Provas', 'Viagem', 'Saúde', 'Outro']) expect(within(sheet).getByRole('button', { name })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Desmarcar' })).not.toBeInTheDocument();

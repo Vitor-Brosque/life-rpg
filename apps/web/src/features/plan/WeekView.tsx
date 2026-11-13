@@ -141,7 +141,8 @@ export function WeekView() {
   return (
     <div className="week">
       <div className="week-atypical">
-        <Button size="sm" onClick={() => setAtypicalOpen(true)}>
+        <Button size="sm" aria-label={`Semana atípica, semana de ${viewedWeek!.slice(8, 10)}/${viewedWeek!.slice(5, 7)}${atypical ? `: ${atypical.reason}` : ''}`}
+          onClick={() => setAtypicalOpen(true)}>
           Semana atípica
           {atypical && <span className="week-atypical__tag"> · {atypical.reason}</span>}
         </Button>

@@ -5,6 +5,7 @@ import type { Commitment, CommitmentOccurrence } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { createCommitment, createMission } from '../src/domain/actions';
+import { setWeekAtypical } from '../src/domain/patternActions';
 import { saveDeck, saveNote } from '../src/domain/studyActions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
@@ -40,6 +41,13 @@ describe('PainelScreen', () => {
     expect(await screen.findByRole('region', { name: 'Agora' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Hoje' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Apoio' })).toBeInTheDocument();
+  });
+
+  it('the Agora column shows the atypical-week line', async () => {
+    await setWeekAtypical('2026-11-09', { reason: 'Provas', returnDay: '2026-11-15' });
+    renderPainel();
+    const agora = await screen.findByRole('region', { name: 'Agora' });
+    expect(await within(agora).findByText('Semana atípica (Provas) até 15/11. Versões mínimas contam tanto quanto.')).toBeInTheDocument();
   });
 
   it('AgoraScreen switches to the Painel on wide screens', async () => {

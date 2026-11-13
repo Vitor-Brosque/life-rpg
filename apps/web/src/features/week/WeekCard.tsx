@@ -178,7 +178,7 @@ export function WeekCard({ today, weekId, collapsed = false, onStart, onLater, o
           <span className="week-card__step">{`Passo ${current === 'review' ? 1 : 2} de 2`}</span>
         )}
       </div>
-      {!collapsed && data.lastAtypical && (
+      {data.lastAtypical && (
         <p className="week-card__note">
           {`A semana passada foi atípica (${data.lastAtypical.reason}). Bem-vindo de volta: começar pelas versões mínimas vale.`}
         </p>

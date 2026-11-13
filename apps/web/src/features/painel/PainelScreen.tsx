@@ -24,7 +24,7 @@ import {
 import { CaptureForm } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { useMonthCycle } from '../patterns/monthCycle';
-import { useWeekCycle } from '../week/weekCycle';
+import { activeAtypical, useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { ConstancyCard, PainelCompanion, PainelTimer } from './PainelParts';
 import { Timeline, dayBounds } from './Timeline';
@@ -127,7 +127,7 @@ export function PainelScreen() {
           <>
             <StatusStrip engine={engine} block={current} now={now} compact />
             <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
-            <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
+            <WeekLine experiment={cycle.week?.experiment} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? cycle.open : undefined} />
             <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
             {/* "Onde você parou" and the review status belong to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}

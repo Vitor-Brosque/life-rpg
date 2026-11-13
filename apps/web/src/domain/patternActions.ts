@@ -21,9 +21,21 @@ export const ATYPICAL_REASON_MAX = 60;
 export async function setWeekAtypical(weekId: string, value: WeekAtypical | undefined): Promise<void> {
   const atypical = value && {
     reason: value.reason.trim().slice(0, ATYPICAL_REASON_MAX).trim() || 'Outro',
-    ...(value.returnDay && isValidDayKey(value.returnDay) ? { returnDay: value.returnDay } : {}),
+    // A return day before the week's own Monday makes no sense: it counts as absent.
+    ...(value.returnDay && isValidDayKey(value.returnDay) && value.returnDay >= weekId ? { returnDay: value.returnDay } : {}),
   };
-  await withLock(`week:${weekId}`, () => upsert<Week>('weeks', weekId, { atypical }, { objectives: [] }));
+  await withLock(`week:${weekId}`, async () => {
+    if (!atypical) {
+      const prev = await db.weeks.get(weekId);
+      if (!prev || prev.deleted) return;
+      // A record that held nothing but the mark goes away, or it would hide the "Nova semana" card.
+      if (!prev.review && prev.objectives.length === 0 && !prev.experiment?.trim()) {
+        await patch<Week>('weeks', weekId, { deleted: true, atypical: undefined });
+        return;
+      }
+    }
+    await upsert<Week>('weeks', weekId, { atypical }, { objectives: [] });
+  });
 }
 
 export const WATCH_DISMISSED_MAX = 50;
