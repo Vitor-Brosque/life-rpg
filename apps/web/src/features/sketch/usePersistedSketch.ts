@@ -30,8 +30,15 @@ export function usePersistedSketch(id: string): PersistedSketch {
   const known = useRef(0);
   const pending = useRef(0);
   const gesture = useRef(false);
+  /** Bumped when the screen becomes idle again, to re-check a deferred remote version. */
+  const [tick, setTick] = useState(0);
   const sketch = record && record.id === id ? record.sketch ?? undefined : undefined;
   const live = !!sketch && !sketch.deleted;
+
+  // A different lousa starts from scratch (does not depend on the caller keying the component).
+  useEffect(() => {
+    setShown(null); known.current = 0; pending.current = 0; gesture.current = false;
+  }, [id]);
 
   useEffect(() => {
     if (!sketch || sketch.deleted) return;
@@ -42,7 +49,7 @@ export function usePersistedSketch(id: string): PersistedSketch {
       known.current = sketch.updatedAt;
       setShown({ padKey: shown.padKey + 1, initial: normalizeStrokes(sketch.strokes) });
     }
-  }, [sketch, shown]);
+  }, [sketch, shown, tick]);
 
   const onChange = useCallback((strokes: Stroke[]): void => {
     pending.current += 1;
@@ -52,9 +59,12 @@ export function usePersistedSketch(id: string): PersistedSketch {
         console.error('save sketch failed', e);
         useToast.getState().show(FAILURE_TOAST);
       })
-      .finally(() => { pending.current -= 1; });
+      .finally(() => { pending.current -= 1; setTick((t) => t + 1); });
   }, [id]);
-  const onGestureChange = useCallback((active: boolean): void => { gesture.current = active; }, []);
+  const onGestureChange = useCallback((active: boolean): void => {
+    gesture.current = active;
+    if (!active) setTick((t) => t + 1);
+  }, []);
 
   const loading = record === undefined || record.id !== id;
   const status = loading ? 'loading' : !live ? 'missing' : shown === null ? 'loading' : 'ready';

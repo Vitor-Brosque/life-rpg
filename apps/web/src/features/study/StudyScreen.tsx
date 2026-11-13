@@ -1,4 +1,3 @@
-import { SketchesPanel } from '../sketch/SketchesPanel';
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -9,6 +8,7 @@ import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
+import { SketchesPanel } from '../sketch/SketchesPanel';
 import { DeckSheet } from './DeckSheet';
 import { ForecastBars } from './ForecastBars';
 import { StudyPrefsSheet } from './StudyPrefsSheet';
