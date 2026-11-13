@@ -85,7 +85,7 @@ Sem chave, o app funciona igual e não mostra nenhum controle de IA. A IA é pag
 
 No notebook (`LIFE RPG.cmd`), defina `ANTHROPIC_API_KEY` como variável de ambiente do usuário do Windows e reabra o app.
 
-O que vai para a API: só o que cada ajuda mostra em "O que é enviado", quando você toca no botão. A chave nunca sai do servidor. `LIFE_RPG_AI_DAILY_LIMIT` (1 a 1000, padrão 30) limita os pedidos por dia (e com isso o custo máximo do dia); o log mostra uma linha por pedido, com tokens, sem conteúdo.
+O que vai para a API: só o que cada ajuda mostra em "O que é enviado", quando você toca no botão. A chave nunca sai do servidor. `LIFE_RPG_AI_DAILY_LIMIT` (1 a 1000, padrão 30) limita os pedidos por dia (e com isso o custo máximo do dia); um pedido que estoura o tempo pode ser repetido uma vez pelo servidor e as duas tentativas podem ser cobradas, mas ele conta como um só pedido no teto diário; o log mostra uma linha por pedido, com tokens, sem conteúdo.
 
 ## Restaurar um backup
 

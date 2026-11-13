@@ -4,7 +4,7 @@ import Anthropic, {
   PermissionDeniedError, RateLimitError,
 } from '@anthropic-ai/sdk';
 import { AI_LIMITS, HINT_CODE_OMITTED, PRACTICE_LIMITS, cardsPrompt, hintPrompt, weekPrompt, type HintRequest } from '@life/shared';
-import { AiError, anthropicModel, toAiError, type AiCall, type AiModel, type AiReply } from '../src/ai/model';
+import { AiError, anthropicModel, createAnthropic, toAiError, type AiCall, type AiModel, type AiReply } from '../src/ai/model';
 import { AI_CALLS, CARDS_SCHEMA, CARDS_SYSTEM, HINT_SYSTEM, WEEK_SCHEMA, WEEK_SYSTEM } from '../src/ai/prompts';
 import { AiQuota, memoryQuotaStore, storeQuota } from '../src/ai/quota';
 import { AiService } from '../src/ai/service';
@@ -36,6 +36,17 @@ const call: AiCall = {
   user: [{ text: 'ctx', cache: true }, { text: 'ask' }],
   effort: 'low', maxTokens: 8000, timeoutMs: 40_000,
 };
+
+describe('createAnthropic', () => {
+  it('ignores ANTHROPIC_BASE_URL', () => {
+    vi.stubEnv('ANTHROPIC_BASE_URL', 'https://evil.example');
+    try {
+      expect(createAnthropic('k').baseURL).toBe('https://api.anthropic.com');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
 
 describe('anthropicModel (fake client)', () => {
   it('sends exactly the documented parameters', async () => {
@@ -156,6 +167,12 @@ describe('AiService', () => {
     const code = fakeModel('Assim:\n```python\na = 1\nb = 2\nc = 3\n```');
     expect((await service(code.model).svc.hint(hintReq)).text).toBe(`Assim:\n${HINT_CODE_OMITTED}`);
     await expect(service(fakeModel('   ').model).svc.hint(hintReq)).rejects.toMatchObject({ code: 'bad_output' });
+  });
+
+  it('hint: a reply that is only a code block is bad_output, and still counts', async () => {
+    const { svc } = service(fakeModel(['```python', 'a = 1', 'b = 2', 'c = 3', '```'].join('\n')).model);
+    await expect(svc.hint(hintReq)).rejects.toMatchObject({ code: 'bad_output' });
+    expect(svc.usage().used).toBe(1);
   });
 
   it('cards: schema, medium effort, cleaned list', async () => {

@@ -107,6 +107,10 @@ describe('hints: request and prompt', () => {
     expect(hintRequestOf(session(), 'plan', 2).previous).toEqual([{ level: 1, text: 'O que entra?' }]);
     expect(hintRequestOf(session(), 'plan', 1).previous).toEqual([]);
   });
+  it('previous keeps only the latest hint of each earlier level', () => {
+    const s = session({ feedback: [hint('a', 'plan', 1, 3, 'Primeira'), hint('b', 'plan', 1, 4, 'Segunda'), hint('c', 'plan', 2, 5, 'Dois')] });
+    expect(hintRequestOf(s, 'plan', 3).previous).toEqual([{ level: 1, text: 'Segunda' }, { level: 2, text: 'Dois' }]);
+  });
   it('hintPrompt: context sections and the ask with earlier hints', () => {
     const p = hintPrompt(hintRequestOf(session(), 'plan', 3));
     expect(p.context).toBe([

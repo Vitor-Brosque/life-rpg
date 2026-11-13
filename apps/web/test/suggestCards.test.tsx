@@ -171,6 +171,20 @@ describe('focus, ctrl+enter and edge cases', () => {
     expect(within(dialog).getByRole('textbox', { name: 'Texto de origem' })).toHaveFocus();
   });
 
+  it('focus returns to "Pedir sugestões" after a slow failed ask', async () => {
+    await enableAi({ cards: true });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    mockFetch(async () => { await gate; return fail(504, 'timeout'); });
+    const dialog = await openFromStudy();
+    await askWith(dialog);
+    await within(dialog).findByRole('button', { name: 'Pensando…' });
+    await new Promise((r) => setTimeout(r, 5200));
+    release();
+    const btn = await within(dialog).findByRole('button', { name: 'Pedir sugestões' });
+    await waitFor(() => expect(btn).toHaveFocus());
+  }, 30_000);
+
   it('Ctrl+Enter inside the sheet does not save the note form', async () => {
     await enableAi({ cards: true });
     const note = await saveNote({ type: 'basic', front: 'Frente', back: 'Verso', deckId: deck.id });

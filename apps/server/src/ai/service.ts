@@ -1,7 +1,7 @@
 import {
   type AiFeature, type AiUsage, type CardsRequest, type CardsResult, type HintRequest, type HintResult,
   type WeekRequest, type WeekSummary,
-  cardsPrompt, cleanHint, cleanSuggestions, cleanWeekSummary, hintPrompt, weekPrompt,
+  cardsPrompt, cleanHint, cleanSuggestions, cleanWeekSummary, hintPrompt, HINT_CODE_OMITTED, weekPrompt,
 } from '@life/shared';
 import { AiError, toAiError, type AiCall, type AiModel } from './model';
 import { AI_CALLS, CARDS_SCHEMA, CARDS_SYSTEM, HINT_SYSTEM, WEEK_SCHEMA, WEEK_SYSTEM } from './prompts';
@@ -29,7 +29,7 @@ export class AiService {
   async hint(req: HintRequest): Promise<HintResult> {
     const { context, ask } = hintPrompt(parseHintRequest(req));
     const text = cleanHint(await this.run('hints', HINT_SYSTEM, [{ text: context, cache: true }, { text: ask }]));
-    if (!text) throw new AiError('bad_output');
+    if (!text || text === HINT_CODE_OMITTED) throw new AiError('bad_output');
     return { text };
   }
 

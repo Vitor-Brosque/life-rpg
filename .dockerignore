@@ -5,3 +5,5 @@ data
 .superpowers
 **/dist
 coverage
+.env
+.env.*

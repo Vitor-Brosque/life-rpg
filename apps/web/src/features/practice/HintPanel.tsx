@@ -23,11 +23,21 @@ export function HintPanel({ session, step }: { session: PracticeSession; step: P
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Bumped on a new step or session: an answer that comes back after that is not shown here.
   const epoch = useRef(0);
+  // Set when asking: once the call ends and the button is back, focus returns to it (a call takes seconds).
+  const refocus = useRef(false);
 
   useEffect(() => {
     epoch.current += 1;
+    refocus.current = false;
     setBusy(undefined); setError(undefined); setUnsaved(undefined);
   }, [step, session.id]);
+
+  useEffect(() => {
+    if (refocus.current && busy === undefined) {
+      refocus.current = false;
+      (buttonRef.current ?? titleRef.current)?.focus();
+    }
+  });
 
   if (!enabled || !isHintStep(step)) return null;
   const state = hintStepState(session, step);
@@ -36,8 +46,7 @@ export function HintPanel({ session, step }: { session: PracticeSession; step: P
   const ask = (level: HintLevel): void => {
     const mine = epoch.current;
     const here = (): boolean => epoch.current === mine;
-    // After the third hint the button goes away: focus moves to the panel title, never to <body>.
-    focusWhenGone(buttonRef.current, () => titleRef.current);
+    refocus.current = true;
     setBusy(level);
     setError(undefined);
     setUnsaved(undefined);
@@ -47,6 +56,8 @@ export function HintPanel({ session, step }: { session: PracticeSession; step: P
         if (!r.ok) { if (here()) setError(AI_ERROR_COPY[r.error]); return; }
         const saved = await addAiHint(session.id, { step, level, text: r.data.text });
         if (saved === 'full' && here()) setUnsaved({ level, text: r.data.text });
+        // After the third hint the button goes away: focus moves to the panel title, never to <body>.
+        if (here() && saved === 'saved' && level === 3) focusWhenGone(buttonRef.current, () => titleRef.current);
       } catch (e) {
         if (here()) setError(AI_ERROR_COPY.upstream);
         throw e; // safeRun logs it and tells the person

@@ -120,6 +120,40 @@ describe('asking hints', () => {
     expect(within(p).getByRole('status')).toHaveTextContent('');
   });
 
+  it('focus returns to the button after a slow hint, and to the title after hint 3', async () => {
+    await enableAi({ hints: true });
+    let release!: () => void;
+    let gate = new Promise<void>((r) => { release = r; });
+    mockFetch(async () => { await gate; return ok({ text: 'Veio' }); });
+    await openSession();
+    const p = await panel();
+    await userEvent.click(within(p).getByRole('button', { name: 'Pedir pista 1 · pergunta' }));
+    await within(p).findByRole('button', { name: 'Pensando…' });
+    await new Promise((r) => setTimeout(r, 5200));
+    expect(document.activeElement).not.toBe(within(p).getByRole('button'));
+    release();
+    const next = await within(p).findByRole('button', { name: 'Pedir pista 2 · direção' });
+    await waitFor(() => expect(next).toHaveFocus());
+    for (const n of ['2 · direção', '3 · próximo passo']) {
+      gate = new Promise<void>((r) => { release = r; });
+      await userEvent.click(await within(p).findByRole('button', { name: `Pedir pista ${n}` }));
+      await new Promise((r) => setTimeout(r, 5200));
+      release();
+      await waitFor(() => expect(document.body).not.toHaveFocus());
+    }
+    await waitFor(() => expect(document.activeElement).toBe(within(p).getByRole('heading', { name: /Pistas graduais/ })));
+  }, 30_000);
+
+  it('the "O que é enviado" box is focusable and named', async () => {
+    await enableAi({ hints: true });
+    await openSession();
+    const p = await panel();
+    await userEvent.click(within(p).getByText('O que é enviado'));
+    const pre = within(p).getByLabelText('Texto enviado');
+    expect(pre.tagName).toBe('PRE');
+    expect(pre).toHaveAttribute('tabindex', '0');
+  });
+
   it('asking does not move the step, nextAction or XP', async () => {
     await enableAi({ hints: true });
     mockFetch(() => ok({ text: 'ok' }));

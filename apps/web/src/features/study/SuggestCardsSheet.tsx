@@ -52,6 +52,9 @@ function SuggestBody({ initialText = '', deckId: initialDeck = '' }: SuggestCard
   const deckSelId = useId();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const askRef = useRef<HTMLButtonElement>(null);
+  // A failed ask leaves the button disabled for seconds: focus comes back to it afterwards.
+  const refocusAsk = useRef(false);
   const saving = useRef(new Set<number>());
   const stage = items ? 'list' : 'text';
   const firstStage = useRef(true);
@@ -61,6 +64,13 @@ function SuggestBody({ initialText = '', deckId: initialDeck = '' }: SuggestCard
     if (firstStage.current) { firstStage.current = false; return; }
     (stage === 'list' ? stageRef.current : textRef.current)?.focus();
   }, [stage]);
+
+  useEffect(() => {
+    if (refocusAsk.current && !busy) {
+      refocusAsk.current = false;
+      askRef.current?.focus();
+    }
+  });
 
   // An archived or deleted deck counts as the inbox.
   const deck = decks.find((d) => d.id === deckId);
@@ -73,7 +83,7 @@ function SuggestBody({ initialText = '', deckId: initialDeck = '' }: SuggestCard
     setError(undefined);
     try {
       const r = await askCards({ text, deckName });
-      if (!r.ok) { setError(AI_ERROR_COPY[r.error]); return; }
+      if (!r.ok) { refocusAsk.current = true; setError(AI_ERROR_COPY[r.error]); return; }
       saving.current.clear();
       setItems(r.data.cards.map((s, i) => ({ n: i + 1, s, status: 'pending' })));
     } finally {
@@ -133,7 +143,7 @@ function SuggestBody({ initialText = '', deckId: initialDeck = '' }: SuggestCard
         </p>
         <AiSent text={cardsPrompt({ text, deckName })} note="Vão só o texto acima e o nome do baralho." />
         <div className="suggest__actions">
-          <Button variant="primary" disabled={!text.trim() || tooLong || busy} onClick={() => safeRun(ask())}>
+          <Button ref={askRef} variant="primary" disabled={!text.trim() || tooLong || busy} onClick={() => safeRun(ask())}>
             {busy ? 'Pensando…' : 'Pedir sugestões'}
           </Button>
         </div>

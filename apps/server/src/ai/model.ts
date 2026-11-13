@@ -47,9 +47,9 @@ export interface AiModel {
 
 const EPHEMERAL = { type: 'ephemeral' } as const;
 
-/** SDK client with the key from the server config; no other credential source is consulted. */
+/** SDK client with the key from the server config; no other credential source (nor ANTHROPIC_BASE_URL) is consulted. */
 export function createAnthropic(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey, maxRetries: AI_MAX_RETRIES });
+  return new Anthropic({ apiKey, baseURL: 'https://api.anthropic.com', logLevel: 'warn', maxRetries: AI_MAX_RETRIES });
 }
 
 export function anthropicModel(client: Anthropic): AiModel {

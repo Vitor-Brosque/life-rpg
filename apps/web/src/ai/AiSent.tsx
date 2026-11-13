@@ -11,7 +11,7 @@ export function AiSent({ text, note }: { text: string; note?: string }) {
     <details className="ai-sent">
       <summary>O que é enviado</summary>
       {note && <p className="ai-sent__note">{note}</p>}
-      <pre className="ai-sent__text">{text}</pre>
+      <pre className="ai-sent__text" tabIndex={0} aria-label="Texto enviado">{text}</pre>
       <p className="ai-sent__note">Vai do seu servidor para a API da Anthropic, só quando você toca no botão.</p>
     </details>
   );

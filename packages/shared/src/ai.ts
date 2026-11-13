@@ -130,9 +130,13 @@ export function hintRequestOf(s: PracticeSession, step: HintStep, level: HintLev
     tests: items(s.tests),
     language: s.language,
     code: raw.replace(/^\s*\n/, '').replace(/\s+$/, ''),
-    previous: hintsForStep(s, step)
-      .filter((h) => h.hint!.level < level)
-      .map((h) => ({ level: h.hint!.level, text: h.text })),
+    // Only the latest hint of each earlier level: a duplicate must never fill the request.
+    previous: ([1, 2] as const)
+      .filter((l) => l < level)
+      .flatMap((l) => {
+        const h = hintsForStep(s, step).filter((x) => x.hint!.level === l).at(-1);
+        return h ? [{ level: l, text: h.text }] : [];
+      }),
   };
 }
 
