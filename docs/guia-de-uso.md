@@ -132,7 +132,12 @@ Os botões do cartão principal:
 - **Concluir** conclui e dá o XP. Há um aviso "Desfazer" por alguns segundos.
 - **Outra** mostra a próxima sugestão.
 - **Encolher** pergunta "Qual é uma versão de 5 minutos?" e guarda como primeiro passo.
-- **Agora não** oferece **Mais tarde hoje**, **Amanhã** ou **Escolher dia**.
+- **Agora não** oferece **Mais tarde hoje**, **Amanhã** ou **Escolher dia**. Se a missão já tinha sido
+  adiada antes, aparece também **Fazer um plano (opcional)**: escolha **Quando?** (um bloco da semana) e
+  **Então, o primeiro passo**. **Guardar para o próximo {bloco}** reagenda a missão para o próximo dia em
+  que esse bloco acontece (pulando dias livres) e, durante o bloco, ela vira a sugestão de foco. O cartão
+  mostra "Plano: {bloco}". Um plano "se–então" ajuda, em média, a transformar intenção em início
+  numa ocasião concreta; por isso ele aparece só para o que já foi adiado, sem virar burocracia.
 
 Se uma missão foi adiada várias vezes, o cartão mostra **Encolher**, **Dividir** e **Soltar** com uma
 frase gentil. Soltar é uma estratégia legítima, não um fracasso. Dentro de um compromisso, o cartão
@@ -154,12 +159,15 @@ tela de Padrões, nunca são cobrados.
 ### Cronômetro de foco
 
 O cronômetro nunca inicia sozinho e nunca bloqueia o resto do app. Fica numa barra pequena acima da
-navegação (no Painel, em um cartão grande). Modos: **Livre**, **Pomodoro** ou regressivo
+navegação (no Painel, em um cartão grande). Modos: **Livre** (o padrão), **Pomodoro** ou regressivo
 (**Minutos**). Você pode **Pausar**, **Retomar**, **Parar** e anotar. Ao terminar, o app pergunta
 "Quer continuar?" ou "Como seguir?", e há uma saída sem culpa: **Parar aqui — já valeu**.
 Se interromper, o motivo é opcional.
 
-Os minutos de pausa e foco do Pomodoro ficam em **Ajustes → Foco**. A pausa só começa quando você tocar.
+No modo Livre, pause quando sentir que caiu, ou ao fim de uma etapa: nos estudos com universitários,
+pausas no próprio ritmo funcionaram tão bem quanto o Pomodoro e foram sentidas como menos cansativas.
+Os minutos de pausa e foco do Pomodoro, para quem prefere um ritmo fixo, ficam em **Ajustes → Foco**.
+A pausa só começa quando você tocar.
 
 ### Cuidados: sono e refeição
 
@@ -217,6 +225,15 @@ Se a IA opcional estiver ligada, um **Resumo da semana** pode aparecer depois da
 (veja [IA opcional](#10-ia-opcional)). O que ficou aberto na semana passada vem para esta semana, a
 não ser que você toque em **Soltar**. Se um bloco tiver caído de forma clara entre a 5ª e a 8ª semana
 de uso, o card traz um aviso gentil (veja [Padrões](#6-padrões)).
+
+### Semana atípica
+
+Provas, viagem, doença: em **Planejar → Semana**, o botão **Semana atípica** (ou o link "Esta semana vai
+ser atípica?" no card Nova semana) marca a semana, com o motivo (**Provas**, **Viagem**, **Saúde** ou
+**Outro**) e quando **o ritmo volta**. Durante ela, o Agora lembra que versões mínimas contam tanto
+quanto, e os Padrões não comparam essa semana com as outras: as tendências mostram a barra tracejada,
+o aviso das semanas 5–8 pula a semana e os adiamentos dela ficam fora da conta. Na segunda seguinte, o
+card Nova semana dá as boas-vindas de volta. Dá para desmarcar a qualquer momento.
 
 ### Objetivos da semana
 
@@ -378,7 +395,10 @@ obrigatório.
 8. **Reconstruir sem consulta:** escreva de novo sem olhar a implementação nem a internet. A
    implementação fica escondida até você comparar. **Mostrar mesmo assim** existe, sem julgamento, e só
    fica registrado como dado observado. **Comparar com a implementação** mostra as duas lado a lado.
-   **Refazer reconstrução** começa outra.
+   **Refazer reconstrução** começa outra. Depois de comparar, **Reconstruir de novo, sem consultar**
+   marca uma nova tentativa **em 3 dias**, **em 1 semana** ou **em 2 semanas**: uma sessão "· de novo"
+   que já abre na reconstrução, com a implementação escondida. Lembrar sem ajuda depois de um intervalo
+   mostra o que ficou de verdade. Ela aparece na lista como "Reconstrução · dd/mm" e pode ser feita antes.
 9. **Fechar:** a explicação em 2 frases e os três indicadores.
 
 **Registro de erros.** Em qualquer passo, **Registrar erro** guarda três campos: o que deu errado (o único
@@ -395,7 +415,8 @@ lista. Um erro que já virou rascunho mostra o link para ele.
 
 Eles nunca são somados, não têm cor de alerta e não dão XP, para você ver a tendência com honestidade.
 "Entregue: não" é um resultado legítimo. O histórico mostra os indicadores das últimas 10 sessões
-encerradas, rotulado como observado, a partir de 2 sessões.
+encerradas, rotulado como observado, a partir de 2 sessões, com quantas **pistas** da IA cada sessão usou
+("Pistas: N"). Pista é parte do método; o que importa é o Autônomo nas reconstruções.
 
 **Pausar.** **Pausar** pergunta "Onde parou? Qual a primeira ação da próxima vez?". O Agora, durante um bloco
 de foco ou de estudo, oferece **Retomar** a sessão aberta ou começar uma nova com essa primeira ação.
@@ -541,7 +562,10 @@ O XP recompensa **esforço, início e estratégia**, não volume. Alguns exemplo
 - começar uma missão pesada ou adiada, ou encolhê-la;
 - 2 XP a cada 10 minutos de foco, com teto diário;
 - revisar 5 cards no dia e cumprir a meta do dia de estudo;
-- terminar uma sessão de prática, uma noite completa de sono, um treino ou um preparo em lote.
+- terminar uma sessão de prática, um treino ou um preparo em lote.
+
+Registrar sono não dá XP: o registro é para você observar a regularidade, e recompensar o registro
+tende a virar marcar por pontos.
 
 **XP nunca diminui.** Não há vida, sequência que zera nem penalidade. Cada **área da vida** é um
 atributo (Vigor, Equilíbrio, Intelecto, Ofício, Ordem, Laços, Facul e as que você criar em Ajustes), e o XP
