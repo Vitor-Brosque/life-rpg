@@ -1,5 +1,5 @@
 import type {
-  Area, Commitment, DayKey, HHmm, Journey, LifeEvent, Mission, MissionStatus,
+  Area, Commitment, DayKey, HHmm, ID, Journey, LifeEvent, Mission, MissionStatus,
 } from '@life/shared';
 import {
   addDays, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, parseHHmm,
@@ -17,6 +17,8 @@ const baseMission = {
 };
 
 const MAX_MINUTE = 23 * 60 + 59;
+/** Longest first step ("Então, o primeiro passo:" of an if-then plan). */
+export const FIRST_STEP_MAX = 140;
 
 export async function createMission(fields: Partial<Mission> & { title: string }): Promise<Mission> {
   const m = await put('missions', newRecord<Mission>({ ...baseMission, ...fields }));
@@ -162,7 +164,8 @@ async function completeMissionLocked(id: string): Promise<CompletionResult> {
     xpIds.push((await awardXp(resilience, 'resilience', today, { ...ref, id: `xp-resilience-${id}` })).id);
   }
   const next = m.recurrence ? await nextInstance(m, today) : undefined;
-  await patch<Mission>('missions', id, { status: 'done', completedAt: Date.now() });
+  // The if-then plan has done its job: its cue goes away with the completion.
+  await patch<Mission>('missions', id, { status: 'done', completedAt: Date.now(), cueBlockId: undefined });
   await logEvent('completed', id, {
     prevStatus: m.status, ...(next ? { nextId: next.id } : {}), xpIds,
   });
@@ -230,6 +233,27 @@ export async function snoozeMission(
   }
   await patch<Mission>('missions', id, changes);
   await logEvent('snoozed', id, { option });
+}
+
+/**
+ * "Fazer um plano" when postponing again (research P5): keeps the mission for `date`, remembers the
+ * block where it starts (`cueBlockId`) and the first step, and counts as a postponement.
+ */
+export async function planMission(
+  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey },
+): Promise<void> {
+  const m = await db.missions.get(id);
+  if (!m) throw new Error(`mission ${id} not found`);
+  const step = plan.firstStep?.trim().slice(0, FIRST_STEP_MAX).trim();
+  await patch<Mission>('missions', id, {
+    cueBlockId: plan.cueBlockId || undefined,
+    firstStep: step || undefined,
+    date: plan.date,
+    dayOrder: undefined,
+    snoozedUntil: undefined,
+    postponeCount: m.postponeCount + 1,
+  });
+  await logEvent('snoozed', id, { option: { date: plan.date }, plan: true });
 }
 
 export async function rescheduleMission(id: string, date: DayKey | null): Promise<void> {

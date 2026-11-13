@@ -5,6 +5,7 @@ import {
   completeMission, dropMission, shrinkMission, snoozeMission, splitMission, startMission, undoComplete,
   updateMission, type CompletionResult,
 } from '../../domain/actions';
+import { planMission } from '../../domain/missionActions';
 import { formatDay } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
@@ -91,6 +92,15 @@ export async function snoozeWithFeedback(
   toast(option === 'later' ? 'Ela volta em 3 horas.'
     : option === 'tomorrow' ? 'Guardada para amanhã.'
       : `Guardada para ${formatDay(option.date, today)}.`);
+  say('snooze');
+}
+
+/** "Guardar para o próximo {bloco}": the if-then plan of a repeated postponement. */
+export async function planWithFeedback(
+  id: string, plan: { cueBlockId?: string; firstStep?: string; date: DayKey }, today: DayKey,
+): Promise<void> {
+  await planMission(id, plan);
+  toast(`Plano guardado para ${formatDay(plan.date, today)}.`);
   say('snooze');
 }
 

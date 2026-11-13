@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import type { Area, CommitmentOccurrence, Suggestion } from '@life/shared';
 import { Companion, SpeechBubble } from '../../art/Companion';
 import { areaIcon, Icon } from '../../art/icons';
+import { useBlocks } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { ENERGY_LABEL, formatDuration, formatPoints } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
@@ -30,6 +31,7 @@ function MissionView({ suggestion, area, canSkip, actions }: {
   const [why, setWhy] = useState(false);
   const whyId = useId();
   const m = suggestion.mission;
+  const cueBlock = useBlocks().find((b) => b.id === m.cueBlockId);
   const doneSteps = m.checklist.filter((c) => c.done).length;
 
   return (
@@ -37,6 +39,9 @@ function MissionView({ suggestion, area, canSkip, actions }: {
       <p className="main-card__eyebrow">{m.firstStep ? 'Primeiro passo' : 'Agora'}</p>
       <h2 className="main-card__step">{m.firstStep ?? m.title}</h2>
       {m.firstStep && <p className="main-card__title">{m.title}</p>}
+      {cueBlock && (
+        <p className="main-card__plan">{m.firstStep ? `Plano: ${cueBlock.name} → ${m.firstStep}` : `Plano: ${cueBlock.name}`}</p>
+      )}
 
       <div className="main-card__tags">
         {m.status === 'doing' && <span className="tag tag--gold">Em andamento</span>}

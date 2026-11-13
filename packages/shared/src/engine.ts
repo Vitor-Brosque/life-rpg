@@ -30,8 +30,12 @@ export interface EngineOutput {
 
 const MINUTE = 60000;
 
-/** Mission belongs to the block: explicit blockId, else (when unassigned) shared journey/area. */
+/**
+ * Mission belongs to the block: the if-then plan's cue (`cueBlockId`), else explicit blockId, else
+ * (when unassigned) shared journey/area.
+ */
 export function isOfBlock(m: Mission, block: { id: ID; areaId?: ID; journeyId?: ID }): boolean {
+  if (m.cueBlockId === block.id) return true;
   if (m.blockId) return m.blockId === block.id;
   return Boolean(
     (block.journeyId && m.journeyId === block.journeyId) || (block.areaId && m.areaId === block.areaId),
@@ -100,6 +104,10 @@ function scoreMission(m: Mission, ctx: {
 }): Suggestion {
   const reasons: Reason[] = [];
   if (ctx.block && isOfBlock(m, ctx.block)) reasons.push({ code: 'block', text: 'do bloco atual', points: 40 });
+  // The "when" of an if-then plan the user made for this very block: it goes first here.
+  if (ctx.block && m.cueBlockId === ctx.block.id) {
+    reasons.push({ code: 'cue', text: 'o plano que você fez para este bloco', points: 70 });
+  }
   if (m.status === 'doing') reasons.push({ code: 'doing', text: 'você já começou', points: 30 });
   if (m.deadline !== undefined) {
     const r = deadlineReason(m.deadline, ctx.today);

@@ -280,3 +280,6 @@ button.row-card { width: 100%; align-items: center; gap: 10px; padding: 0 12px 0
 .snooze-options { display: flex; flex-direction: column; gap: var(--space-3); }
 .snooze-options .btn { justify-content: flex-start; }
 .snooze-pick { display: flex; flex-direction: column; gap: var(--space-3); }
+.snooze-plan { display: flex; flex-direction: column; gap: var(--space-3); }
+.snooze-plan__toggle { align-self: flex-start; min-height: 36px; }
+.main-card__plan { margin: 0 0 var(--space-2); color: var(--ink-soft); font-size: 0.9375rem; overflow-wrap: anywhere; }

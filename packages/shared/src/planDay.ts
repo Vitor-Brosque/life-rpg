@@ -1,5 +1,5 @@
 import type { Block, BlockSession, Commitment, DayKey, DayMode, ID } from './types';
-import { addDays, dayEndTimestamp, logicalTimestamp, timestampAt, weekdayOf } from './dates';
+import { addDays, dayEndTimestamp, logicalTimestamp, parseHHmm, timestampAt, weekdayOf } from './dates';
 import { occurrencesOn } from './engine';
 
 export interface BlockOccurrence {
@@ -53,6 +53,15 @@ export function nextBlockDay(block: Block, after: DayKey): DayKey | undefined {
     if (block.weekdays.includes(weekdayOf(d))) return d;
   }
   return undefined;
+}
+
+/**
+ * Day an if-then plan keeps a mission for `block`: today while the block has not reached its
+ * start time (`nowMinutes` = minutes since midnight), else its next occurrence; undefined when it never occurs.
+ */
+export function cueBlockDay(block: Block, today: DayKey, nowMinutes: number): DayKey | undefined {
+  if (block.weekdays.includes(weekdayOf(today)) && nowMinutes < parseHHmm(block.targetStart)) return today;
+  return nextBlockDay(block, today);
 }
 
 /** The recorded mode, else the weekday default; a weekend stays free even with an old `hardDay`. */
