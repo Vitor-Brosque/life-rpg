@@ -186,6 +186,23 @@ describe('useDraftField', () => {
     expect(field()).toHaveValue('a');
     first.resolve();
     await settle();
+    expect(field()).toHaveValue('a'); // could still be the copy from before the save
+    await advance(2000);
+    expect(field()).toHaveValue('de outro aparelho');
+  });
+
+  it('after its own save, the field does not flash the copy from before it', async () => {
+    const save = vi.fn(async () => undefined);
+    const { rerender } = render(<Draft saved="antes" save={save} />);
+    focus(); type('depois'); blur();
+    await settle();
+    rerender(<Draft saved="antes" save={save} />); // the live query has not caught up yet
+    expect(field()).toHaveValue('depois');
+    rerender(<Draft saved="depois" save={save} />);
+    expect(field()).toHaveValue('depois');
+    await advance(2000);
+    expect(field()).toHaveValue('depois');
+    rerender(<Draft saved="de outro aparelho" save={save} />); // news after the echo: followed at once
     expect(field()).toHaveValue('de outro aparelho');
   });
 

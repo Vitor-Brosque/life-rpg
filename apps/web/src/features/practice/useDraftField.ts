@@ -4,6 +4,8 @@ import { useToast } from '../../ui/Toast';
 import { usePageHide } from '../../ui/usePageHide';
 
 export const DRAFT_DELAY_MS = 600;
+/** How long, after our own save, a different stored value is taken as the copy from before it. */
+export const ECHO_WAIT_MS = 2000;
 
 export interface DraftField {
   value: string;
@@ -35,11 +37,20 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
   // The `save` of the moment of the last edit: a reused field never writes an old draft to a new record.
   const editSave = useRef(save);
   const mounted = useRef(true);
+  // The value our last save wrote: until the stored copy shows it (or ECHO_WAIT_MS passes), a different
+  // stored value is the one from before the save, still on its way out of the live query — not news.
+  const echo = useRef<{ value: string; until: number } | undefined>(undefined);
+  const echoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   /** Shows the stored value when nothing of ours is pending, being typed or in flight. */
   const followSaved = useCallback((): void => {
-    if (dirty.current || focused.current || pending.current > 0) return;
+    if (!mounted.current || dirty.current || focused.current || pending.current > 0) return;
     const s = latest.current.saved;
+    const e = echo.current;
+    if (e) {
+      if (s !== e.value && Date.now() < e.until) return;
+      echo.current = undefined;
+    }
     if (current.current === s) return;
     current.current = s;
     setValue(s);
@@ -62,7 +73,7 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
       pending.current += 1;
       chain.current = chain.current
         .then(() => run(v))
-        .then(() => undefined, (e: unknown) => {
+        .then(() => { echo.current = { value: v, until: Date.now() + ECHO_WAIT_MS }; }, (e: unknown) => {
           // Keep the text and mark it unsaved again: the next blur or edit tries once more.
           dirty.current = true;
           console.error('save draft failed', e);
@@ -70,7 +81,12 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
         })
         .finally(() => {
           pending.current -= 1;
-          if (pending.current === 0 && mounted.current) followSaved();
+          if (pending.current === 0 && mounted.current) {
+            followSaved();
+            // A stored change that arrived during the wait is shown once the wait is over.
+            if (echoTimer.current !== undefined) clearTimeout(echoTimer.current);
+            echoTimer.current = setTimeout(followSaved, ECHO_WAIT_MS);
+          }
         });
     }
     return chain.current;
@@ -103,7 +119,11 @@ export function useDraftField(saved: string, save: (v: string) => Promise<unknow
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; void flush(); };
+    return () => {
+      mounted.current = false;
+      if (echoTimer.current !== undefined) clearTimeout(echoTimer.current);
+      void flush();
+    };
   }, [flush]);
   usePageHide(() => { void flush(); });
 
