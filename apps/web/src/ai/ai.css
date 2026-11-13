@@ -1,0 +1,7 @@
+.ai-tag { display: inline-block; margin-left: 0.5em; padding: 0 0.4em; border: 2px solid var(--sky); color: var(--sky); font-size: 0.75rem; line-height: 1.5; vertical-align: middle; }
+.ai-sent { margin-top: 0.5rem; }
+.ai-sent summary { display: flex; align-items: center; min-height: var(--touch); cursor: pointer; color: var(--text-dim); }
+.ai-sent__text { margin: 0.25rem 0; padding: 0.5rem; max-height: 16lh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8125rem; border: 2px solid var(--outline); }
+.ai-sent__note { margin: 0.25rem 0; color: var(--text-dim); font-size: 0.8125rem; }
+.ai-note { color: var(--text-dim); font-size: 0.875rem; }
+.ai-error { margin: 0.5rem 0; color: var(--text); }

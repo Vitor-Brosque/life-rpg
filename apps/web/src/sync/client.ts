@@ -14,7 +14,7 @@ const MAX_RESETS = 2;
 const BACKOFF_START = 2000;
 const BACKOFF_MAX = 5 * 60_000;
 
-const TOKEN_EVENT = 'life-rpg:token';
+export const TOKEN_EVENT = 'life-rpg:token';
 
 class NetworkError extends Error {}
 

@@ -1,6 +1,10 @@
+import { useEffect } from 'react';
 import { Link } from 'wouter';
+import { refreshAiStatus } from '../../ai/aiClient';
+import { useAiStatus } from '../../ai/aiStatus';
 import { APP_VERSION } from '../../app/version';
 import { useProfile, useSettings } from '../../db/hooks';
+import { AiSection } from './AiSection';
 import { AreasSection } from './AreasSection';
 import { DataSection } from './DataSection';
 import { NotificationsSection } from './NotificationsSection';
@@ -19,6 +23,8 @@ import './settings.css';
 export function SettingsScreen() {
   const settings = useSettings();
   const profile = useProfile();
+  const aiAvailable = useAiStatus((s) => s.available);
+  useEffect(() => { void refreshAiStatus(); }, []);
   return (
     <section className="screen settings" aria-labelledby="settings-title">
       <div className="settings__top">
@@ -34,6 +40,7 @@ export function SettingsScreen() {
         </div>
         <div className="settings__col">
           <SyncSection />
+          {aiAvailable && <AiSection settings={settings} />}
           <NotificationsSection settings={settings} />
           <SleepSection settings={settings} />
           <StorageSection />

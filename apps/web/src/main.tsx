@@ -10,6 +10,7 @@ import { App } from './app/App';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { requestPersistentStorage } from './db/exportData';
 import { ensureSeed } from './db/seed';
+import { startAiStatus } from './ai/aiClient';
 import { startSync } from './sync/client';
 
 async function boot(): Promise<void> {
@@ -29,6 +30,7 @@ async function boot(): Promise<void> {
     </StrictMode>,
   );
   startSync();
+  startAiStatus();
   // Service worker: offline app shell + push. A no-op in dev (devOptions disabled).
   registerSW({ immediate: true });
 }

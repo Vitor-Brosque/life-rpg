@@ -1,9 +1,11 @@
 import { useId, type ReactNode } from 'react';
-import type { Profile, Settings } from '@life/shared';
+import type { AiSettings, Profile, Settings } from '@life/shared';
+import { aiSettingsOf } from '@life/shared';
 import { Icon, type IconName } from '../../art/icons';
 import { db } from '../../db/db';
 import { patch } from '../../db/repo';
 import { Panel } from '../../ui/Panel';
+import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 
 /** One titled settings card; a labelled region so it can be found by its title. */
@@ -38,6 +40,14 @@ export function savePomodoro(changes: Partial<Settings['pomodoro']>): void {
     const current = await db.settings.get('settings');
     if (current) await patch<Settings>('settings', 'settings', { pomodoro: { ...current.pomodoro, ...changes } });
   }).catch(reportFailure);
+}
+
+/** Merges into the stored AI switches inside one transaction (two quick taps must not undo each other). */
+export function saveAiSettings(changes: Partial<AiSettings>): void {
+  safeRun(() => db.transaction('rw', db.settings, db.outbox, async () => {
+    const current = await db.settings.get('settings');
+    if (current) await patch<Settings>('settings', 'settings', { ai: { ...aiSettingsOf(current), ...changes } });
+  }));
 }
 
 export function saveProfile(changes: Partial<Profile>): void {
