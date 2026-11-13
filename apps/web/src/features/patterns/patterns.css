@@ -62,3 +62,20 @@
 .hypothesis { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); margin-bottom: var(--space-3); }
 .hypothesis .evidence-line { margin: 0; }
 .hypothesis__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Reflexão do mês (Agora/Painel card, form, and the list in Padrões). */
+.month-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.month-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.month-card__title { margin: 0; color: var(--gold); font-size: 1.125rem; }
+.month-card__time { color: var(--text-dim); font-size: 0.875rem; }
+.month-card__head .btn:first-of-type { margin-left: auto; }
+.month-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.month-form__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 2px; }
+.month-form__actions .btn { flex: 1 1 auto; white-space: nowrap; }
+.month-form__actions .btn--primary { flex-grow: 2; }
+.month-reflections h2:focus { outline-offset: 4px; }
+.month-entry { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.month-entry__title { margin: 0; }
+.month-entry__answers { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.month-entry__answers dt { color: var(--text-dim); font-size: 0.8125rem; font-weight: 600; }
+.month-entry__answers dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }

@@ -7,6 +7,7 @@ import { Panel } from '../../ui/Panel';
 import '../settings/settings.css';
 import { AssociationSection, HowCalculated } from './AssociationCards';
 import { buildPatternsView, usePatternData } from './patternData';
+import { MonthReflections } from './MonthReflections';
 import { PostponeSection } from './PostponeSection';
 import { TrendSection } from './TrendCards';
 import { WeekExperimentContext } from './UseAsExperiment';
@@ -47,6 +48,7 @@ export function PatternsScreen() {
           <TrendSection view={view} kind={kind} onKind={choose} />
           <PostponeSection view={view} />
           <AssociationSection view={view} />
+          <MonthReflections data={data!} />
           <HowCalculated />
         </>
       )}

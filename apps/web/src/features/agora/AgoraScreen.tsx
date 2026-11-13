@@ -6,6 +6,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
+import { useMonthCycle } from '../patterns/monthCycle';
 import { useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
@@ -38,9 +39,10 @@ function AgoraView() {
   const dayType = useDayType(today);
   const { plan, current, next } = useBlocksNow(now);
   const cycle = useWeekCycle(today, dayType);
+  const month = useMonthCycle(today, dayType);
   const free = dayType.mode === 'free';
 
-  const ready = engine !== undefined && today !== undefined && dayType.loaded && plan !== undefined && cycle.loaded;
+  const ready = engine !== undefined && today !== undefined && dayType.loaded && plan !== undefined && cycle.loaded && month.loaded;
   // "Empty" only once the empty card is on screen (and not where the main card is hidden).
   const empty = ready && !primary && !engine.currentCommitment
     && showsMainCard({ mode: dayType.mode, current, next, inCommitment: false });
@@ -60,7 +62,7 @@ function AgoraView() {
       <StatusStrip engine={engine} block={current} now={now} />
       <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
       <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
-      <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
+      <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
 
       <AgoraNow
         agora={agora}

@@ -23,6 +23,7 @@ import {
 } from '../agora/useAgoraData';
 import { CaptureForm } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
+import { useMonthCycle } from '../patterns/monthCycle';
 import { useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { ConstancyCard, PainelCompanion, PainelTimer } from './PainelParts';
@@ -88,6 +89,7 @@ export function PainelScreen() {
   const dayType = useDayType(today);
   const { plan, current, next } = useBlocksNow(now);
   const cycle = useWeekCycle(today, dayType);
+  const month = useMonthCycle(today, dayType);
   const note = useResumeNote(current?.block.id, today);
   const free = dayType.mode === 'free';
   const apoioRef = useRef<HTMLElement>(null);
@@ -111,7 +113,7 @@ export function PainelScreen() {
   });
 
   const ready = engine !== undefined && today !== undefined && settings !== undefined && dayType.loaded
-    && plan !== undefined && cycle.loaded;
+    && plan !== undefined && cycle.loaded && month.loaded;
   const listed = free ? todayMissions.filter((m) => m.status === 'doing' || m.date === today) : todayMissions;
   const bounds = ready ? dayBounds(today, settings.dayStartHour, settings.dayEndHour) : undefined;
   const date = today ? dayKeyToDate(today) : undefined;
@@ -126,7 +128,7 @@ export function PainelScreen() {
             <StatusStrip engine={engine} block={current} now={now} compact />
             <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
             <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
-            <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
+            <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
             {/* "Onde você parou" and the review status belong to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
               current={current} next={next} showNote={false} showReview={false} showPractice={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
