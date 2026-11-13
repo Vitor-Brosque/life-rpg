@@ -49,6 +49,7 @@ export function DeckSheet({ open, onClose, deck }: { open: boolean; onClose(): v
           <label className="field__label" htmlFor="deck-lang">Ouvir em voz alta</label>
           <select id="deck-lang" value={lang} aria-describedby="deck-lang-hint" onChange={(e) => setLang(e.target.value)}>
             <option value="">Desligado</option>
+            {lang !== '' && !SPEECH_LANGS.some((l) => l.tag === lang) && <option value={lang}>{lang}</option>}
             {SPEECH_LANGS.map((l) => <option key={l.tag} value={l.tag}>{l.label}</option>)}
           </select>
           <p id="deck-lang-hint" className="block-form__hint">

@@ -377,7 +377,7 @@ export function ReviewSession() {
             {!revealed && !isCode && answer.includes('$') && (
               <div className="review__preview" role="region" aria-label="Pré-visualização da resposta"><Rich text={answer} /></div>
             )}
-            {speakFirst && <SpokenAnswer key={`${view.card.id}:${view.shownAt}`} revealed={revealed} onKind={onSpokenKind} />}
+            {speakFirst && recordingSupported() && <SpokenAnswer key={`${view.card.id}:${view.shownAt}`} revealed={revealed} onKind={onSpokenKind} />}
             <div className={drawFirst && revealed ? 'review__work review__work--split' : 'review__work'}>
               {drawFirst && (
                 <SketchPad key={`${view.card.id}:${view.shownAt}`} className="review__pad" label="Desenho da resposta" initial={drawing}

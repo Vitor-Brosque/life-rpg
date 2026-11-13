@@ -10,7 +10,7 @@ export type IconName =
   | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
   | 'bell' | 'chest' | 'door'
   | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash'
-  | 'mic' | 'image' | 'speaker';
+  | 'mic' | 'image' | 'speaker' | 'drive';
 
 const ROWS: Record<IconName, string[]> = {
   // Lousa (Marco 3b): pencil, eraser, move, undo, redo, fit to screen, clear.
@@ -543,6 +543,21 @@ const ROWS: Record<IconName, string[]> = {
     'oo........oo',
     'oooooooooooo',
     '.....oo.....',
+    '............',
+  ],
+  // Storage drive (Ajustes → Armazenamento).
+  drive: [
+    '............',
+    '............',
+    '............',
+    '.oooooooooo.',
+    'o..........o',
+    'o..........o',
+    'oooooooooooo',
+    'o........o.o',
+    'o........o.o',
+    '.oooooooooo.',
+    '............',
     '............',
   ],
   // Treasure chest (data export / import).

@@ -10,3 +10,5 @@
 .media-rec { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .media-rec__time { font-variant-numeric: tabular-nums; }
 .media-sheet__rule { width: 100%; border: 0; border-top: 2px solid var(--stone-light); margin: var(--space-2) 0; }
+.spoken { display: flex; flex-direction: column; gap: var(--space-2); }
+.speak-button { align-self: flex-start; }

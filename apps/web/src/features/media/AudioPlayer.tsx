@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
+import { stopSpeaking } from './speech';
 import { useMediaUrl } from './useMediaUrl';
 import './media.css';
 
@@ -43,6 +44,7 @@ export function AudioPlayer({ url, label, status, names }: AudioPlayerProps) {
     if (on || pending.current) { el.pause(); return; }
     if (playing && playing !== el) playing.pause();
     playing = el;
+    stopSpeaking();
     const p = el.play();
     if (p && typeof p.then === 'function') {
       pending.current = true;

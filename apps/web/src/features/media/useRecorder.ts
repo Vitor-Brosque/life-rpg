@@ -75,16 +75,27 @@ export function useRecorder(): Recorder {
   }, []);
 
   useEffect(() => teardown, [teardown]);
+  useEffect(() => { stateKind.current = state.kind; }, [state.kind]);
 
+  const stateKind = useRef<RecorderState['kind']>('idle');
   const stop = useCallback((): void => {
     const a = active.current;
-    if (a && a.recorder.state !== 'inactive') a.recorder.stop();
+    if (a) {
+      if (a.recorder.state !== 'inactive') a.recorder.stop();
+      return;
+    }
+    // Still waiting for the microphone: cancel the pending start (the late stream is stopped by the run guard).
+    if (stateKind.current === 'asking') {
+      run.current += 1;
+      setState({ kind: 'idle' });
+    }
   }, []);
 
   const start = useCallback((): void => {
     if (!recordingSupported()) return;
     teardown();
     const id = run.current;
+    stateKind.current = 'asking';
     setState({ kind: 'asking' });
     const fail = (message: string): void => {
       if (run.current !== id) return;
