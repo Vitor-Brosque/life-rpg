@@ -1,7 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, Journey,
-  LifeEvent, MediaType, Mission, Note, PracticeSession, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
+  Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, FreezerMove, Journey,
+  LifeEvent, MediaType, Menu, Mission, Note, PracticeSession, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
+  SleepLog, SyncTable, Week, Workout, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
@@ -36,6 +37,12 @@ export class LifeDB extends Dexie {
   reviews!: Table<Review, string>;
   sketches!: Table<Sketch, string>;
   practiceSessions!: Table<PracticeSession, string>;
+  sleepLogs!: Table<SleepLog, string>;
+  recipes!: Table<Recipe, string>;
+  menus!: Table<Menu, string>;
+  shoppingLists!: Table<ShoppingList, string>;
+  freezerMoves!: Table<FreezerMove, string>;
+  workouts!: Table<Workout, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -108,6 +115,19 @@ export class LifeDB extends Dexie {
     // restart as v2-v4, so sessions a v4/v5 client skipped (unknown table) are pulled again.
     this.version(6).stores({
       practiceSessions: 'id,status,journeyId,updatedAt',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v7 (Marco 4 — corpo e casa; v5 and v6 belong to Marcos 3c and 3d): sleep nights, recipes, weekly
+    // menus and shopping lists, freezer moves and workouts. Same cursor restart as v2–v4.
+    this.version(7).stores({
+      sleepLogs: 'id,night',
+      recipes: 'id',
+      menus: 'id',
+      shoppingLists: 'id',
+      freezerMoves: 'id,at,recipeId',
+      workouts: 'id,day,at',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });

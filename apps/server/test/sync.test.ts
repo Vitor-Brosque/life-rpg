@@ -256,6 +256,32 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 'sketch-m-m1')!.record.deleted).toBe(true);
   });
 
+  it('syncs the corpo e casa tables, including a soft-deleted freezer move', async () => {
+    const { app } = await make();
+    const rec = (table: string, id: string, extra: Record<string, unknown> = {}) => ({
+      table, record: { id, createdAt: 1, updatedAt: 10, deleted: false, ...extra },
+    });
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        rec('sleepLogs', 'sleep-2026-11-13', { night: '2026-11-13', bedAt: 5, wakeAt: 9 }),
+        rec('recipes', 'r1', { name: 'Frango com arroz', ingredients: ['frango 1 kg'] }),
+        rec('menus', 'menu-2026-11-09', { week: '2026-11-09', slots: [{ day: '2026-11-10', meal: 'almoco', recipeId: 'r1' }] }),
+        rec('shoppingLists', 'shop-2026-11-09', { week: '2026-11-09', manual: [], checked: ['g:frango 1 kg'] }),
+        rec('freezerMoves', 'f1', { at: 5, day: '2026-11-13', recipeId: 'r1', delta: -1, kind: 'eat', deleted: true }),
+        rec('workouts', 'w1', { at: 5, day: '2026-11-13', kind: 'cardio', minutes: 10, minimum: true }),
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.map((c) => c.table).sort()).toEqual(['freezerMoves', 'menus', 'recipes', 'shoppingLists', 'sleepLogs', 'workouts']);
+    expect(changes.find((c) => c.record.id === 'f1')!.record.deleted).toBe(true);
+    expect(changes.find((c) => c.record.id === 'menu-2026-11-09')).toMatchObject({
+      record: { slots: [{ day: '2026-11-10', meal: 'almoco', recipeId: 'r1' }] },
+    });
+  });
+
   it('a mission lousa placeholder (updatedAt 1) pushed after a real version keeps the real one', async () => {
     const { app } = await make();
     const strokes = [{ c: 0, w: 0, p: [1, 1] }];
