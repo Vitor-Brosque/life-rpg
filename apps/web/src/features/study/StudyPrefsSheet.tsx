@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { StudySettings } from '@life/shared';
 import { DEFAULT_STUDY, studySettingsOf } from '@life/shared';
 import { useSettings } from '../../db/hooks';
@@ -14,7 +14,15 @@ const RETENTIONS = [0.8, 0.85, 0.9, 0.95];
 export function StudyPrefsSheet({ open, onClose }: { open: boolean; onClose(): void }) {
   const settings = useSettings();
   const [d, setD] = useState<StudySettings>(DEFAULT_STUDY);
-  useEffect(() => { if (open && settings) setD(studySettingsOf(settings)); }, [open, settings]);
+  // The draft starts from the saved values when the sheet opens; later saves don't reset it.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!open) { started.current = false; return; }
+    if (settings && !started.current) {
+      started.current = true;
+      setD(studySettingsOf(settings));
+    }
+  }, [open, settings]);
   const toggle = (wd: number): void => setD((p) => ({
     ...p, restDays: p.restDays.includes(wd) ? p.restDays.filter((x) => x !== wd) : [...p.restDays, wd],
   }));

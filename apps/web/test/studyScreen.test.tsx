@@ -1,9 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { saveDeck, saveNote } from '../src/domain/studyActions';
+import { saveDeck, saveNote, saveStudySettings, setNoteSuspended } from '../src/domain/studyActions';
 import { ForecastBars } from '../src/features/study/ForecastBars';
 import { StudyScreen } from '../src/features/study/StudyScreen';
 
@@ -30,6 +30,16 @@ describe('StudyScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     expect(await screen.findByRole('link', { name: /Faculdade/ })).toHaveAttribute('href', expect.stringMatching(/^\/estudo\/baralho\//));
     expect(await screen.findByText('Nenhum card ainda. Crie o primeiro.')).toBeInTheDocument();
+  });
+
+  it('cards that exist but are all suspended: says none is active (not "Nenhum card ainda")', async () => {
+    const d = await saveDeck({ name: 'SQL' });
+    const n = await saveNote({ deckId: d.id, type: 'basic', front: 'p', back: 'r' });
+    await setNoteSuspended(n.id, true);
+    render(<StudyScreen />);
+    const today = await screen.findByLabelText('Hoje');
+    expect(within(today).getByText('Nenhum card ativo: os cards estão suspensos ou em baralhos arquivados.')).toBeInTheDocument();
+    expect(within(today).queryByText('Nenhum card ainda. Crie o primeiro.')).toBeNull();
   });
 
   it("today's plan: new cards, reason and the review button", async () => {
@@ -94,6 +104,21 @@ describe('StudyScreen', () => {
     await user.type(budget, '25');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await vi.waitFor(async () => expect((await db.settings.get('settings'))!.study!.budgetMin).toBe(25));
+  });
+
+  it('the preferences draft is not reset by a settings change while the sheet is open', async () => {
+    const user = userEvent.setup();
+    await deckWithCards(3);
+    render(<StudyScreen />);
+    await user.click(await screen.findByRole('button', { name: 'Preferências de estudo' }));
+    const budget = screen.getByLabelText('Minutos de revisão por dia');
+    await user.clear(budget);
+    await user.type(budget, '25');
+    await saveStudySettings({ maxNewPerDay: 1 });
+    expect(await screen.findByText('1 novo · ~1 min')).toBeInTheDocument();
+    // The sheet has its own live query: give it time to answer before checking the draft stays.
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(screen.getByLabelText('Minutos de revisão por dia')).toHaveValue(25);
   });
 });
 

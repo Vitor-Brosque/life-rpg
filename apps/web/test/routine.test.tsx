@@ -172,6 +172,38 @@ describe('routine editor', () => {
     await waitFor(async () => expect(await orderOf()).toEqual(['Tech', 'Leitura', 'Treino', 'Facul', 'Tecnico', 'Compl']));
   });
 
+  it('the reviews switch follows the kind (on for light blocks) until it is touched', async () => {
+    await seedBlocks();
+    const user = userEvent.setup();
+    render(<RoutineScreen />);
+    await user.click(await screen.findByRole('button', { name: 'Novo bloco' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo bloco' });
+    const reviews = within(dialog).getByRole('switch', { name: 'Revisão espaçada neste bloco' });
+    expect(reviews).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(dialog).getByRole('button', { name: /leve/ }));
+    expect(reviews).toHaveAttribute('aria-checked', 'true');
+    await user.click(within(dialog).getByRole('button', { name: /estudo/ }));
+    expect(reviews).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(dialog).getByRole('button', { name: /leve/ }));
+    await user.click(reviews);
+    expect(reviews).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(dialog).getByRole('button', { name: /foco/ }));
+    await user.click(within(dialog).getByRole('button', { name: /leve/ }));
+    expect(reviews).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('an existing block: changing its kind updates the untouched switch', async () => {
+    await seedBlocks();
+    const user = userEvent.setup();
+    render(<RoutineScreen />);
+    await user.click(await card('Compl'));
+    const dialog = await screen.findByRole('dialog', { name: 'Editar bloco' });
+    const reviews = within(dialog).getByRole('switch', { name: 'Revisão espaçada neste bloco' });
+    expect(reviews).toHaveAttribute('aria-checked', 'true');
+    await user.click(within(dialog).getByRole('button', { name: /foco/ }));
+    expect(reviews).toHaveAttribute('aria-checked', 'false');
+  });
+
   it('says above the list that the order is shared by every day with these blocks', async () => {
     await seedBlocks();
     render(<RoutineScreen />);

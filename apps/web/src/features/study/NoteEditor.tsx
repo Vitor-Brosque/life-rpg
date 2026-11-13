@@ -38,6 +38,7 @@ export function NoteEditor({ id }: { id?: string }) {
   const [status, setStatus] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const loadedFor = useRef<string | undefined>(undefined);
+  const saving = useRef(false);
   const frontRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -64,10 +65,15 @@ export function NoteEditor({ id }: { id?: string }) {
 
   const isNew = !id;
   const isDraft = !!existing?.draft;
-  const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]): void => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]): void => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setStatus('');
+  };
   const leave = (deckId?: string): void => navigate(backToSession ? (params.get('baralho') ? `/estudo/revisar?baralho=${params.get('baralho')}` : '/estudo/revisar') : deckId ? `/estudo/baralho/${deckId}` : '/estudo');
 
   const save = async (next: boolean): Promise<void> => {
+    if (saving.current) return;
+    saving.current = true;
     try {
       const note = await saveNote({
         id, deckId: form.deckId || undefined, type: form.type, front: form.front, back: form.back,
@@ -85,6 +91,8 @@ export function NoteEditor({ id }: { id?: string }) {
       if (e instanceof NoteValidationError) { setErrors(e.errors); setStatus(''); return; }
       console.error('save note failed', e);
       useToast.getState().show(FAILURE_TOAST);
+    } finally {
+      saving.current = false;
     }
   };
 
@@ -98,7 +106,7 @@ export function NoteEditor({ id }: { id?: string }) {
 
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>): void => {
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key === 'Enter') { e.preventDefault(); void save(isNew); }
+    if (mod && e.key === 'Enter') { e.preventDefault(); if (!e.repeat) void save(isNew); }
     else if (mod && e.shiftKey && e.key.toLowerCase() === 'l' && form.type === 'cloze') { e.preventDefault(); lacuna(); }
   };
 

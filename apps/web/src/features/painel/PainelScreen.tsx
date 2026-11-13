@@ -125,9 +125,9 @@ export function PainelScreen() {
             <StatusStrip engine={engine} block={current} now={now} compact />
             <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
             <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
-            {/* "Onde você parou" belongs to the Apoio column here. */}
+            {/* "Onde você parou" and the review status belong to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
-              current={current} next={next} showNote={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
+              current={current} next={next} showNote={false} showReview={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
           </>
         )}
       </section>

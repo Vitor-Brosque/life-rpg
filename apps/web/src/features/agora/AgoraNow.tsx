@@ -24,6 +24,8 @@ export interface AgoraNowProps {
   next?: BlockOccurrence;
   /** "Onde você parou" in the block banner; the Painel shows it in its Apoio column instead. */
   showNote?: boolean;
+  /** The review card / line; the Painel shows its own status line in the Apoio column instead. */
+  showReview?: boolean;
   compact?: boolean;
   onCapture(): void;
   onPickMode(mode: DayMode): void;
@@ -46,7 +48,7 @@ export function showsMainCard(s: {
  * next block, or the Marco 1 main card when there are no blocks around.
  */
 export function AgoraNow({
-  agora, areas, missions, today, now, mode, current, next, showNote = true, compact, onCapture, onPickMode,
+  agora, areas, missions, today, now, mode, current, next, showNote = true, showReview = true, compact, onCapture, onPickMode,
 }: AgoraNowProps) {
   const { engine, primary, alternatives, actions, canSkip } = agora;
   const week = useWeek();
@@ -83,7 +85,7 @@ export function AgoraNow({
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
-        <ReviewPrompt mode={mode} current={current} />
+        {showReview && <ReviewPrompt mode={mode} current={current} />}
         {current.block.kind !== 'routine' && main}
       </>
     );
@@ -96,7 +98,7 @@ export function AgoraNow({
     const commitment = c && c.startTs < next.start ? { title: c.commitment.title, startTs: c.startTs } : undefined;
     return (
       <>
-        <ReviewPrompt mode={mode} />
+        {showReview && <ReviewPrompt mode={mode} />}
         <BetweenBlocks next={next} commitment={commitment} freeMinutes={freeMinutes} items={items} areas={areas}
           onPick={actions.open} />
       </>
@@ -106,7 +108,7 @@ export function AgoraNow({
   return (
     <>
       {main}
-      <ReviewPrompt mode={mode} />
+      {showReview && <ReviewPrompt mode={mode} />}
     </>
   );
 }

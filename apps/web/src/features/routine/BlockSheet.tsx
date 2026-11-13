@@ -38,6 +38,8 @@ function BlockForm({ block, weekday, onClose }: Omit<BlockSheetProps, 'open'>) {
   const settings = useSettings();
   const [d, setD] = useState<BlockDraft>(() => draftOf(block, weekday));
   const [nameTouched, setNameTouched] = useState(false);
+  // Until the reviews switch is touched, it follows the kind: light blocks get reviews by default.
+  const [reviewsTouched, setReviewsTouched] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [busy, setBusy] = useState(false);
   const errors = validateDraft(d);
@@ -87,7 +89,8 @@ function BlockForm({ block, weekday, onClose }: Omit<BlockSheetProps, 'open'>) {
         <FieldError id={`${ids.name}-error`} text={nameError} />
       </div>
 
-      <KindPicker value={d.kind} onChange={(k) => set('kind', k)} />
+      <KindPicker value={d.kind}
+        onChange={(k) => setD((prev) => ({ ...prev, kind: k, ...(reviewsTouched || k === prev.kind ? {} : { reviews: k === 'light' }) }))} />
 
       <div className="field block-form__start">
         <label className="field__label" htmlFor={ids.start}>Início</label>
@@ -116,7 +119,7 @@ function BlockForm({ block, weekday, onClose }: Omit<BlockSheetProps, 'open'>) {
 
       <div>
         <button type="button" role="switch" aria-checked={d.reviews} className="switch-row"
-          onClick={() => set('reviews', !d.reviews)}>
+          onClick={() => { setReviewsTouched(true); set('reviews', !d.reviews); }}>
           <span className="switch-row__track" aria-hidden="true"><span className="switch-row__thumb" /></span>
           <span>Revisão espaçada neste bloco</span>
         </button>

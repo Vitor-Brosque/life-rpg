@@ -27,7 +27,7 @@ export async function saveDeck(input: { id?: ID; name: string; journeyId?: ID; a
   const name = input.name.trim();
   if (!name) throw new Error('A deck needs a name');
   if (input.id) return patch<Deck>('decks', input.id, { name, journeyId: input.journeyId, areaId: input.areaId });
-  const order = live(await db.decks.toArray()).length;
+  const order = Math.max(-1, ...live(await db.decks.toArray()).map((d) => d.order)) + 1;
   return put('decks', newRecord<Deck>({
     name, order, archived: false,
     ...(input.journeyId ? { journeyId: input.journeyId } : {}),
@@ -215,12 +215,19 @@ async function rateLocked(cardId: ID, rating: Rating, opts: RateOpts): Promise<R
   return { reviewId: review.id, xp: xp.reduce((s, x) => s + x.amount, 0), goalReached };
 }
 
-/** Undoes a rating: the card goes back to the review's `before`, the review is soft-deleted. XP stays. */
+/**
+ * Undoes a rating: the review is soft-deleted and the card goes back to the review's `before` —
+ * only while the card is still at that review's result (else it moved on: it stays). XP stays.
+ */
 export const undoRating = (reviewId: ID): Promise<void> => withLock('study', async () => {
   const review = await db.reviews.get(reviewId);
   if (!review || review.deleted) return;
   const card = await db.cards.get(review.cardId);
   if (!card) return;
+  if (card.reps !== review.after.reps || card.lastReview !== review.after.lastReview) {
+    await put('reviews', { ...review, deleted: true });
+    return;
+  }
   const restored: Card = { ...card, ...review.before };
   if (review.before.lastReview === undefined) delete restored.lastReview;
   if (review.before.state === 'new') delete restored.introducedDay;

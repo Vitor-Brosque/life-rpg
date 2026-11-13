@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
 import type { Card, CardFace, ID, Note, Rating, ScheduleCtx, StudyInput, StudyPlan } from '@life/shared';
 import {
   cardFace, nextLearningAt, pickNext, previews, remainingOf, scheduleOf, studyPlan, studySettingsOf, suggestRating,
 } from '@life/shared';
 import { db } from '../../db/db';
-import { useDayMode, useSettings, useToday } from '../../db/hooks';
+import { useDayMode, useProfile, useSettings, useToday } from '../../db/hooks';
 import { isCardOfNote, readStudyData } from '../../db/studyData';
-import { rateCard, setCardSuspended, undoRating } from '../../domain/studyActions';
+import { maxDurationMs, rateCard, setCardSuspended, undoRating } from '../../domain/studyActions';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { formatClock, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
+import { pickPhrase } from '../companion/phrases';
 import { useCompanion } from '../companion/store';
 import { CodeEditor } from './CodeEditor';
 import { forecastMinutes } from './ForecastBars';
@@ -31,14 +32,17 @@ type View =
 const WRITE_KEY = 'life-rpg.study.writeFirst';
 const readWriteFirst = (): boolean => { try { return localStorage.getItem(WRITE_KEY) === '1'; } catch { return false; } };
 const storeWriteFirst = (on: boolean): void => { try { localStorage.setItem(WRITE_KEY, on ? '1' : '0'); } catch { /* storage may be unavailable */ } };
+/** Fields that take typed keys; a ticked checkbox or radio is not one (rating keys keep working). */
 const isTypingTarget = (t: EventTarget | null): boolean =>
-  t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  t instanceof HTMLElement && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName)
+    || (t instanceof HTMLInputElement && t.type !== 'checkbox' && t.type !== 'radio'));
 
 /** "/estudo/revisar": one card at a time — answer, reveal, rate (spec §6). Every rating is saved at once. */
 export function ReviewSession() {
   const [, navigate] = useLocation();
   const deckFilter = new URLSearchParams(useSearch()).get('baralho') ?? undefined;
   const settings = useSettings();
+  const profile = useProfile();
   const today = useToday();
   const mode = useDayMode();
   const session = useSession();
@@ -55,6 +59,7 @@ export function ReviewSession() {
   const spoke = useRef(false);
   const ratedAt = useRef<number | undefined>(undefined);
   const alive = useRef(true);
+  const phraseSeed = useRef(Math.random());
   useEffect(() => {
     alive.current = true;
     return () => { alive.current = false; };
@@ -129,6 +134,13 @@ export function ReviewSession() {
     }
   }, [view.kind, session.reviewed]);
 
+  // A new card takes the focus to the session heading (the tapped rating button is gone), in the
+  // same commit that removes it, so focus never falls to <body>.
+  const cardView = view.kind === 'card' ? view : undefined;
+  useLayoutEffect(() => {
+    if (cardView) document.getElementById('review-title')?.focus();
+  }, [cardView]);
+
   const ratingPreviews = useMemo(
     () => (view.kind === 'card' && revealedAt !== undefined ? previews(scheduleOf(view.card), revealedAt, view.ctx) : undefined),
     [view, revealedAt],
@@ -151,7 +163,7 @@ export function ReviewSession() {
       const r = await rateCard(view.card.id, rating, {
         durationMs, wrote: answer.trim() !== '', now: revealedAt, ...(coverage ? { coverage } : {}),
       });
-      useSession.getState().rated(r.reviewId, durationMs, r.xp);
+      useSession.getState().rated(r.reviewId, Math.min(durationMs, maxDurationMs(view.card)), r.xp);
       if (r.goalReached && !useSession.getState().goalShown) {
         useSession.getState().markGoalShown();
         setGoal(true);
@@ -177,6 +189,9 @@ export function ReviewSession() {
       useSession.getState().undone();
       setGoal(false);
       await advance(review?.cardId);
+    } catch (e) {
+      console.error('undo failed', e);
+      useToast.getState().show(FAILURE_TOAST);
     } finally {
       busy.current = false;
     }
@@ -203,8 +218,9 @@ export function ReviewSession() {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
       if (isTypingTarget(e.target) || document.querySelector('[aria-modal="true"]')) return;
       if ((e.key === ' ' || e.key === 'Enter') && e.target instanceof HTMLElement && e.target.closest('button, a')) return;
-      if (view.kind !== 'card' || goal) return;
       const key = e.key.toLowerCase();
+      if (view.kind === 'end' && key === 'z' && session.undo.length > 0) { e.preventDefault(); void onUndo(); return; }
+      if (view.kind !== 'card' || goal) return;
       if (!revealed && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); reveal(); }
       else if (revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); void onRate(Number(e.key) as Rating); }
       else if (key === 'z') { e.preventDefault(); void onUndo(); }
@@ -219,6 +235,9 @@ export function ReviewSession() {
   if (view.kind === 'end') {
     const minutes = Math.max(1, Math.round(session.spentMs / 60_000));
     const next = view.plan.forecast[0];
+    const phrase = session.reviewed > 0 && !settings?.companionMuted
+      ? pickPhrase('studyDone', undefined, { name: profile?.name, companion: profile?.companionName }, () => phraseSeed.current)
+      : undefined;
     return (
       <section className="screen review stack" aria-labelledby="review-end-title">
         <h1 id="review-end-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>{session.reviewed > 0 ? 'Revisão encerrada' : 'Revisão'}</h1>
@@ -226,10 +245,14 @@ export function ReviewSession() {
           {session.reviewed > 0 ? (
             <p className="review__summary">{plural(session.reviewed, 'card', 'cards')} · {minutes} min{session.xp > 0 ? ` · +${session.xp} XP` : ''}</p>
           ) : <p>Nada para revisar agora.</p>}
+          {phrase && <p className="review__phrase">{phrase}</p>}
           {session.goalShown && <p>Meta de hoje feita.</p>}
           {view.nextLearning !== undefined && <p className="muted">Um card em aprendizado volta às {formatClock(view.nextLearning)}.</p>}
           {next && <p className="muted">Próximo dia de estudo: {forecastMinutes(next.min).text}.</p>}
-          <div className="study-today__actions"><Button variant="primary" onClick={finish}>Voltar ao Estudo</Button></div>
+          <div className="study-today__actions">
+            <Button variant="primary" onClick={finish}>Voltar ao Estudo</Button>
+            {session.undo.length > 0 && <Button variant="ghost" onClick={() => void onUndo()} aria-keyshortcuts="Z">Desfazer</Button>}
+          </div>
         </Panel>
       </section>
     );

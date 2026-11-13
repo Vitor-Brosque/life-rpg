@@ -22,10 +22,11 @@ export function StudyScreen() {
   const journeys = useJourneys();
   const drafts = useLiveQuery(async () => (await db.notes.toArray())
     .filter((n) => !n.deleted && n.draft).sort((a, b) => b.createdAt - a.createdAt));
+  const liveCards = useLiveQuery(() => db.cards.filter((c) => !c.deleted).count());
   const [deckSheet, setDeckSheet] = useState(false);
   const [prefs, setPrefs] = useState(false);
 
-  if (!study.loaded || !study.plan || !study.input || !study.data || drafts === undefined) {
+  if (!study.loaded || !study.plan || !study.input || !study.data || drafts === undefined || liveCards === undefined) {
     return <section className="screen study" aria-busy="true" aria-label="Estudo" />;
   }
   const { plan, input, data } = study;
@@ -44,7 +45,7 @@ export function StudyScreen() {
     <section className="screen study stack" aria-labelledby="study-title">
       <h1 id="study-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Estudo</h1>
       <TodayCard plan={plan} mode={input.mode} restDay={study.restDay} hasDecks={active.length > 0}
-        hasCards={input.cards.length > 0} onReview={() => navigate('/estudo/revisar')}
+        hasCards={input.cards.length > 0} hasLiveCards={liveCards > 0} onReview={() => navigate('/estudo/revisar')}
         onCreateDeck={() => setDeckSheet(true)} onNewCard={() => navigate(newCardHref)} />
 
       {drafts.length > 0 && (

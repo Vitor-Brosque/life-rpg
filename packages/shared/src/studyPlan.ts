@@ -108,8 +108,8 @@ function allowNew(p: {
   mode: DayMode; maxNewPerDay: number; introducedToday: number; fresh: Card[]; goalSec: number;
   busySec: number; budgetSec: number; avgForecastSec: number; costs: Costs;
 }): NewLimit {
-  if (p.mode === 'low') return { n: 0, reason: 'dia de baixa energia: só revisões', sec: 0 };
-  if (p.mode === 'recovery') return { n: 0, reason: 'dia de recuperação: só revisões', sec: 0 };
+  if (p.mode === 'low') return { n: 0, reason: 'dia de baixa energia, só revisões', sec: 0 };
+  if (p.mode === 'recovery') return { n: 0, reason: 'dia de recuperação, só revisões', sec: 0 };
   if (p.fresh.length === 0) return { n: 0, reason: 'nenhum card novo esperando', sec: 0 };
   const cap = Math.max(0, p.maxNewPerDay - p.introducedToday);
   let busy = p.busySec;

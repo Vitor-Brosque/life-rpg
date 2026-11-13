@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { saveDeck, saveNote, saveStudySettings } from '../src/domain/studyActions';
+import { PHRASES, renderPhrase } from '../src/features/companion/phrases';
 import { ReviewSession } from '../src/features/study/ReviewSession';
 import { useSession } from '../src/features/study/sessionStore';
 
@@ -41,6 +42,7 @@ describe('ReviewSession', () => {
     expect(screen.getByRole('button', { name: 'Bom, próxima revisão em 10 minutos' })).toBeInTheDocument();
     await user.keyboard('3');
     expect(await screen.findByText('pergunta 1')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Revisão' })).toHaveFocus();
     expect(await liveReviews()).toHaveLength(1);
     await user.keyboard('z');
     expect(await screen.findByText('pergunta 0')).toBeInTheDocument();
@@ -83,9 +85,22 @@ describe('ReviewSession', () => {
     await user.click(screen.getByRole('checkbox', { name: 'atômico' }));
     await user.click(screen.getByRole('checkbox', { name: 'dependência parcial' }));
     expect(screen.getByText('2 de 3 cobertos')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Difícil,.*sugerido$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Difícil,.*sugerido$/ })).toHaveTextContent('sugerido');
+    expect(screen.getByRole('button', { name: /^Bom,/ })).not.toHaveTextContent('sugerido');
     await user.click(screen.getByRole('button', { name: /^Difícil,/ }));
     await vi.waitFor(async () => expect((await liveReviews())[0]!.coverage).toEqual({ covered: 2, total: 3 }));
+  });
+
+  it('topic: rating keys work after ticking a key point (a checkbox is not a typing field)', async () => {
+    const user = userEvent.setup();
+    const d = await saveDeck({ name: 'BD' });
+    await saveNote({ deckId: d.id, type: 'topic', front: 'Explique 1FN', back: '- atômico\n- sem grupos repetidos' });
+    render(<ReviewSession />);
+    await user.click(await screen.findByRole('button', { name: 'Mostrar resposta' }));
+    await user.click(screen.getByRole('checkbox', { name: 'atômico' }));
+    expect(screen.getByRole('checkbox', { name: 'atômico' })).toHaveFocus();
+    await user.keyboard('3');
+    await vi.waitFor(async () => expect((await liveReviews()).map((r) => r.rating)).toEqual([3]));
   });
 
   it('shows "Meta de hoje feita" once when the goal is reached and cards remain', async () => {
@@ -118,6 +133,30 @@ describe('ReviewSession', () => {
     expect(await screen.findByText('1 card · 1 min')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Voltar ao Estudo' }));
     expect(window.location.pathname).toBe('/estudo');
+  });
+
+  it('the end shows a companion phrase; Desfazer (button or Z) brings the last card back', async () => {
+    const user = userEvent.setup();
+    await deck(1);
+    render(<ReviewSession />);
+    await screen.findByText('pergunta 0');
+    await user.keyboard(' ');
+    await screen.findByRole('button', { name: /^Fácil,/ });
+    await user.keyboard('4');
+    expect(await screen.findByText('1 card · 1 min')).toBeInTheDocument();
+    const phrases = PHRASES.studyDone.map((p) => renderPhrase(p, { name: '', companion: 'Faísca' }));
+    expect(await screen.findByText((text) => phrases.includes(text))).toBeInTheDocument();
+    vi.setSystemTime(Date.now() + 30_000); // the card comes back as a new showing
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(await screen.findByText('pergunta 0')).toBeInTheDocument();
+    await vi.waitFor(async () => expect(await liveReviews()).toHaveLength(0));
+    await user.keyboard(' ');
+    await screen.findByRole('button', { name: /^Fácil,/ });
+    await user.keyboard('4');
+    expect(await screen.findByText('1 card · 1 min')).toBeInTheDocument();
+    await user.keyboard('z');
+    expect(await screen.findByText('pergunta 0')).toBeInTheDocument();
+    await vi.waitFor(async () => expect(await liveReviews()).toHaveLength(0));
   });
 
   it('Editar opens the note editor and comes back to the session', async () => {

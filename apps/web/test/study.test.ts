@@ -33,6 +33,15 @@ describe('decks', () => {
     expect(await deleteDeck(b.id)).toBe(true);
     expect((await db.decks.get(b.id))!.deleted).toBe(true);
   });
+
+  it('a new deck goes after the last live one: orders stay unique after a deletion', async () => {
+    const a = await saveDeck({ name: 'A' });
+    const b = await saveDeck({ name: 'B' });
+    const c = await saveDeck({ name: 'C' });
+    expect(await deleteDeck(b.id)).toBe(true);
+    const d = await saveDeck({ name: 'D' });
+    expect([a.order, c.order, d.order]).toEqual([0, 2, 3]);
+  });
 });
 
 describe('saveNote', () => {
@@ -197,6 +206,18 @@ describe('rateCard / undoRating', () => {
     expect(after!.introducedDay).toBeUndefined();
     expect(after!.lastReview).toBeUndefined();
     expect((await db.reviews.get(r.reviewId))!.deleted).toBe(true);
+  });
+
+  it('undoRating of an older review leaves a card that moved on alone (the review is still removed)', async () => {
+    const [id] = await setup();
+    const first = await rateCard(id!, 3, { durationMs: 5000, wrote: false });
+    vi.setSystemTime(Date.now() + 11 * 60_000);
+    await rateCard(id!, 3, { durationMs: 5000, wrote: false });
+    const moved = await db.cards.get(id!);
+    await undoRating(first.reviewId);
+    expect((await db.reviews.get(first.reviewId))!.deleted).toBe(true);
+    const card = await db.cards.get(id!);
+    expect({ ...card, updatedAt: 0 }).toEqual({ ...moved, updatedAt: 0 });
   });
 });
 

@@ -5,6 +5,7 @@ import type { Commitment, CommitmentOccurrence } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { createCommitment, createMission } from '../src/domain/actions';
+import { saveDeck, saveNote } from '../src/domain/studyActions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
 import { PainelScreen } from '../src/features/painel/PainelScreen';
@@ -56,6 +57,19 @@ describe('PainelScreen', () => {
     } finally {
       delete (window as { matchMedia?: unknown }).matchMedia;
     }
+  });
+
+  it('reviews show once, as the status line in "Apoio" (not also as a prompt in "Agora")', async () => {
+    const d = await saveDeck({ name: 'SQL' });
+    for (let i = 0; i < 3; i++) await saveNote({ deckId: d.id, type: 'basic', front: `p${i}`, back: 'r' });
+    renderPainel();
+    const apoio = await screen.findByRole('region', { name: 'Apoio' });
+    expect(await within(apoio).findByRole('link', { name: 'Revisão: 3 cards · ~2 min' })).toBeInTheDocument();
+    const agora = screen.getByRole('region', { name: 'Agora' });
+    expect(await within(agora).findByText(/Nada pendente/)).toBeInTheDocument();
+    // Each prompt has its own live query: the Agora's line must not show up even after it could answer.
+    await expect(within(agora).findByRole('link', { name: /para revisar/ }, { timeout: 600 })).rejects.toThrow();
+    expect(within(agora).queryByRole('heading', { name: 'Revisão espaçada' })).toBeNull();
   });
 
   it('the "Hoje" timeline shows commitments, free windows and the current time', async () => {

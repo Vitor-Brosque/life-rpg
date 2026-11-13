@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Note } from '@life/shared';
@@ -53,6 +53,23 @@ describe('NoteEditor', () => {
     expect(screen.getByLabelText('Baralho')).toHaveValue(d.id);
     expect(screen.getByLabelText('Frente')).toHaveFocus();
     expect((await liveNotes()).map((n) => [n.front, n.back, n.deckId])).toEqual([['O que faz o JOIN?', 'Junta tabelas', d.id]]);
+  });
+
+  it('Ctrl+Enter twice in a row saves one note; a held key does not repeat; typing clears "Salvo"', async () => {
+    const user = userEvent.setup();
+    const d = await saveDeck({ name: 'SQL' });
+    go(`/estudo/nota/nova?baralho=${d.id}`);
+    render(<NoteEditor />);
+    const front = await screen.findByLabelText('Frente');
+    await user.type(front, 'O que faz o JOIN?');
+    await user.type(screen.getByLabelText('Verso'), 'Junta tabelas');
+    fireEvent.keyDown(front, { key: 'Enter', ctrlKey: true, repeat: true });
+    fireEvent.keyDown(front, { key: 'Enter', ctrlKey: true });
+    fireEvent.keyDown(front, { key: 'Enter', ctrlKey: true });
+    expect(await screen.findByText('Salvo. Próximo card.')).toBeInTheDocument();
+    expect(await liveNotes()).toHaveLength(1);
+    await user.type(screen.getByLabelText('Frente'), 'x');
+    expect(screen.queryByText('Salvo. Próximo card.')).toBeNull();
   });
 
   it('shows field errors instead of saving', async () => {

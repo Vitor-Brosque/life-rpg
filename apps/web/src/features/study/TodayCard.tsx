@@ -11,7 +11,10 @@ export interface TodayCardProps {
   mode: DayMode;
   restDay: boolean;
   hasDecks: boolean;
+  /** Active cards (live, not suspended, in an unarchived deck). */
   hasCards: boolean;
+  /** Any live card at all (suspended or in archived decks included). */
+  hasLiveCards: boolean;
   onReview(): void;
   onCreateDeck(): void;
   onNewCard(): void;
@@ -20,7 +23,7 @@ export interface TodayCardProps {
 const minutes = (m: number): string => `~${Math.max(1, Math.round(m))} min`;
 
 /** "Hoje" of the Estudo tab (spec §6): the plan, its reason, or a calm done / free-day state. */
-export function TodayCard({ plan, mode, restDay, hasDecks, hasCards, onReview, onCreateDeck, onNewCard }: TodayCardProps) {
+export function TodayCard({ plan, mode, restDay, hasDecks, hasCards, hasLiveCards, onReview, onCreateDeck, onNewCard }: TodayCardProps) {
   const next = plan.forecast[0];
   const nextLine = next ? `Próximo dia de estudo (${WEEKDAY_ABBR[weekdayOf(next.day)]}): ${forecastMinutes(next.min).text}` : undefined;
   const work = plan.dueCount + plan.newAllowed;
@@ -36,6 +39,8 @@ export function TodayCard({ plan, mode, restDay, hasDecks, hasCards, onReview, o
         <div className="study-today__actions"><Button variant="primary" icon="plus" onClick={onCreateDeck}>Criar baralho</Button></div>
       </>
     );
+  } else if (!hasCards && hasLiveCards) {
+    body = <p>Nenhum card ativo: os cards estão suspensos ou em baralhos arquivados.</p>;
   } else if (!hasCards) {
     body = (
       <>

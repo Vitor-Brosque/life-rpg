@@ -1,8 +1,8 @@
 // Cloze syntax (spec §3): {{N::text}}. Saved text is always numbered, so inserting a new cloze
 // never moves progress between cards. Private-use sentinels mark the span the renderer styles.
 
-export const CLOZE_OPEN = '';
-export const CLOZE_CLOSE = '';
+export const CLOZE_OPEN = '\uE000';
+export const CLOZE_CLOSE = '\uE001';
 export const CLOZE_HIDDEN = '[…]';
 
 const CLOZE_RE = /\{\{(?:(\d+)::)?([\s\S]*?)\}\}/g;
@@ -34,7 +34,7 @@ export function stripCloze(text: string): string {
   return text.replace(CLOZE_RE, (_all: string, _n: string | undefined, inner: string) => inner);
 }
 
-const MARK = '';
+const MARK = '\uE003';
 
 /**
  * The editor's "Lacuna": numbers the existing clozes, then wraps the selection [start, end) in

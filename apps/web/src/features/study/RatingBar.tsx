@@ -18,6 +18,7 @@ export function RatingBar({ previews, onRate, disabled, suggested }: {
           aria-keyshortcuts={String(r)} onClick={() => onRate(r)}>
           <span className="rating__label">{LABELS[r]}</span>
           <span className="rating__interval">{previews[r].short}</span>
+          {r === suggested && <span className="rating__hint" aria-hidden="true">sugerido</span>}
           {!touch && <kbd className="rating__key" aria-hidden="true">{r}</kbd>}
         </button>
       ))}

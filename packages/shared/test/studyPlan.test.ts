@@ -101,8 +101,8 @@ describe('studyPlan — new cards and their reason', () => {
     expect(studyPlan(input({ cards: many(2, dueToday) }))).toMatchObject({ newAllowed: 0, newReason: 'nenhum card novo esperando' });
   });
   it('low energy and recovery: half the goal, no new cards', () => {
-    expect(studyPlan(input({ cards: many(5), mode: 'low' }))).toMatchObject({ goalSec: 450, newAllowed: 0, newReason: 'dia de baixa energia: só revisões' });
-    expect(studyPlan(input({ cards: many(5), mode: 'recovery' }))).toMatchObject({ goalSec: 450, newAllowed: 0, newReason: 'dia de recuperação: só revisões' });
+    expect(studyPlan(input({ cards: many(5), mode: 'low' }))).toMatchObject({ goalSec: 450, newAllowed: 0, newReason: 'dia de baixa energia, só revisões' });
+    expect(studyPlan(input({ cards: many(5), mode: 'recovery' }))).toMatchObject({ goalSec: 450, newAllowed: 0, newReason: 'dia de recuperação, só revisões' });
     expect(studyPlan(input({ mode: 'free' })).goalSec).toBe(900);
   });
 });
