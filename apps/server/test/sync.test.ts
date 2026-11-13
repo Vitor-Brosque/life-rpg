@@ -255,4 +255,17 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 's1')).toMatchObject({ table: 'sketches', record: { title: 'Lista 3', strokes } });
     expect(changes.find((c) => c.record.id === 'sketch-m-m1')!.record.deleted).toBe(true);
   });
+
+  it('a mission lousa placeholder (updatedAt 1) pushed after a real version keeps the real one', async () => {
+    const { app } = await make();
+    const strokes = [{ c: 0, w: 0, p: [1, 1] }];
+    const rec = (updatedAt: number, st: unknown[]) => ({
+      table: 'sketches', record: { id: 'sketch-m-m1', createdAt: 1, updatedAt, deleted: false, title: '', missionId: 'm1', strokes: st },
+    });
+    await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'a', cursor: 0, changes: [rec(10, strokes)] } });
+    await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [rec(1, [])] } });
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'c', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ record: { id: string; updatedAt: number; strokes: unknown[] } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'sketch-m-m1')!.record).toMatchObject({ updatedAt: 10, strokes });
+  });
 });

@@ -74,6 +74,12 @@ describe('bounds and eraser', () => {
     expect(eraseAlong(strokes, { x: 50, y: 12 }, { x: 50, y: 12 }, 10)).toEqual([b]);
     expect(eraseAlong(strokes, { x: 50, y: 100 }, { x: 60, y: 100 }, 10)).toBe(strokes);
   });
+  it('eraseAlong ignores a non-positive or NaN radius', () => {
+    const strokes = [line([0, 10, 100, 10])];
+    expect(eraseAlong(strokes, { x: 50, y: 10 }, { x: 60, y: 10 }, 0)).toBe(strokes);
+    expect(eraseAlong(strokes, { x: 50, y: 10 }, { x: 60, y: 10 }, NaN)).toBe(strokes);
+    expect(eraseAlong(strokes, { x: 50, y: 10 }, { x: 60, y: 10 }, -3)).toBe(strokes);
+  });
   it('a fast eraser pass does not skip a thin stroke between two samples', () => {
     const thin = line([50, 0, 50, 100]);
     expect(eraseAlong([thin], { x: 0, y: 50 }, { x: 100, y: 50 }, 4)).toEqual([]);

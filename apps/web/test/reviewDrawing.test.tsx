@@ -94,6 +94,67 @@ describe('"Desenhar antes" in the review session', () => {
   });
 });
 
+describe('"Desenhar antes" details', () => {
+  it('a double tap on "Salvar como lousa" creates one lousa', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('life-rpg.study.drawFirst', '1');
+    await deck(1);
+    render(<ReviewSession />);
+    tap(await screen.findByRole('img', { name: 'Desenho da resposta: 0 traços' }), 20);
+    await user.click(screen.getByRole('button', { name: 'Mostrar resposta' }));
+    const save = await screen.findByRole('button', { name: 'Salvar como lousa' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    await screen.findByRole('button', { name: 'Salvo' });
+    expect((await db.sketches.toArray()).filter((s) => !s.deleted)).toHaveLength(1);
+  });
+
+  it('bare Z with the pad focused undoes the rating; Ctrl+Z on the pad does not', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('life-rpg.study.drawFirst', '1');
+    await deck(2);
+    render(<ReviewSession />);
+    tap(await screen.findByRole('img', { name: 'Desenho da resposta: 0 traços' }), 10);
+    await user.keyboard(' ');
+    await screen.findByText('resposta 0');
+    await user.keyboard('3');
+    await screen.findByText('pergunta 1');
+    await waitFor(async () => expect(await liveReviews()).toHaveLength(1));
+    tap(screen.getByRole('img', { name: 'Desenho da resposta: 0 traços' }), 10);
+    expect(document.activeElement).toHaveClass('sketch__area');
+    await user.keyboard('{Control>}z{/Control}');
+    expect(screen.getByText('pergunta 1')).toBeInTheDocument();
+    expect(await liveReviews()).toHaveLength(1);
+    await user.keyboard('z');
+    expect(await screen.findByText('pergunta 0')).toBeInTheDocument();
+    await waitFor(async () => expect(await liveReviews()).toHaveLength(0));
+  });
+
+  it('turning "Desenhar antes" off before revealing records no drew', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('life-rpg.study.drawFirst', '1');
+    await deck(1);
+    render(<ReviewSession />);
+    tap(await screen.findByRole('img', { name: 'Desenho da resposta: 0 traços' }), 20);
+    await user.click(screen.getByRole('button', { name: 'Desenhar antes' }));
+    await user.click(screen.getByRole('button', { name: 'Mostrar resposta' }));
+    await user.click(await screen.findByRole('button', { name: /^Bom,/ }));
+    await waitFor(async () => expect(await liveReviews()).toHaveLength(1));
+    expect((await liveReviews())[0]).not.toHaveProperty('drew');
+  });
+
+  it('the pad is not remounted when the answer is revealed', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('life-rpg.study.drawFirst', '1');
+    await deck(1);
+    render(<ReviewSession />);
+    const before = await screen.findByRole('img', { name: 'Desenho da resposta: 0 traços' });
+    await user.click(screen.getByRole('button', { name: 'Mostrar resposta' }));
+    await screen.findByText('resposta 0');
+    expect(screen.getByRole('img', { name: 'Desenho da resposta: 0 traços' })).toBe(before);
+  });
+});
+
 describe('"Lousa da missão" in the mission sheet', () => {
   it('creates the mission lousa and opens it, coming back to the current screen', async () => {
     const user = userEvent.setup();

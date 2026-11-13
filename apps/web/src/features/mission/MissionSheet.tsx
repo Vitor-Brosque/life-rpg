@@ -64,11 +64,12 @@ function MissionSketchButton({ missionId, onOpen }: { missionId: string; onOpen(
   const [location, navigate] = useLocation();
   const strokes = useLiveQuery(async () => {
     const s = await db.sketches.get(missionSketchId(missionId));
-    return s && !s.deleted ? s.strokes.length : 0;
+    return s && !s.deleted && Array.isArray(s.strokes) ? s.strokes.length : 0;
   }, [missionId]);
   const open = (): void => safeRun(async () => {
     const s = await ensureMissionSketch(missionId);
     onOpen();
+    if (location === `/lousa/${s.id}`) return; // already on it (opened from the lousa): just close
     navigate(`/lousa/${s.id}?voltar=${encodeURIComponent(location)}`);
   });
   return (

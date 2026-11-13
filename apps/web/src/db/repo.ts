@@ -78,6 +78,28 @@ export async function putSeed<T extends BaseRecord>(table: SyncTable, record: T)
   notify();
 }
 
+/**
+ * Creates `record` as a placeholder only when it is missing: updatedAt = 1, so it loses to any
+ * real version (e.g. strokes drawn on another device that this one has not synced yet). A live
+ * existing record is left untouched; a soft-deleted one is revived deliberately with a fresh
+ * timestamp. One transaction. Resolves with the record now stored.
+ */
+export async function putPlaceholder<T extends BaseRecord>(table: SyncTable, record: T): Promise<T> {
+  let wrote = false;
+  const saved = await db.transaction('rw', tableOf(table), db.outbox, async () => {
+    const prev = (await tableOf(table).get(record.id)) as T | undefined;
+    if (prev && !prev.deleted) return prev;
+    wrote = true;
+    if (prev) return writeInTx(table, record);
+    const placeholder = { ...record, createdAt: Date.now(), updatedAt: 1 };
+    await tableOf(table).put(placeholder);
+    await db.outbox.put({ key: `${table}:${placeholder.id}`, table, id: placeholder.id, updatedAt: 1 });
+    return placeholder;
+  });
+  if (wrote) notify();
+  return saved;
+}
+
 export async function patch<T extends BaseRecord>(
   table: SyncTable, id: string, changes: Partial<T>,
 ): Promise<T> {

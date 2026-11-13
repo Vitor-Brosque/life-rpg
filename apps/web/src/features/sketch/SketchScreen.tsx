@@ -65,10 +65,10 @@ export function SketchScreen({ id }: { id: string }) {
       <h1 id="sketch-title" className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Lousa</h1>
       <div className="sketch-screen__top">
         <Button size="sm" variant="ghost" onClick={() => navigate(back)}>← Voltar</Button>
-        <input className="sketch-screen__title" aria-label="Título da lousa" value={title ?? ''} maxLength={80}
+        <input className="sketch-screen__title" type="text" enterKeyHint="done" aria-label="Título da lousa" value={title ?? ''} maxLength={80}
           placeholder={sketchTitle({ title: '', createdAt: sketch.createdAt }, missionTitle)}
           onFocus={() => { editing.current = true; }} onChange={(e) => setTitle(e.target.value)} onBlur={saveTitle} onKeyDown={onTitleKey} />
-        {sketch.missionId && (
+        {sketch.missionId && mission && !mission.deleted && (
           <Button size="sm" variant="ghost" onClick={() => useMissionSheet.getState().open(sketch.missionId!)}>Missão</Button>
         )}
         <Button size="sm" variant="ghost" onClick={remove}>Apagar</Button>

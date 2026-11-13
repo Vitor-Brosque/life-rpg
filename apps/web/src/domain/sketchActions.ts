@@ -1,7 +1,7 @@
 import type { ID, Sketch, Stroke } from '@life/shared';
 import { SKETCH_TITLE_MAX, missionSketchId } from '@life/shared';
 import { db } from '../db/db';
-import { newRecord, patch, put, softDelete } from '../db/repo';
+import { newRecord, patch, put, putPlaceholder, softDelete } from '../db/repo';
 
 // Lousas (Marco 3b, spec §6). No XP anywhere here: drawing is not rewarded (spec §8).
 
@@ -13,14 +13,15 @@ export async function createSketch(input: { title?: string; strokes?: Stroke[] }
 }
 
 /**
- * The mission's lousa (deterministic id), created, or revived empty, when missing. A live one is
+ * The mission's lousa (deterministic id), created (as a low-priority placeholder), or revived empty, when missing. A live one is
  * returned untouched: no write, so opening it never bumps updatedAt nor queues a sync.
  */
 export async function ensureMissionSketch(missionId: ID): Promise<Sketch> {
   const id = missionSketchId(missionId);
   const prev = await db.sketches.get(id);
   if (prev && !prev.deleted) return prev;
-  return put('sketches', newRecord<Sketch>({ id, title: '', missionId, strokes: [] }));
+  // Placeholder (updatedAt 1) when new: it must never beat a real version drawn on another device.
+  return putPlaceholder('sketches', newRecord<Sketch>({ id, title: '', missionId, strokes: [] }));
 }
 
 export const saveSketchStrokes = (id: ID, strokes: Stroke[]): Promise<Sketch> =>

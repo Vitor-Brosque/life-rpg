@@ -92,6 +92,7 @@ describe('CodeEditor with CodeMirror', () => {
     const el = await editor();
     expect(el.getAttribute('contenteditable')).toBe('false');
     expect(el.getAttribute('aria-readonly')).toBe('true');
+    expect(el.getAttribute('tabindex')).toBe('0'); // keyboard users can focus and scroll it
     expect(fireEvent.keyDown(el, { key: 'Tab', code: 'Tab', keyCode: 9 })).toBe(true);
     expect(screen.getByTestId('v').textContent).toBe('x');
     expect(screen.queryByText(/Esc para sair/)).toBeNull();
@@ -103,6 +104,7 @@ describe('CodeEditor with CodeMirror', () => {
     const el = await editor();
     expect(el.getAttribute('contenteditable')).toBe('true');
     expect(el.getAttribute('aria-readonly')).toBeNull();
+    expect(el.getAttribute('tabindex')).toBeNull();
     rerender(<CodeEditor {...props} readOnly />);
     await waitFor(() => expect(el.getAttribute('contenteditable')).toBe('false'));
     expect(el.getAttribute('aria-readonly')).toBe('true');

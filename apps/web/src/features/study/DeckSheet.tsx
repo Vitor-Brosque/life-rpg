@@ -36,7 +36,7 @@ export function DeckSheet({ open, onClose, deck }: { open: boolean; onClose(): v
       <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <div className="field">
           <label className="field__label" htmlFor="deck-name">Nome</label>
-          <input id="deck-name" value={name} autoComplete="off" placeholder="Ex.: SQL, Faculdade · Cálculo"
+          <input id="deck-name" type="text" enterKeyHint="done" value={name} autoComplete="off" placeholder="Ex.: SQL, Faculdade · Cálculo"
             onChange={(e) => setName(e.target.value)} />
         </div>
         <LinkSelect value={link} areas={areas} journeys={journeys} onChange={setLink}

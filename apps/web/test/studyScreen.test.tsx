@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
@@ -99,7 +99,7 @@ describe('StudyScreen', () => {
     await deckWithCards(1);
     render(<StudyScreen />);
     await user.click(await screen.findByRole('button', { name: 'Preferências de estudo' }));
-    const budget = screen.getByLabelText('Minutos de revisão por dia');
+    const budget = await screen.findByLabelText('Minutos de revisão por dia');
     await user.clear(budget);
     await user.type(budget, '25');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
@@ -111,13 +111,11 @@ describe('StudyScreen', () => {
     await deckWithCards(3);
     render(<StudyScreen />);
     await user.click(await screen.findByRole('button', { name: 'Preferências de estudo' }));
-    const budget = screen.getByLabelText('Minutos de revisão por dia');
+    const budget = await screen.findByLabelText('Minutos de revisão por dia');
     await user.clear(budget);
     await user.type(budget, '25');
     await saveStudySettings({ maxNewPerDay: 1 });
     expect(await screen.findByText('1 novo · ~1 min')).toBeInTheDocument();
-    // The sheet has its own live query: give it time to answer before checking the draft stays.
-    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
     expect(screen.getByLabelText('Minutos de revisão por dia')).toHaveValue(25);
   });
 });

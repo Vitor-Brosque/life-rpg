@@ -374,7 +374,7 @@ export function SketchPad({ initial, onChange, label, onGestureChange, wheelPans
         {actions}
       </div>
       <div ref={areaRef} className={`sketch__area sketch__area--${tool}`} tabIndex={0} role="application"
-        aria-label="Lousa: arraste para desenhar; use as teclas + e − para zoom e 0 para ajustar">
+        aria-label={`${label}: arraste para desenhar; use as teclas + e − para zoom e 0 para ajustar`}>
         <canvas
           ref={canvasRef} className="sketch__canvas" role="img" aria-label={`${label}: ${plural(n, 'traço', 'traços')}`}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove}

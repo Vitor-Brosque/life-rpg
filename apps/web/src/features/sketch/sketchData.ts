@@ -7,7 +7,7 @@ import { plural, relativeTime } from '../../ui/format';
 // Lists of lousas (spec §6.1). They read whole records: fine up to hundreds of lousas.
 
 /** Listed: live, and either standalone or a mission lousa that has strokes (an empty one stays reachable from its mission). */
-export const isListed = (s: Sketch): boolean => !s.deleted && (!s.missionId || s.strokes.length > 0);
+export const isListed = (s: Sketch): boolean => !s.deleted && (!s.missionId || (Array.isArray(s.strokes) && s.strokes.length > 0));
 
 /** The `limit` most recently edited listed lousas; undefined while loading. */
 export function useRecentSketches(limit: number): Sketch[] | undefined {
@@ -26,7 +26,7 @@ export function nameOf(s: Sketch, missions: readonly Mission[]): string {
 
 /** "Missão · 12 traços · há 3 h" / "vazia · agora". */
 export function sketchMeta(s: Sketch, now: number): string {
-  const n = s.strokes.length;
+  const n = Array.isArray(s.strokes) ? s.strokes.length : 0;
   return [s.missionId ? 'Missão' : undefined, n === 0 ? 'vazia' : plural(n, 'traço', 'traços'), relativeTime(s.updatedAt, now)]
     .filter(Boolean).join(' · ');
 }

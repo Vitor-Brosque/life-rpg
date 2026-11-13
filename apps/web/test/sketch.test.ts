@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Stroke } from '@life/shared';
 import { db } from '../src/db/db';
+import { applyRemote } from '../src/db/repo';
+import { isListed, sketchMeta } from '../src/features/sketch/sketchData';
+import { sketchTitle } from '@life/shared';
 import { ensureSeed } from '../src/db/seed';
 import {
   createSketch, deleteSketch, ensureMissionSketch, renameSketch, restoreSketch, saveSketchStrokes,
@@ -38,11 +41,22 @@ describe('sketch actions', () => {
     expect(await db.sketches.count()).toBe(1);
   });
 
+  it('a first-time mission lousa is a placeholder (updatedAt 1) that a real remote version beats', async () => {
+    const a = await ensureMissionSketch('m1');
+    expect(a.updatedAt).toBe(1);
+    expect((await db.outbox.get('sketches:sketch-m-m1'))!.updatedAt).toBe(1);
+    const ok = await applyRemote({ table: 'sketches', record: { ...a, updatedAt: 10, strokes: [dot] } });
+    expect(ok).toBe(true);
+    expect((await db.sketches.get(a.id))!.strokes).toEqual([dot]);
+  });
+
   it('a deleted mission lousa comes back empty', async () => {
     const a = await ensureMissionSketch('m1');
     await saveSketchStrokes(a.id, [dot]);
     await deleteSketch(a.id);
-    expect(await ensureMissionSketch('m1')).toMatchObject({ id: 'sketch-m-m1', deleted: false, strokes: [] });
+    const revived = await ensureMissionSketch('m1');
+    expect(revived).toMatchObject({ id: 'sketch-m-m1', deleted: false, strokes: [] });
+    expect(revived.updatedAt).toBeGreaterThan(1);
   });
 
   it('save, rename, delete and restore', async () => {
@@ -68,5 +82,13 @@ describe('rateCard drew', () => {
     const reviews = await db.reviews.toArray();
     expect(reviews.find((r) => r.cardId === c1!.id)).toMatchObject({ drew: true });
     expect(reviews.find((r) => r.cardId === c2!.id)).not.toHaveProperty('drew');
+  });
+
+  it('a malformed synced record (no strokes, no title) never crashes the list helpers', () => {
+    const bad = { id: 'x', createdAt: 1, updatedAt: 5, deleted: false } as never;
+    expect(isListed(bad)).toBe(true);
+    expect(isListed({ ...(bad as object), missionId: 'm1' } as never)).toBe(false);
+    expect(sketchMeta(bad, 10)).toContain('vazia');
+    expect(sketchTitle(bad)).toMatch(/^Lousa de /);
   });
 });

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { StudySettings } from '@life/shared';
-import { DEFAULT_STUDY, studySettingsOf } from '@life/shared';
+import { studySettingsOf } from '@life/shared';
 import { useSettings } from '../../db/hooks';
 import { saveStudySettings } from '../../domain/studyActions';
 import { Button } from '../../ui/Button';
@@ -13,23 +13,23 @@ const RETENTIONS = [0.8, 0.85, 0.9, 0.95];
 /** Budget, new-card cap, desired retention and rest days (spec §6). */
 export function StudyPrefsSheet({ open, onClose }: { open: boolean; onClose(): void }) {
   const settings = useSettings();
-  const [d, setD] = useState<StudySettings>(DEFAULT_STUDY);
-  // The draft starts from the saved values when the sheet opens; later saves don't reset it.
-  const started = useRef(false);
-  useEffect(() => {
-    if (!open) { started.current = false; return; }
-    if (settings && !started.current) {
-      started.current = true;
-      setD(studySettingsOf(settings));
-    }
-  }, [open, settings]);
+  // The form mounts only once the saved values are loaded, and starts from them for this opening:
+  // a later settings change (or a late first load) can never reset what was typed.
+  return (
+    <Sheet open={open} onClose={onClose} title="Preferências de estudo">
+      {open && settings && <StudyPrefsForm initial={studySettingsOf(settings)} onClose={onClose} />}
+    </Sheet>
+  );
+}
+
+function StudyPrefsForm({ initial, onClose }: { initial: StudySettings; onClose(): void }) {
+  const [d, setD] = useState<StudySettings>(initial);
   const toggle = (wd: number): void => setD((p) => ({
     ...p, restDays: p.restDays.includes(wd) ? p.restDays.filter((x) => x !== wd) : [...p.restDays, wd],
   }));
   const lastStudyDay = d.restDays.length === 6 ? [0, 1, 2, 3, 4, 5, 6].find((x) => !d.restDays.includes(x)) : undefined;
 
   return (
-    <Sheet open={open} onClose={onClose} title="Preferências de estudo">
       <form className="stack" onSubmit={(e) => { e.preventDefault(); safeRun(saveStudySettings(d).then(onClose)); }}>
         <div className="field">
           <label className="field__label" htmlFor="study-budget">Minutos de revisão por dia</label>
@@ -55,6 +55,5 @@ export function StudyPrefsSheet({ open, onClose }: { open: boolean; onClose(): v
           <Button onClick={onClose}>Cancelar</Button>
         </div>
       </form>
-    </Sheet>
   );
 }

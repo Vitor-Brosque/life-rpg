@@ -146,6 +146,7 @@ export function strokeHit(s: Stroke, x: number, y: number, radius: number): bool
  * go. When nothing was touched, the SAME array comes back (callers compare by reference).
  */
 export function eraseAlong(strokes: Stroke[], a: Pt, b: Pt, radius: number): Stroke[] {
+  if (!(radius > 0)) return strokes;
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (radius / 2)));
   const samples: Pt[] = [];
   for (let i = 0; i <= steps; i++) {
@@ -225,7 +226,7 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /** The name shown: the title, else "Lousa · <mission>", else "Lousa de DD/MM" (local creation date). */
 export function sketchTitle(s: Pick<Sketch, 'title' | 'createdAt'>, missionTitle?: string): string {
-  const title = s.title.trim();
+  const title = typeof s.title === 'string' ? s.title.trim() : '';
   if (title) return title;
   const mission = missionTitle?.trim();
   if (mission) return `Lousa · ${mission}`;

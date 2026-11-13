@@ -69,6 +69,10 @@ export function ReviewSession() {
   const busy = useRef(false);
   const spoke = useRef(false);
   const ratedAt = useRef<number | undefined>(undefined);
+  const saving = useRef(false);
+  /** The card on screen (its shownAt), readable from async callbacks. */
+  const shownRef = useRef<number | undefined>(undefined);
+  shownRef.current = view.kind === 'card' ? view.shownAt : undefined;
   const alive = useRef(true);
   const phraseSeed = useRef(Math.random());
   useEffect(() => {
@@ -280,13 +284,19 @@ export function ReviewSession() {
     ? suggestRating(face.points.filter((_, i) => covered[i]).length, face.points.length) : undefined;
   const saveLabel = !savedDrawing ? 'Salvar como lousa' : savedDrawing.strokes === drawing ? 'Salvo' : 'Salvar alterações';
   const saveDrawing = (): void => {
+    if (saving.current) return;
+    saving.current = true;
     const strokes = drawing;
-    const title = `Revisão · ${noteTitle(note.front)}`;
-    safeRun(async () => {
-      const saved = savedDrawing ? await saveSketchStrokes(savedDrawing.id, strokes) : await createSketch({ title, strokes });
-      setSavedDrawing({ id: saved.id, strokes });
-      useToast.getState().show('Desenho salvo em Lousas.');
-    });
+    const shown = shownRef.current;
+    const name = noteTitle(note.front);
+    const title = `Revisão · ${name.length > 70 ? `${name.slice(0, 70)}…` : name}`;
+    safeRun((async () => {
+      try {
+        const saved = savedDrawing ? await saveSketchStrokes(savedDrawing.id, strokes) : await createSketch({ title, strokes });
+        if (alive.current && shownRef.current === shown) setSavedDrawing({ id: saved.id, strokes });
+        useToast.getState().show('Desenho salvo em Lousas.');
+      } finally { saving.current = false; }
+    })());
   };
   const position = session.reviewed + 1;
   const total = session.reviewed + Math.max(remaining.count, 1);

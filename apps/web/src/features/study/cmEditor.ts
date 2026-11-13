@@ -107,7 +107,7 @@ export function createCodeEditor(parent: HTMLElement, o: CmOptions): CmHandle {
   const roExt = (readOnly: boolean): Extension => [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)];
   const attrsExt = (readOnly: boolean): Extension => EditorView.contentAttributes.of({
     ...o.attrs,
-    ...(readOnly ? { 'aria-readonly': 'true' } : o.describedBy ? { 'aria-describedby': o.describedBy } : {}),
+    ...(readOnly ? { 'aria-readonly': 'true', tabindex: '0' } : o.describedBy ? { 'aria-describedby': o.describedBy } : {}),
   });
   const makeState = (doc: string): EditorState => EditorState.create({
     doc,
