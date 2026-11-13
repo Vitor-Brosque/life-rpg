@@ -250,3 +250,39 @@ describe('Dexie v4 → v6 migration', () => {
     expect(await db.practiceSessions.where('status').equals('open').count()).toBe(1);
   });
 });
+
+// Frozen copy of the v5 additions that are already in the user's browser: never edit it.
+const V5_ADDED = { mediaInfo: 'hash', mediaData: 'hash', mediaQueue: 'hash,addedAt' };
+
+describe('Dexie v5 → v6 migration', () => {
+  it('keeps the media rows, restarts the cursor and adds practiceSessions', async () => {
+    const v5 = new Dexie(NAME);
+    v5.version(1).stores(V1);
+    v5.version(2).stores(V2_ADDED);
+    v5.version(3).stores(V3_ADDED);
+    v5.version(4).stores(V4_ADDED);
+    v5.version(5).stores(V5_ADDED);
+    await v5.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v5.table(table).bulkPut(rows);
+    const hash = 'c'.repeat(64);
+    await v5.table('mediaInfo').put({ hash, mime: 'image/png', size: 3, w: 1, h: 1 });
+    await v5.table('mediaData').put({ hash, bytes: new Uint8Array([1, 2, 3]) });
+    await v5.table('mediaQueue').put({ hash, addedAt: 7 });
+    await v5.table('meta').put({ key: 'cursor', value: 42 });
+    v5.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(6);
+    expect(await db.mediaInfo.get(hash)).toMatchObject({ mime: 'image/png', size: 3 });
+    expect(await db.mediaData.get(hash)).toMatchObject({ hash });
+    expect(await db.mediaQueue.get(hash)).toEqual({ hash, addedAt: 7 });
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    expect(await db.practiceSessions.count()).toBe(0);
+    await db.practiceSessions.put({ ...base, id: 'p1', ...newPracticeFields({ title: 'Dedup' }) });
+    expect(await db.practiceSessions.where('status').equals('open').count()).toBe(1);
+  });
+});
