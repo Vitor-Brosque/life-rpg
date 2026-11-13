@@ -1,12 +1,15 @@
 import { useEffect, useId, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useLocation } from 'wouter';
 import { create } from 'zustand';
 import type { Mission } from '@life/shared';
-import { dayKeyOf } from '@life/shared';
+import { dayKeyOf, missionSketchId } from '@life/shared';
 import { db } from '../../db/db';
 import { useAreas, useJourneys, useRoutineBlocks, useToday } from '../../db/hooks';
 import { deleteMission, updateMission } from '../../domain/actions';
+import { ensureMissionSketch } from '../../domain/sketchActions';
 import { Button } from '../../ui/Button';
+import { plural } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
 import { startWithCheckin } from '../agora/startWithCheckin';
@@ -53,6 +56,26 @@ export function MissionSheet({ missionId, onClose }: MissionSheetProps) {
     <Sheet open={open} onClose={onClose} title="Missão">
       {open && <MissionSheetBody key={mission.id} mission={mission} onClose={onClose} />}
     </Sheet>
+  );
+}
+
+/** "Lousa da missão" (spec §6.3): opens the mission's lousa, creating it when missing. */
+function MissionSketchButton({ missionId, onOpen }: { missionId: string; onOpen(): void }) {
+  const [location, navigate] = useLocation();
+  const strokes = useLiveQuery(async () => {
+    const s = await db.sketches.get(missionSketchId(missionId));
+    return s && !s.deleted ? s.strokes.length : 0;
+  }, [missionId]);
+  const open = (): void => safeRun(async () => {
+    const s = await ensureMissionSketch(missionId);
+    onOpen();
+    navigate(`/lousa/${s.id}?voltar=${encodeURIComponent(location)}`);
+  });
+  return (
+    <div className="mission-sheet__sketch">
+      <Button onClick={open}>Lousa da missão</Button>
+      {!!strokes && <span className="muted">{plural(strokes, 'traço', 'traços')}</span>}
+    </div>
   );
 }
 
@@ -111,6 +134,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
       <ChecklistEditor mission={mission} />
       <EditableField label="Notas" value={mission.notes} multiline placeholder="Detalhes, links, ideias…"
         onSave={(v) => set({ notes: v || undefined })} />
+      <MissionSketchButton missionId={mission.id} onOpen={onClose} />
       <MissionAttributes mission={mission} areas={areas} journeys={journeys} today={today} blocks={blocks} />
 
       <div className="mission-sheet__danger">

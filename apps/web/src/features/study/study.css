@@ -175,3 +175,12 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 .code-editor__cm .cm-scroller { overflow: auto; }
 /* iOS zooms into fields under 16 px on focus. */
 @media (pointer: coarse) { .code-editor__input { font-size: 1rem; } }
+
+/* ------------------------------------------------------------------ "Desenhar antes" (Marco 3b) */
+
+.review__modes { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.review__work { display: flex; flex-direction: column; gap: var(--space-3); }
+.review__pad { height: min(55vh, 460px); }
+@media (min-width: 900px) {
+  .review__work--split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}

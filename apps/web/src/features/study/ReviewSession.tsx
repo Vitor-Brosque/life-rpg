@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
-import type { Card, CardFace, ID, Note, Rating, ScheduleCtx, StudyInput, StudyPlan } from '@life/shared';
+import type { Card, CardFace, ID, Note, Rating, ScheduleCtx, Stroke, StudyInput, StudyPlan } from '@life/shared';
 import {
   cardFace, nextLearningAt, pickNext, previews, remainingOf, scheduleOf, studyPlan, studySettingsOf, suggestRating,
 } from '@life/shared';
@@ -8,6 +8,7 @@ import { db } from '../../db/db';
 import { useDayMode, useProfile, useSettings, useToday } from '../../db/hooks';
 import { isCardOfNote, readStudyData } from '../../db/studyData';
 import { maxDurationMs, rateCard, setCardSuspended, undoRating } from '../../domain/studyActions';
+import { createSketch, saveSketchStrokes } from '../../domain/sketchActions';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { formatClock, plural } from '../../ui/format';
@@ -16,7 +17,9 @@ import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { pickPhrase } from '../companion/phrases';
 import { useCompanion } from '../companion/store';
+import { SketchPad } from '../sketch/SketchPad';
 import { CodeEditor } from './CodeEditor';
+import { noteTitle } from './noteDraft';
 import { forecastMinutes } from './ForecastBars';
 import { RatingBar } from './RatingBar';
 import { RevealPanel } from './RevealPanel';
@@ -32,6 +35,9 @@ type View =
 const WRITE_KEY = 'life-rpg.study.writeFirst';
 const readWriteFirst = (): boolean => { try { return localStorage.getItem(WRITE_KEY) === '1'; } catch { return false; } };
 const storeWriteFirst = (on: boolean): void => { try { localStorage.setItem(WRITE_KEY, on ? '1' : '0'); } catch { /* storage may be unavailable */ } };
+const DRAW_KEY = 'life-rpg.study.drawFirst';
+const readDrawFirst = (): boolean => { try { return localStorage.getItem(DRAW_KEY) === '1'; } catch { return false; } };
+const storeDrawFirst = (on: boolean): void => { try { localStorage.setItem(DRAW_KEY, on ? '1' : '0'); } catch { /* storage may be unavailable */ } };
 /** Fields that take typed keys; a ticked checkbox or radio is not one (rating keys keep working). */
 const isTypingTarget = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName)
@@ -53,6 +59,11 @@ export function ReviewSession() {
   const [answer, setAnswer] = useState('');
   const [covered, setCovered] = useState<boolean[]>([]);
   const [writeFirst, setWriteFirst] = useState(readWriteFirst);
+  const [drawFirst, setDrawFirst] = useState(readDrawFirst);
+  /** "Desenhar antes": this card's drawing (transient) and the lousa it was saved to, if any. */
+  const [drawing, setDrawing] = useState<Stroke[]>([]);
+  const [savedDrawing, setSavedDrawing] = useState<{ id: ID; strokes: Stroke[] } | undefined>(undefined);
+  const drewAtReveal = useRef(false);
   const [remaining, setRemaining] = useState({ count: 0, minutes: 0 });
   const [goal, setGoal] = useState(false);
   const busy = useRef(false);
@@ -97,6 +108,7 @@ export function ReviewSession() {
     setRevealedAt(undefined);
     setAnswer('');
     setCovered([]);
+    setDrawing([]); setSavedDrawing(undefined); drewAtReveal.current = false;
     if (!card || !note) {
       setView({ kind: 'end', nextLearning: nextLearningAt(scoped.cards), plan });
       return;
@@ -148,6 +160,7 @@ export function ReviewSession() {
 
   const reveal = (): void => {
     if (view.kind !== 'card' || revealed) return;
+    drewAtReveal.current = drawFirst && drawing.length > 0;
     setRevealedAt(Date.now());
     requestAnimationFrame(() => document.getElementById('reveal-heading')?.focus());
   };
@@ -161,7 +174,7 @@ export function ReviewSession() {
       const points = view.face.points;
       const coverage = points ? { covered: points.filter((_, i) => covered[i]).length, total: points.length } : undefined;
       const r = await rateCard(view.card.id, rating, {
-        durationMs, wrote: answer.trim() !== '', now: revealedAt, ...(coverage ? { coverage } : {}),
+        durationMs, wrote: answer.trim() !== '', drew: drewAtReveal.current, now: revealedAt, ...(coverage ? { coverage } : {}),
       });
       useSession.getState().rated(r.reviewId, Math.min(durationMs, maxDurationMs(view.card)), r.xp);
       if (r.goalReached && !useSession.getState().goalShown) {
@@ -265,6 +278,16 @@ export function ReviewSession() {
   const toggle = (i: number): void => setCovered((c) => { const next = [...c]; next[i] = !next[i]; return next; });
   const suggested = face.points && revealed
     ? suggestRating(face.points.filter((_, i) => covered[i]).length, face.points.length) : undefined;
+  const saveLabel = !savedDrawing ? 'Salvar como lousa' : savedDrawing.strokes === drawing ? 'Salvo' : 'Salvar alterações';
+  const saveDrawing = (): void => {
+    const strokes = drawing;
+    const title = `Revisão · ${noteTitle(note.front)}`;
+    safeRun(async () => {
+      const saved = savedDrawing ? await saveSketchStrokes(savedDrawing.id, strokes) : await createSketch({ title, strokes });
+      setSavedDrawing({ id: saved.id, strokes });
+      useToast.getState().show('Desenho salvo em Lousas.');
+    });
+  };
   const position = session.reviewed + 1;
   const total = session.reviewed + Math.max(remaining.count, 1);
 
@@ -292,9 +315,15 @@ export function ReviewSession() {
             {isCode && (
               <CodeEditor label="Sua resposta (código)" language={face.code!.lang} value={answer} onChange={setAnswer} readOnly={revealed} rows={6} />
             )}
-            {!isCode && !isTopic && !revealed && (
-              <Button size="sm" variant="ghost" aria-pressed={writeFirst}
-                onClick={() => { setWriteFirst(!writeFirst); storeWriteFirst(!writeFirst); }}>Escrever antes</Button>
+            {!revealed && (
+              <div className="review__modes">
+                {!isCode && !isTopic && (
+                  <Button size="sm" variant="ghost" aria-pressed={writeFirst}
+                    onClick={() => { setWriteFirst(!writeFirst); storeWriteFirst(!writeFirst); }}>Escrever antes</Button>
+                )}
+                <Button size="sm" variant="ghost" aria-pressed={drawFirst}
+                  onClick={() => { setDrawFirst(!drawFirst); storeDrawFirst(!drawFirst); }}>Desenhar antes</Button>
+              </div>
             )}
             {!isCode && !isTopic && writeFirst && !revealed && (
               <div className="field">
@@ -312,9 +341,18 @@ export function ReviewSession() {
             {!revealed && !isCode && answer.includes('$') && (
               <div className="review__preview" role="region" aria-label="Pré-visualização da resposta"><Rich text={answer} /></div>
             )}
-            {revealed
-              ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} />
-              : <Button variant="primary" onClick={reveal} aria-keyshortcuts="Space">Mostrar resposta</Button>}
+            <div className={drawFirst && revealed ? 'review__work review__work--split' : 'review__work'}>
+              {drawFirst && (
+                <SketchPad key={`${view.card.id}:${view.shownAt}`} className="review__pad" label="Desenho da resposta" initial={drawing}
+                  onChange={setDrawing} wheelPans={false}
+                  actions={revealed && drawing.length > 0
+                    ? <Button size="sm" disabled={saveLabel === 'Salvo'} onClick={saveDrawing}>{saveLabel}</Button>
+                    : undefined} />
+              )}
+              {revealed
+                ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} />
+                : <Button variant="primary" onClick={reveal} aria-keyshortcuts="Space">Mostrar resposta</Button>}
+            </div>
           </Panel>
           {ratingPreviews && <RatingBar previews={ratingPreviews} onRate={(r) => void onRate(r)} suggested={suggested} />}
           <div className="review__menu">
