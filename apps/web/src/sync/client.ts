@@ -2,6 +2,7 @@ import type { BaseRecord, SyncChange, SyncRequest, SyncResponse } from '@life/sh
 import { SYNC_TABLES, ulid } from '@life/shared';
 import { db, tableOf, type OutboxEntry } from '../db/db';
 import { applyRemote, getMeta, onLocalChange, setMeta } from '../db/repo';
+import { prefetchMedia, resetMediaRetries, uploadPendingMedia } from './media';
 import { useSyncStatus } from './status';
 
 const PAGE_LIMIT = 5000;
@@ -116,6 +117,7 @@ async function performSync(token: string): Promise<boolean> {
     });
     for (let page = 1; ; page++) {
       for (const change of res.changes) await applyRemote(change);
+      if (res.changes.some((c) => c.table === 'notes')) notesPulled = true;
       cursor = res.cursor;
       await setMeta('cursor', cursor);
       if (res.changes.length < PAGE_LIMIT || page >= MAX_PAGES) break;
@@ -126,6 +128,8 @@ async function performSync(token: string): Promise<boolean> {
   }
 }
 
+/** The last round applied note changes: the background media download scans the notes again. */
+let notesPulled = false;
 let running: Promise<boolean> | undefined;
 let rerun = false;
 
@@ -142,8 +146,14 @@ async function syncOnce(): Promise<boolean> {
       return true;
     }
     setStatus({ state: 'syncing' });
+    // Media first: a device that receives a note finds the files it references on the server.
+    if ((await uploadPendingMedia(token)) === 'more') rerun = true;
     // A big outbox (e.g. after "Importar JSON") goes out over several rounds of the runSync loop.
     if (await performSync(token)) rerun = true;
+    const force = notesPulled;
+    notesPulled = false;
+    resetMediaRetries();
+    void prefetchMedia(token, force); // background: the status does not wait for downloads
     setStatus({ state: 'idle', lastSync: Date.now(), error: undefined });
     return true;
   } catch (e) {

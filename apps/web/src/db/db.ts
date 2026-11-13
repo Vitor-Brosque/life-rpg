@@ -1,12 +1,18 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, Journey,
-  LifeEvent, Mission, Note, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
+  LifeEvent, MediaType, Mission, Note, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
 export interface OutboxEntry { key: string; table: SyncTable; id: string; updatedAt: number } // key = `${table}:${id}`
 export interface MetaEntry { key: string; value: unknown }
+/** Media on this device (Marco 3c): metadata, read without loading the bytes (usage, export). Local only. */
+export interface MediaInfo { hash: string; type: MediaType; size: number; addedAt: number }
+/** The bytes. ArrayBuffer, not Blob: Safari has lost Blobs kept in IndexedDB. Local only. */
+export interface MediaData { hash: string; type: MediaType; bytes: ArrayBuffer }
+/** Upload queue: files made or imported here that the server has not confirmed yet. Local only. */
+export interface MediaUpload { hash: string; addedAt: number }
 
 export class LifeDB extends Dexie {
   missions!: Table<Mission, string>;
@@ -29,6 +35,9 @@ export class LifeDB extends Dexie {
   cards!: Table<Card, string>;
   reviews!: Table<Review, string>;
   sketches!: Table<Sketch, string>;
+  mediaInfo!: Table<MediaInfo, string>;
+  mediaData!: Table<MediaData, string>;
+  mediaQueue!: Table<MediaUpload, string>;
   outbox!: Table<OutboxEntry, string>;
   meta!: Table<MetaEntry, string>;
 
@@ -84,6 +93,14 @@ export class LifeDB extends Dexie {
       sketches: 'id,updatedAt',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v5 (Marco 3c): media bytes, kept only on this device (never in SYNC_TABLES; files sync through
+    // /api/media). No synced table is new, so there is nothing to pull again: the cursor stays.
+    this.version(5).stores({
+      mediaInfo: 'hash',
+      mediaData: 'hash',
+      mediaQueue: 'hash,addedAt',
     });
   }
 }

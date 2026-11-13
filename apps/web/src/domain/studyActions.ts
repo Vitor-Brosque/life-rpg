@@ -23,15 +23,17 @@ const live = <T extends { deleted: boolean }>(xs: T[]): T[] => xs.filter((x) => 
 
 // ------------------------------------------------------------------ decks
 
-export async function saveDeck(input: { id?: ID; name: string; journeyId?: ID; areaId?: ID }): Promise<Deck> {
+export async function saveDeck(input: { id?: ID; name: string; journeyId?: ID; areaId?: ID; speechLang?: string }): Promise<Deck> {
   const name = input.name.trim();
   if (!name) throw new Error('A deck needs a name');
-  if (input.id) return patch<Deck>('decks', input.id, { name, journeyId: input.journeyId, areaId: input.areaId });
+  const speechLang = input.speechLang || undefined;
+  if (input.id) return patch<Deck>('decks', input.id, { name, journeyId: input.journeyId, areaId: input.areaId, speechLang });
   const order = Math.max(-1, ...live(await db.decks.toArray()).map((d) => d.order)) + 1;
   return put('decks', newRecord<Deck>({
     name, order, archived: false,
     ...(input.journeyId ? { journeyId: input.journeyId } : {}),
     ...(input.areaId ? { areaId: input.areaId } : {}),
+    ...(speechLang ? { speechLang } : {}),
   }));
 }
 
@@ -156,6 +158,8 @@ export interface RateOpts {
   coverage?: { covered: number; total: number };
   /** "Desenhar antes": at least one stroke when the answer was revealed. */
   drew?: boolean;
+  /** "Responder falando": a recording existed when the answer was revealed. */
+  spoke?: boolean;
   /** When the answer was revealed: FSRS schedules from it, so the saved interval is the one shown. */
   now?: number;
 }
@@ -189,6 +193,7 @@ async function rateLocked(cardId: ID, rating: Rating, opts: RateOpts): Promise<R
     durationMs: Math.max(0, Math.min(maxDurationMs(card), Math.round(opts.durationMs))), wrote: opts.wrote, before, after,
     ...(opts.coverage ? { coverage: opts.coverage } : {}),
     ...(opts.drew ? { drew: true } : {}),
+    ...(opts.spoke ? { spoke: true } : {}),
   });
   const next: Card = { ...card, ...after, ...(card.introducedDay || before.state !== 'new' ? {} : { introducedDay: today }) };
 
