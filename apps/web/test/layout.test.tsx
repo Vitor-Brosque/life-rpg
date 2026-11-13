@@ -43,6 +43,11 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Personagem' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('the Casa screens (/casa/…) belong to Planejar', () => {
+    renderAt('/casa/compras', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Planejar' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('renders the slots above the nav and the floating button', () => {
     renderAt('/', (
       <Layout aboveNav={<div>Barra do cronômetro</div>} floating={<button type="button">Capturar</button>}>

@@ -8,7 +8,7 @@ interface NavItem { href: string; label: string; icon: IconName; also?: string[]
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Agora', icon: 'agora', also: ['/painel'] },
-  { href: '/planejar', label: 'Planejar', icon: 'plan' },
+  { href: '/planejar', label: 'Planejar', icon: 'plan', also: ['/casa'] },
   { href: '/estudo', label: 'Estudo', icon: 'book', also: ['/lousa', '/pratica'] },
   { href: '/jornadas', label: 'Jornadas', icon: 'journey' },
   { href: '/personagem', label: 'Personagem', icon: 'character', also: ['/ajustes', '/corpo'] },

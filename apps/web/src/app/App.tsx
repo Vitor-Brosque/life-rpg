@@ -12,6 +12,8 @@ import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
+import { RecipesScreen } from '../features/casa/RecipesScreen';
+import { ShoppingScreen } from '../features/casa/ShoppingScreen';
 import { CorpoScreen } from '../features/corpo/CorpoScreen';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
 import { WorkoutSheetHost } from '../features/corpo/WorkoutSheet';
@@ -64,10 +66,12 @@ export function App() {
   }
   return (
     <>
-      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
+      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') || location.startsWith('/casa/compras') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
+          <Route path="/casa/compras"><ShoppingScreen /></Route>
+          <Route path="/casa/receitas"><RecipesScreen /></Route>
           <Route path="/estudo"><StudyScreen /></Route>
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
           <Route path="/estudo/revisar"><ReviewSession /></Route>
