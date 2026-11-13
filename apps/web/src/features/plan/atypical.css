@@ -1,0 +1,11 @@
+/* "Semana atípica" (research P3): the sheet and the small buttons that open it. */
+.atypical { display: flex; flex-direction: column; gap: var(--space-4); }
+.atypical > p { margin: 0; }
+.atypical__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.atypical__chips .chip__main { min-height: 36px; }
+.atypical__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+/* Header of the week view: the opener sits under the week navigation. */
+.week-atypical { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.week-atypical .btn { min-height: 36px; }
+.week-atypical__tag { color: var(--text-dim); font-size: 0.875rem; }

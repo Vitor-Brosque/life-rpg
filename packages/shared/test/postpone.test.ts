@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyEvent, postponeHypotheses, postponeObserved, strongestBucket, type Bucket } from '../src/postpone';
-import { base, checkin, emptyData, event, mission } from './patternFixture';
+import { atypicalWeek, base, checkin, emptyData, event, mission } from './patternFixture';
 
 const areas = [
   { ...base, id: 'area-facul', name: 'Faculdade', attribute: 'Sabedoria', color: '#7bc96f', icon: 'book', order: 0, archived: false },
@@ -162,5 +162,20 @@ describe('postponeHypotheses', () => {
       text: 'Pode ser que começar com 10 minutos ajude quando aparece ansiedade.',
       experiment: 'Quando aparecer ansiedade nesta semana, use “Começar 10 min” no card de início.',
     }]);
+  });
+});
+
+describe('semana atípica (P3)', () => {
+  it('events in an atypical week stay out of the window and the weeks are counted', () => {
+    const o = postponeObserved(emptyData({ ...data, weeks: [atypicalWeek('2026-11-02')] }));
+    const all = postponeObserved(data);
+    // 2026-11-02..08 held 4+... of the postponements.
+    expect(o.postponed).toBeLessThan(all.postponed);
+    expect(o.started).toBeLessThan(all.started);
+    expect(o.atypicalWeeks).toBe(1);
+    expect(all.atypicalWeeks).toBe(0);
+  });
+  it('an atypical week outside the window is not counted', () => {
+    expect(postponeObserved(emptyData({ ...data, weeks: [atypicalWeek('2026-08-03')] })).atypicalWeeks).toBe(0);
   });
 });

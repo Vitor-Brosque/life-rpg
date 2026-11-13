@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { Commitment, DayKey, Mission } from '@life/shared';
-import { addDays } from '@life/shared';
+import { addDays, weekKey } from '@life/shared';
+import { db } from '../../db/db';
 import { useNow } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { safeRun } from '../../ui/safeRun';
@@ -10,6 +12,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery';
 import { moveToDay, reorderDay } from '../../domain/actions';
 import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
+import { AtypicalWeekSheet } from './AtypicalWeekSheet';
 import { CommitmentSheet } from './CommitmentSheet';
 import { DayContainer } from './DayContainer';
 import {
@@ -58,11 +61,18 @@ export function WeekView() {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState<DayKey>();
   const [sheet, setSheet] = useState<SheetState>();
+  const [atypicalOpen, setAtypicalOpen] = useState(false);
 
   const start = today ? addDays(today, offset * 7) : undefined;
   const days = useMemo(() => (start ? Array.from({ length: 7 }, (_, i) => addDays(start, i)) : []), [start]);
   const selected = picked && days.includes(picked) ? picked : days[0];
   const dayBlocks = useWeekBlocks(days);
+  // The week being looked at is the one of the selected day; only its own record is read.
+  const viewedWeek = selected ? weekKey(selected) : undefined;
+  const atypical = useLiveQuery(async () => {
+    const w = viewedWeek ? await db.weeks.get(viewedWeek) : undefined;
+    return w && !w.deleted ? w.atypical ?? null : null;
+  }, [viewedWeek]);
 
   if (!today || !start || !selected) return <p className="muted">Carregando…</p>;
 
@@ -130,6 +140,12 @@ export function WeekView() {
 
   return (
     <div className="week">
+      <div className="week-atypical">
+        <Button size="sm" onClick={() => setAtypicalOpen(true)}>
+          Semana atípica
+          {atypical && <span className="week-atypical__tag"> · {atypical.reason}</span>}
+        </Button>
+      </div>
       <WeekStrip
         days={days}
         today={today}
@@ -165,6 +181,12 @@ export function WeekView() {
         />
       </DndContext>
       <RecentlyDropped missions={recentlyDropped(missions, now)} onOpen={openMission} />
+      <AtypicalWeekSheet
+        open={atypicalOpen}
+        onClose={() => setAtypicalOpen(false)}
+        weekId={weekKey(selected)}
+        current={atypical ?? undefined}
+      />
       <CommitmentSheet
         open={sheet !== undefined}
         commitment={sheet?.commitment}

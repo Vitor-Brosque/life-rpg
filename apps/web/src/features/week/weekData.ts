@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Block, DayKey, ID, Week, WeekObjective, WeekReview, WeekStats } from '@life/shared';
+import type { Block, DayKey, ID, Week, WeekAtypical, WeekObjective, WeekReview, WeekStats } from '@life/shared';
 import { addDays, formatHHmm, timestampAt, weekStats } from '@life/shared';
 import { db } from '../../db/db';
 
@@ -80,6 +80,10 @@ export interface WeekCardData {
   review?: WeekReview;
   /** This week's experiment (chosen in Padrões or earlier), if any. */
   experiment?: string;
+  /** The mark on this week (marked from the card's link or from Planejar), if any. */
+  atypical?: WeekAtypical;
+  /** The mark on last week: the card welcomes the user back. */
+  lastAtypical?: WeekAtypical;
 }
 
 const live = <T extends { deleted: boolean }>(r: T | undefined): T | undefined => (r && !r.deleted ? r : undefined);
@@ -114,6 +118,8 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
       carry: carryOver(live(last), blocks, groups),
       review: live(current)?.review,
       experiment: live(current)?.experiment,
+      atypical: live(current)?.atypical,
+      lastAtypical: live(last)?.atypical,
     } satisfies WeekCardData;
   }, [today, weekId]);
 }

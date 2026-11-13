@@ -9,6 +9,7 @@ import { safeRun } from '../../ui/safeRun';
 import { useCompanion } from '../companion/store';
 import { useWatchNotices } from '../patterns/patternData';
 import { WatchNotice } from '../patterns/WatchNotice';
+import { AtypicalWeekSheet } from '../plan/AtypicalWeekSheet';
 import { firstShowOfWeek, readReviewDraft, writeReviewDraft, type ReviewDraft } from './weekCycle';
 import { observedRows, useWeekCardData } from './weekData';
 import { WeekAiSummary } from './WeekAiSummary';
@@ -128,6 +129,7 @@ export interface WeekCardProps {
 export function WeekCard({ today, weekId, collapsed = false, onStart, onLater, onDone, fallback = null }: WeekCardProps) {
   const data = useWeekCardData(today, weekId);
   const [step, setStep] = useState<'review' | 'objectives'>();
+  const [atypicalOpen, setAtypicalOpen] = useState(false);
   const headingId = useId();
   // Nothing to look back on and no block to aim at: nothing to ask.
   const empty = !!data && !data.stats && data.groups.length === 0;
@@ -176,6 +178,17 @@ export function WeekCard({ today, weekId, collapsed = false, onStart, onLater, o
           <span className="week-card__step">{`Passo ${current === 'review' ? 1 : 2} de 2`}</span>
         )}
       </div>
+      {!collapsed && data.lastAtypical && (
+        <p className="week-card__note">
+          {`A semana passada foi atípica (${data.lastAtypical.reason}). Bem-vindo de volta: começar pelas versões mínimas vale.`}
+        </p>
+      )}
+      {!collapsed && (
+        <Button size="sm" variant="ghost" className="week-card__atypical" onClick={() => setAtypicalOpen(true)}>
+          {data.atypical ? `Semana atípica (${data.atypical.reason}): mudar` : 'Esta semana vai ser atípica?'}
+        </Button>
+      )}
+      <AtypicalWeekSheet open={atypicalOpen} onClose={() => setAtypicalOpen(false)} weekId={weekId} current={data.atypical} />
       {collapsed ? null : current === 'review' && data.stats ? (
         <ReviewStep weekId={weekId} stats={data.stats} experiment={data.experiment} onSave={saveReview} onLater={later} />
       ) : (

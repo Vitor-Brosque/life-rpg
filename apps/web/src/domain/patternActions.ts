@@ -1,5 +1,5 @@
-import type { MonthAnswers, MonthObserved, MonthReview, Settings, Week } from '@life/shared';
-import { monthReviewId, patternSettingsOf, weekKey } from '@life/shared';
+import type { MonthAnswers, MonthObserved, MonthReview, Settings, Week, WeekAtypical } from '@life/shared';
+import { isValidDayKey, monthReviewId, patternSettingsOf, weekKey } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put, upsert } from '../db/repo';
 import { getToday, withLock } from './common';
@@ -10,6 +10,20 @@ export async function setWeekExperiment(text: string): Promise<void> {
   if (!experiment) return;
   const weekId = weekKey(await getToday());
   await withLock(`week:${weekId}`, () => upsert<Week>('weeks', weekId, { experiment }, { objectives: [] }));
+}
+
+export const ATYPICAL_REASON_MAX = 60;
+
+/**
+ * Marks week `weekId` (its Monday) as atypical (exams, travel...: kept out of the Padrões
+ * comparisons), or with `undefined` removes the mark. Creates the week record when it is missing.
+ */
+export async function setWeekAtypical(weekId: string, value: WeekAtypical | undefined): Promise<void> {
+  const atypical = value && {
+    reason: value.reason.trim().slice(0, ATYPICAL_REASON_MAX).trim() || 'Outro',
+    ...(value.returnDay && isValidDayKey(value.returnDay) ? { returnDay: value.returnDay } : {}),
+  };
+  await withLock(`week:${weekId}`, () => upsert<Week>('weeks', weekId, { atypical }, { objectives: [] }));
 }
 
 export const WATCH_DISMISSED_MAX = 50;

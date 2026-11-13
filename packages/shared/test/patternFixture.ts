@@ -1,5 +1,5 @@
 import type {
-  Block, BlockSession, Checkin, DayKey, LifeEvent, Mission, PracticeSession, Review, SleepLog, Workout, XpEvent,
+  Block, BlockSession, Checkin, DayKey, LifeEvent, Mission, PracticeSession, Review, SleepLog, Week, Workout, XpEvent,
 } from '../src/types';
 import { addDays, timestampAt } from '../src/dates';
 import { newPracticeFields } from '../src/practice';
@@ -67,4 +67,9 @@ export const mission = (p: Partial<Mission> & Pick<Mission, 'id' | 'title'>): Mi
 
 export const event = (type: LifeEvent['type'], missionId: string, day: DayKey, time: string, data?: Record<string, unknown>): LifeEvent => ({
   ...base, id: id('ev'), at: timestampAt(day, time), type, missionId, ...(data ? { data } : {}),
+});
+
+/** A week record (id = Monday) marked as atypical. */
+export const atypicalWeek = (monday: DayKey, reason = 'Provas', p: Partial<Week> = {}): Week => ({
+  ...base, id: monday, objectives: [], atypical: { reason }, ...p,
 });

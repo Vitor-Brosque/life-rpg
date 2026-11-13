@@ -1,8 +1,9 @@
 import type { DayKey, DayMode, Energy, ID, LifeEvent } from './types';
 import { addDays, dayKeyOf, weekdayOf } from './dates';
+import { weekKey } from './weekStats';
 import { defaultDayMode } from './planDay';
 import { PART_LABEL, WEEKDAY_NAMES, partOfDay, type PartOfDay } from './periods';
-import type { PatternData } from './trends';
+import { atypicalWeekSet, overlapsAtypical, type PatternData } from './trends';
 
 export const POSTPONE_WINDOW_DAYS = 28;
 /** No hypothesis about missions or groups before this many postponements in the window. */
@@ -31,6 +32,8 @@ export interface FeelingTally { feeling: string; count: number; withOutcome: num
 export interface PostponeObserved {
   from: DayKey;
   to: DayKey;
+  /** Atypical weeks (research P3) overlapping the window: their events are out of every count here. */
+  atypicalWeeks: number;
   postponed: number;
   started: number;
   shrunk: number;
@@ -76,10 +79,13 @@ export function classifyEvent(e: LifeEvent, dayStartHour: number): PostponeKind 
 
 /** Counts of the last 28 logical days (today included), for live missions only. */
 export function postponeObserved(
-  data: Pick<PatternData, 'today' | 'dayStartHour' | 'events' | 'missions' | 'areas' | 'checkins' | 'dayStates'>,
+  data: Pick<PatternData, 'today' | 'dayStartHour' | 'events' | 'missions' | 'areas' | 'checkins' | 'dayStates'>
+    & Partial<Pick<PatternData, 'weeks'>>,
 ): PostponeObserved {
   const from = addDays(data.today, -(POSTPONE_WINDOW_DAYS - 1));
   const to = data.today;
+  const atypical = atypicalWeekSet(data.weeks);
+  const atypicalWeeks = [...atypical].filter((m) => overlapsAtypical(new Set([m]), from, to)).length;
   const missions = new Map(data.missions.filter((m) => !m.deleted).map((m) => [m.id, m]));
   const areas = new Map(data.areas.map((a) => [a.id, a.name]));
   const states = new Map(data.dayStates.filter((d) => !d.deleted).map((d) => [d.id, d]));
@@ -98,7 +104,7 @@ export function postponeObserved(
   for (const e of data.events) {
     if (e.deleted || !e.missionId) continue;
     const day = dayKeyOf(e.at, data.dayStartHour);
-    if (day < from || day > to) continue;
+    if (day < from || day > to || atypical.has(weekKey(day))) continue;
     const m = missions.get(e.missionId);
     if (!m) continue;
     const kind = classifyEvent(e, data.dayStartHour);
@@ -144,7 +150,7 @@ export function postponeObserved(
   }
 
   return {
-    from, to, ...totals,
+    from, to, atypicalWeeks, ...totals,
     byDim: Object.fromEntries(POSTPONE_DIMS.map((d) => [d, [...groups[d].values()]
       .sort((a, b) => b.postponed - a.postponed || byLabel(a.label, b.label))])) as Record<PostponeDim, Bucket[]>,
     missions: [...perMission.values()]

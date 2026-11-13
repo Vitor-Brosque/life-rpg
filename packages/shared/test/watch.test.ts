@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BlockSession } from '../src/types';
 import { addDays, weekdayOf } from '../src/dates';
 import { blockHabits, habitAnchor, watchNotice, watchNotices, type BlockHabit, type WeekTally } from '../src/watch';
-import { block, emptyData, session } from './patternFixture';
+import { atypicalWeek, block, emptyData, session } from './patternFixture';
 
 const tallies = (started: number[], planned: number | number[] = 5): WeekTally[] => started.map((s, i) => ({
   week: addDays('2026-09-28', 7 * i), started: s, planned: Array.isArray(planned) ? planned[i]! : planned,
@@ -102,5 +102,32 @@ describe('blockHabits and watchNotices', () => {
   });
   it('no started session: no habits', () => {
     expect(blockHabits(emptyData({ blocks }))).toEqual([]);
+  });
+});
+
+describe('semana atípica (P3)', () => {
+  const flag = (weeks: WeekTally[], at: number[]): WeekTally[] => weeks.map((w, i) => (at.includes(i) ? { ...w, atypical: true } : w));
+  it('an atypical week is skipped: it neither shifts the anchor nor counts as a drop', () => {
+    // Weeks 1–4 good, then an atypical week with nothing started, then week 5 still fine: no notice.
+    expect(watchNotice(habit(flag(tallies([4, 4, 3, 4, 0, 4]), [4])))).toBeUndefined();
+    // Without the flag the zero week would be the 5th and trigger a notice.
+    expect(watchNotice(habit(tallies([4, 4, 3, 4, 0])))).toBeDefined();
+  });
+  it('the week number and the recent window skip atypical weeks', () => {
+    const n = watchNotice(habit(flag(tallies([4, 4, 3, 4, 0, 2]), [4])));
+    expect(n).toMatchObject({ weekNumber: 5, anchor: '2026-09-28', recent: { started: 2, planned: 5, weeks: 1 } });
+  });
+  it('an atypical first week does not become the anchor, and atypical weeks do not count as a gap', () => {
+    expect(habitAnchor(flag(tallies([2, 0, 3]), [0]))).toBe(2);
+    expect(habitAnchor(flag(tallies([2, 0, 0, 0, 3]), [1, 2, 3]))).toBe(0);
+  });
+  it('blockHabits marks the atypical weeks', () => {
+    const d = emptyData({
+      blocks: [block({ id: 'b1', name: 'Tech' })],
+      sessions: [session('b1', '2026-10-26'), session('b1', '2026-11-02')],
+      weeks: [atypicalWeek('2026-11-02')],
+    });
+    const h = blockHabits(d)[0]!;
+    expect(h.weeks.map((w) => [w.week, !!w.atypical])).toEqual([['2026-10-26', false], ['2026-11-02', true]]);
   });
 });

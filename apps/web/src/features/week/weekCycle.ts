@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { DayKey, DayMode, Week, WeekSummary } from '@life/shared';
+import type { DayKey, DayMode, Week, WeekAtypical, WeekSummary } from '@life/shared';
 import { cleanWeekSummary, weekdayOf, weekKey } from '@life/shared';
 import { db } from '../../db/db';
 
@@ -16,6 +16,12 @@ interface WeekSession {
 
 /** App-session state of the weekly cycle (not persisted), keyed by the week's Monday. */
 export const useWeekSession = create<WeekSession>(() => ({ dismissed: undefined, opened: undefined, started: undefined }));
+
+/** The week's atypical mark while it still applies (not after its return day), for the Agora line. */
+export function activeAtypical(week: Week | undefined, today: DayKey): WeekAtypical | undefined {
+  const a = week?.atypical;
+  return a && (!a.returnDay || a.returnDay > today) ? a : undefined;
+}
 
 /** Monday or Tuesday: the days the "Nova semana" card is offered (§8). */
 export const isCycleDay = (day: DayKey): boolean => {
@@ -59,9 +65,10 @@ export function useWeekCycle(today: DayKey | undefined, day: { asked: boolean; m
   const { dismissed, opened, started } = useWeekSession();
 
   const cycleDay = today !== undefined && isCycleDay(today);
-  // A week whose record only holds an experiment (chosen in Padrões) still waits for its cycle.
-  const onlyExperiment = !!week && !week.review && week.objectives.length === 0 && !!week.experiment?.trim();
-  const pending = cycleDay && (week === null || onlyExperiment);
+  // A week whose record only holds an experiment (chosen in Padrões) and/or the atypical mark
+  // (chosen in Planejar) still waits for its cycle.
+  const onlyMarks = !!week && !week.review && week.objectives.length === 0 && (!!week.experiment?.trim() || !!week.atypical);
+  const pending = cycleDay && (week === null || onlyMarks);
   // Step 1 saved, step 2 never done (app closed, "Fazer depois"): the objectives stay reachable.
   const noObjectives = cycleDay && !!week?.review && week.objectives.length === 0;
   const auto = pending && day.asked && day.mode !== 'free' && dismissed !== weekId;

@@ -7,7 +7,7 @@ import { useCaptureStore } from '../capture/CaptureBar';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
 import { useMonthCycle } from '../patterns/monthCycle';
-import { useWeekCycle } from '../week/weekCycle';
+import { activeAtypical, useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
 import { CareStrip } from './CareStrip';
@@ -61,7 +61,7 @@ function AgoraView() {
       <h1 id="agora-title" className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Agora</h1>
       <StatusStrip engine={engine} block={current} now={now} />
       <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
-      <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
+      <WeekLine experiment={cycle.week?.experiment} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? cycle.open : undefined} />
       <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
 
       <AgoraNow

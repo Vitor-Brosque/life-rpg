@@ -2,7 +2,7 @@ import type {
   Area, Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayState, LifeEvent, Mission,
   MonthObserved, MonthReview, PracticeSession, Review, SleepLog, Week, Workout, XpEvent,
 } from './types';
-import { dayKeyOf } from './dates';
+import { addDays, dayKeyOf } from './dates';
 import { defaultDayMode } from './planDay';
 import { countedBlocksOn, type CountedBlock } from './weekStats';
 import { SLEEP_MIN_NIGHTS, minutesFromNoon, sleepMinutes } from './sleep';
@@ -73,6 +73,17 @@ export function dayIndex(data: PatternData): DayIndex {
   };
 }
 
+/** Mondays of the weeks marked as atypical (exams, travel...): kept out of comparisons (research P3). */
+export function atypicalWeekSet(weeks: readonly Pick<Week, 'id' | 'deleted' | 'atypical'>[] | undefined): Set<DayKey> {
+  return new Set((weeks ?? []).filter((w) => !w.deleted && w.atypical).map((w) => w.id));
+}
+
+/** Whether some atypical week overlaps [start, end] (a week period is its own Monday). */
+export function overlapsAtypical(atypical: ReadonlySet<DayKey>, start: DayKey, end: DayKey): boolean {
+  for (const monday of atypical) if (monday <= end && addDays(monday, 6) >= start) return true;
+  return false;
+}
+
 /** Accuracy is shown only from this many reviews of learned cards. */
 export const ACCURACY_MIN = 20;
 /** A period's sleep averages need this many complete nights. */
@@ -99,6 +110,8 @@ export interface TrendPoint {
   cardio: number;
   startCheckins: number;
   escapes: number;
+  /** The week (or, for a month, some week of it) was marked as atypical: shown apart, nothing is dropped. */
+  atypical?: boolean;
 }
 
 const mean = (v: readonly number[]): number => v.reduce((s, x) => s + x, 0) / v.length;
@@ -113,6 +126,7 @@ export function trendPoints(data: PatternData, periods: readonly Period[], idx: 
   const { today, dayStartHour } = data;
   const xp = data.xpEvents.filter((x) => !x.deleted);
   const xpDays = new Set(xp.map((x) => x.dayKey));
+  const atypical = atypicalWeekSet(data.weeks);
   return periods.map((period) => {
     const inP = (d: DayKey): boolean => d >= period.start && d <= period.end && d < today;
     let workdays = 0;
@@ -162,6 +176,7 @@ export function trendPoints(data: PatternData, periods: readonly Period[], idx: 
       cardio: workouts.filter((w) => w.kind === 'cardio').length,
       startCheckins: checkins.filter((c) => c.kind === 'start').length,
       escapes: checkins.filter((c) => c.kind === 'escape').length,
+      ...(overlapsAtypical(atypical, period.start, period.end) ? { atypical: true } : {}),
     };
   });
 }

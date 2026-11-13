@@ -93,7 +93,7 @@ export function balanceText(kind: PeriodKind, n: number, hasXp: boolean): string
 /** Screen-reader list: "Por semana, da mais antiga para a mais recente: 26/10: 3 de 5; 02/11: 2 de 4." */
 export function seriesText(points: readonly TrendPoint[], kind: PeriodKind, value: (p: TrendPoint) => string): string {
   return `${span(kind, points.length).each}, da mais antiga para a mais recente: `
-    + `${points.map((p) => `${p.period.label}: ${value(p)}`).join('; ')}.`;
+    + `${points.map((p) => `${p.period.label}: ${value(p)}${p.atypical ? (kind === 'week' ? ' (semana atípica)' : ' (mês com semana atípica)') : ''}`).join('; ')}.`;
 }
 
 // ------------------------------------------------------------------ weeks 5–8
@@ -158,6 +158,8 @@ export function postponeTotalsText(o: PostponeObserved): string {
   return `Nas últimas 4 semanas: adiou ${o.postponed === 1 ? '1 vez' : `${o.postponed} vezes`}, `
     + `começou ${o.started}, encolheu ${o.shrunk} e soltou ${o.dropped}.`;
 }
+
+export const atypicalWeeksText = (n: number): string => `${n} ${n === 1 ? 'semana atípica fora' : 'semanas atípicas fora'} da conta.`;
 
 export const bucketLine = (b: Bucket): string => `${b.label}: adiou ${b.postponed} · começou ${b.started}`;
 export const hypothesisGateText = (postponed: number): string =>

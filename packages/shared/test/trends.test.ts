@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { DayState } from '../src/types';
-import { completedWeeks, weekPeriod } from '../src/periods';
+import { completedWeeks, monthPeriod, weekPeriod } from '../src/periods';
 import {
   checkinBreakdown, dayIndex, effortByArea, monthCardDue, monthObserved, monthReviewId, trendPoints,
 } from '../src/trends';
 import {
-  TODAY, base, block, checkin, emptyData, mission, night, practice, review, session, workout, xp,
+  TODAY, atypicalWeek, base, block, checkin, emptyData, mission, night, practice, review, session, workout, xp,
 } from './patternFixture';
 
 // Two whole weeks before Friday 2026-11-13: W1 = 26/10–01/11, W2 = 02/11–08/11 (Wed 04/11 free).
@@ -147,5 +147,26 @@ describe('month', () => {
     expect(monthCardDue({ ...ok, prevReview: { deleted: false } })).toBeUndefined();
     expect(monthCardDue({ ...ok, prevReview: { deleted: true } })).toBe('2026-10');
     expect(monthCardDue({ ...ok, today: '2027-01-03' })).toBe('2026-12');
+  });
+});
+
+describe('semana atípica (P3)', () => {
+  const W1 = '2026-10-26';
+  const W2 = '2026-11-02';
+  const withAtypical = emptyData({ ...data, weeks: [atypicalWeek(W1)] });
+  it('the atypical week point is flagged, the others are not; nothing is dropped', () => {
+    const pts = trendPoints(withAtypical, [weekPeriod(W1), weekPeriod(W2)]);
+    expect(pts.map((p) => p.atypical)).toEqual([true, undefined]);
+    expect(pts[0]!.blocksStarted).toBe(trendPoints(data, [weekPeriod(W1)])[0]!.blocksStarted);
+  });
+  it('a deleted record or a week without the mark does not flag', () => {
+    const d = emptyData({ ...data, weeks: [atypicalWeek(W1, 'Provas', { deleted: true }), { ...atypicalWeek(W2), atypical: undefined }] });
+    expect(trendPoints(d, [weekPeriod(W1), weekPeriod(W2)]).map((p) => p.atypical)).toEqual([undefined, undefined]);
+  });
+  it('a month with some atypical week is flagged too', () => {
+    const oct = trendPoints(withAtypical, [monthPeriod('2026-10')])[0]!;
+    const sep = trendPoints(withAtypical, [monthPeriod('2026-09')])[0]!;
+    expect(oct.atypical).toBe(true);
+    expect(sep.atypical).toBeUndefined();
   });
 });

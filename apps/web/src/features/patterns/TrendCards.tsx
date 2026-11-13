@@ -31,8 +31,14 @@ function TrendCard({ title, summary, caption, points, kind, values, background, 
       <Panel variant="stone">
         <h3 id={id} className="trend-card__title">{title}</h3>
         <p>{summary}</p>
-        <MiniBars values={values} background={background} labels={points.map((p) => p.period.label)} />
+        <MiniBars values={values} background={background} labels={points.map((p) => p.period.label)}
+          atypical={points.map((p) => p.atypical === true)} />
         <p className="trend-card__caption">{caption}</p>
+        {points.some((p) => p.atypical) && (
+          <p className="trend-card__caption">
+            {kind === 'week' ? 'Barra tracejada e *: semana atípica.' : 'Barra tracejada e *: mês com semana atípica.'}
+          </p>
+        )}
         <p className="visually-hidden">{seriesText(points, kind, value)}</p>
         {children}
         {link && <Link href={link.href} className="trend-card__link">{link.label}</Link>}

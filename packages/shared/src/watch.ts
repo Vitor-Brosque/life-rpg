@@ -2,7 +2,7 @@ import type { DayKey } from './types';
 import { addDays, diffDays } from './dates';
 import { weekKey } from './weekStats';
 import { periodDays } from './periods';
-import { dayIndex, type DayIndex, type PatternData } from './trends';
+import { atypicalWeekSet, dayIndex, type DayIndex, type PatternData } from './trends';
 
 export const WATCH_FIRST_WEEK = 5;
 export const WATCH_LAST_WEEK = 8;
@@ -18,7 +18,13 @@ export const WATCH_GAP_WEEKS = 3;
 export const WATCH_HISTORY_WEEKS = 52;
 const EPS = 1e-9;
 
-export interface WeekTally { week: DayKey; started: number; planned: number }
+export interface WeekTally {
+  week: DayKey;
+  started: number;
+  planned: number;
+  /** An atypical week (research P3): skipped by the watch, neither a start, a gap nor a drop. */
+  atypical?: boolean;
+}
 export interface BlockHabit {
   key: string;            // habitKeyOf(name)
   name: string;
@@ -49,6 +55,7 @@ export function habitAnchor(weeks: readonly WeekTally[], activeBefore = false): 
   let anchor: number | undefined = activeBefore ? -1 : undefined;
   let gap = 0;
   for (const [i, w] of weeks.entries()) {
+    if (w.atypical) continue;
     if (w.started > 0) {
       if (anchor === undefined || gap >= WATCH_GAP_WEEKS) anchor = i;
       gap = 0;
@@ -66,11 +73,13 @@ const total = (ws: readonly WeekTally[]): { started: number; planned: number } =
 export function watchNotice(h: BlockHabit): WatchNotice | undefined {
   const a = habitAnchor(h.weeks, h.activeBefore);
   if (a === undefined) return undefined;
-  const weekNumber = h.weeks.length - a;
+  // Atypical weeks are skipped: week numbers, the base and the recent window count the others only.
+  const usual = h.weeks.slice(a).filter((w) => !w.atypical);
+  const weekNumber = usual.length;
   if (weekNumber < WATCH_FIRST_WEEK || weekNumber > WATCH_LAST_WEEK) return undefined;
-  const base = total(h.weeks.slice(a, a + 4));
+  const base = total(usual.slice(0, 4));
   const n = weekNumber === WATCH_FIRST_WEEK ? 1 : 2;
-  const recent = total(h.weeks.slice(h.weeks.length - n));
+  const recent = total(usual.slice(usual.length - n));
   if (base.planned < WATCH_BASE_MIN_PLANNED || base.started < WATCH_BASE_MIN_STARTED
     || recent.planned < WATCH_RECENT_MIN_PLANNED) return undefined;
   const baseRate = base.started / base.planned;
@@ -98,6 +107,7 @@ export function blockHabits(data: PatternData, idx: DayIndex = dayIndex(data)): 
   const startWeek = firstWeek > earliest ? firstWeek : earliest;
   const count = diffDays(startWeek, lastWeek) / 7 + 1;
 
+  const atypical = atypicalWeekSet(data.weeks);
   const tallies = new Map<string, WeekTally[]>();
   for (let i = 0; i < count; i++) {
     const monday = addDays(startWeek, 7 * i);
@@ -106,7 +116,10 @@ export function blockHabits(data: PatternData, idx: DayIndex = dayIndex(data)): 
         const key = habitKeyOf(c.block.name);
         let weeks = tallies.get(key);
         if (!weeks) {
-          weeks = Array.from({ length: count }, (_, j) => ({ week: addDays(startWeek, 7 * j), started: 0, planned: 0 }));
+          weeks = Array.from({ length: count }, (_, j) => {
+            const week = addDays(startWeek, 7 * j);
+            return { week, started: 0, planned: 0, ...(atypical.has(week) ? { atypical: true } : {}) };
+          });
           tallies.set(key, weeks);
         }
         weeks[i]!.planned += 1;
