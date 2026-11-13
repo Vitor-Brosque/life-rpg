@@ -1,6 +1,7 @@
 // Small Markdown subset for cards (spec §7): paragraphs, line breaks, **strong**, *em*, `code`,
 // fenced code with a language, - / 1. lists, $math$ and $$math$$, \$ for a literal dollar.
-// Output is a tree (never HTML): the web renders it as React elements.
+// Marco 3c: media references `![legenda](media:<sha256>)` (image) and `[legenda](media:<sha256>)`
+// (audio). Other links stay plain text. Output is a tree (never HTML): the web renders it as React.
 
 export type MdInline =
   | { t: 'text'; v: string }
@@ -8,7 +9,13 @@ export type MdInline =
   | { t: 'em'; c: MdInline[] }
   | { t: 'code'; v: string }
   | { t: 'math'; v: string }
-  | { t: 'br' };
+  | { t: 'br' }
+  | { t: 'img'; alt: string; hash: string }
+  | { t: 'audio'; label: string; hash: string };
+
+/** A media reference: `!` (image) or nothing (audio), the label, the file's SHA-256. */
+export const MEDIA_REF_SOURCE = String.raw`(!?)\[([^\]\n]*)\]\(media:([0-9a-f]{64})\)`;
+const MEDIA_REF_AT = new RegExp(MEDIA_REF_SOURCE, 'y');
 
 export type MdBlock =
   | { t: 'p'; c: MdInline[] }
@@ -110,6 +117,15 @@ export function parseInline(s: string): MdInline[] {
     const ch = s[i]!;
     if (ch === '\\' && '\\`*$'.includes(s[i + 1] ?? '\0')) { text += s[i + 1]; i += 2; continue; }
     if (ch === '\n') { push({ t: 'br' }); i++; continue; }
+    if (ch === '!' || ch === '[') {
+      MEDIA_REF_AT.lastIndex = i;
+      const m = MEDIA_REF_AT.exec(s);
+      if (m) {
+        push(m[1] ? { t: 'img', alt: m[2]!, hash: m[3]! } : { t: 'audio', label: m[2]!, hash: m[3]! });
+        i += m[0].length;
+        continue;
+      }
+    }
     if (ch === '`') {
       const j = s.indexOf('`', i + 1);
       if (j > i + 1) { push({ t: 'code', v: s.slice(i + 1, j) }); i = j + 1; continue; }

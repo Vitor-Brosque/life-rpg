@@ -15,3 +15,5 @@ export * from './studyPlan';
 export * from './markdown';
 export * from './highlight';
 export * from './sketch';
+export * from './sha256';
+export * from './media';

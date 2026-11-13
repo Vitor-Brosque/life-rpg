@@ -196,6 +196,7 @@ export interface Deck extends BaseRecord {
   areaId?: ID;          // absent → the journey's area → 'area-intelecto'
   order: number;
   archived: boolean;
+  speechLang?: string;  // "Ouvir" (text to speech), BCP 47 tag such as 'en-US'; absent = no button
 }
 
 export interface Note extends BaseRecord {
@@ -240,6 +241,7 @@ export interface Review extends BaseRecord {  // append-only: created or soft-de
   wrote: boolean;
   coverage?: { covered: number; total: number };  // topic cards: key points ticked
   drew?: boolean;       // "Desenhar antes": at least one stroke when the answer was revealed (only when true)
+  spoke?: boolean;      // "Responder falando": a recording existed when the answer was revealed (only when true)
   before: CardSchedule;
   after: CardSchedule;
 }
