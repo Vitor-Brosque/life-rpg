@@ -127,7 +127,7 @@ export function PainelScreen() {
             <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
             {/* "Onde você parou" and the review status belong to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
-              current={current} next={next} showNote={false} showReview={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
+              current={current} next={next} showNote={false} showReview={false} showPractice={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
           </>
         )}
       </section>

@@ -2,6 +2,7 @@ import type { Area, BlockOccurrence, DayKey, DayMode, Mission } from '@life/shar
 import { isOfBlock } from '@life/shared';
 import { useBlocks, useWeek } from '../../db/hooks';
 import { useTimer } from '../../timer/store';
+import { PracticePrompt } from '../practice/PracticePrompt';
 import { ReviewPrompt } from '../study/ReviewPrompt';
 import { sameNameIds } from '../week/weekData';
 import { Alternatives } from './Alternatives';
@@ -26,6 +27,8 @@ export interface AgoraNowProps {
   showNote?: boolean;
   /** The review card / line; the Painel shows its own status line in the Apoio column instead. */
   showReview?: boolean;
+  /** The practice line in focus/study blocks; the Painel leaves it out. */
+  showPractice?: boolean;
   compact?: boolean;
   onCapture(): void;
   onPickMode(mode: DayMode): void;
@@ -48,7 +51,7 @@ export function showsMainCard(s: {
  * next block, or the Marco 1 main card when there are no blocks around.
  */
 export function AgoraNow({
-  agora, areas, missions, today, now, mode, current, next, showNote = true, showReview = true, compact, onCapture, onPickMode,
+  agora, areas, missions, today, now, mode, current, next, showNote = true, showReview = true, showPractice = true, compact, onCapture, onPickMode,
 }: AgoraNowProps) {
   const { engine, primary, alternatives, actions, canSkip } = agora;
   const week = useWeek();
@@ -87,6 +90,7 @@ export function AgoraNow({
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
         {showReview && <ReviewPrompt mode={mode} current={current} />}
         {current.block.kind !== 'routine' && main}
+        {showPractice && <PracticePrompt mode={mode} current={current} focusMission={focus} />}
       </>
     );
   }

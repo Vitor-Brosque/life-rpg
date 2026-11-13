@@ -69,3 +69,7 @@
 .practice-history__bar--v2 { height: 100%; }
 .practice-history__legend { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
 .journey-practice { margin: 0; }
+
+.practice-line { margin: 0; color: var(--text-dim); font-size: 0.9375rem; overflow-wrap: anywhere; }
+.practice-line a { color: var(--sky); }
+.practice-line .practice__link { font-size: inherit; }
