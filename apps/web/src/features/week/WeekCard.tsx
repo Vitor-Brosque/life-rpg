@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react';
 import type { DayKey, WeekStats } from '@life/shared';
+import { addDays } from '@life/shared';
 import { saveWeekReview, setObjectives } from '../../domain/actions';
 import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
@@ -10,6 +11,7 @@ import { useWatchNotices } from '../patterns/patternData';
 import { WatchNotice } from '../patterns/WatchNotice';
 import { firstShowOfWeek, readReviewDraft, writeReviewDraft, type ReviewDraft } from './weekCycle';
 import { observedRows, useWeekCardData } from './weekData';
+import { WeekAiSummary } from './WeekAiSummary';
 import { WeekObjectives, type NewObjective } from './WeekObjectives';
 import './week.css';
 
@@ -93,6 +95,8 @@ function ReviewStep({ weekId, stats, experiment, onSave, onLater }: {
           </label>
         ))}
       </section>
+
+      <WeekAiSummary weekId={weekId} statsWeek={addDays(weekId, -7)} facts={observedRows(stats)} reading={answers} />
 
       <div className="week-card__actions">
         <Button variant="primary" disabled={saving} onClick={save}>Salvar e continuar</Button>

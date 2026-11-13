@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { DayKey, DayMode, Week } from '@life/shared';
-import { weekdayOf, weekKey } from '@life/shared';
+import type { DayKey, DayMode, Week, WeekSummary } from '@life/shared';
+import { cleanWeekSummary, weekdayOf, weekKey } from '@life/shared';
 import { db } from '../../db/db';
 
 interface WeekSession {
@@ -126,4 +126,32 @@ export function firstShowOfWeek(weekId: DayKey): boolean {
   greetedInMemory = weekId;
   try { localStorage.setItem(GREETED_KEY, weekId); } catch { /* in memory only */ }
   return true;
+}
+
+const SUMMARY_PREFIX = 'life-rpg-week-ai:';
+
+/** The AI summary of the week card, kept on this device only (spec §6.5). */
+export interface StoredWeekSummary { summary: WeekSummary; at: number }
+
+export function readWeekSummary(weekId: DayKey): StoredWeekSummary | undefined {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(SUMMARY_PREFIX + weekId) ?? 'null');
+    if (!v || typeof v !== 'object') return undefined;
+    const o = v as { summary?: unknown; at?: unknown };
+    const summary = cleanWeekSummary(o.summary);
+    return summary && typeof o.at === 'number' ? { summary, at: o.at } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Stores (or, with undefined, erases) the week's summary and drops other weeks' summaries. */
+export function writeWeekSummary(weekId: DayKey, value: StoredWeekSummary | undefined): void {
+  try {
+    if (value) localStorage.setItem(SUMMARY_PREFIX + weekId, JSON.stringify(value));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(SUMMARY_PREFIX) && (k !== SUMMARY_PREFIX + weekId || !value)) localStorage.removeItem(k);
+    }
+  } catch { /* private mode / quota: the summary just stays in memory */ }
 }
