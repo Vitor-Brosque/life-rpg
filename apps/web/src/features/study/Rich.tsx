@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { MdBlock, MdInline } from '@life/shared';
 import { CLOZE_CLOSE, CLOZE_OPEN, highlight, langOf, parseMarkdown } from '@life/shared';
+import { AudioButton } from '../media/AudioPlayer';
+import { MediaImage } from '../media/MediaImage';
 
 // Card Markdown as React elements (spec §7). Cloze sentinels may span several nodes, so one
 // cursor walks every text piece in render order and wraps the marked parts in <mark class="cloze">.
@@ -78,6 +80,16 @@ function inlines(nodes: MdInline[], cur: Cursor, key: string): ReactNode[] {
       case 'math': {
         const m = consumeMath(n.v, cur);
         return <MathTex key={k} tex={m.clean} display={false} marked={m.marked} />;
+      }
+      case 'img': {
+        const m = consumeMath(n.alt, cur); // also drops cloze sentinels from the label
+        const el = <MediaImage key={k} hash={n.hash} alt={m.clean} />;
+        return m.marked ? <mark key={k} className="cloze">{el}</mark> : el;
+      }
+      case 'audio': {
+        const m = consumeMath(n.label, cur);
+        const el = <AudioButton key={k} hash={n.hash} label={m.clean} />;
+        return m.marked ? <mark key={k} className="cloze">{el}</mark> : el;
       }
     }
   });

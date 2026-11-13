@@ -9,7 +9,8 @@ export type IconName =
   | 'snooze' | 'play' | 'pause' | 'stop' | 'gear' | 'sync' | 'energy' | 'heart' | 'book' | 'hammer'
   | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
   | 'bell' | 'chest' | 'door'
-  | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash';
+  | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash'
+  | 'mic' | 'image' | 'speaker';
 
 const ROWS: Record<IconName, string[]> = {
   // Lousa (Marco 3b): pencil, eraser, move, undo, redo, fit to screen, clear.
@@ -572,6 +573,49 @@ const ROWS: Record<IconName, string[]> = {
     '.o....o.....',
     '.oooooo.....',
     '............',
+    '............',
+  ],
+  // Mídia (Marco 3c): microphone, picture, speaker.
+  mic: [
+    '....oooo....',
+    '...oooooo...',
+    '...oooooo...',
+    '...oooooo...',
+    '...oooooo...',
+    '.o.oooooo.o.',
+    '.o..oooo..o.',
+    '..o......o..',
+    '...oooooo...',
+    '.....oo.....',
+    '.....oo.....',
+    '...oooooo...',
+  ],
+  image: [
+    '............',
+    'oooooooooooo',
+    'o..........o',
+    'o.oo.......o',
+    'o.oo.......o',
+    'o......o...o',
+    'o.....ooo..o',
+    'o..o.ooooo.o',
+    'o.oooooooooo',
+    'oooooooooooo',
+    '............',
+    '............',
+  ],
+  speaker: [
+    '............',
+    '.....o....o.',
+    '....oo..o..o',
+    '...ooo...o.o',
+    'oooooo.o.o.o',
+    'oooooo.o.o.o',
+    'oooooo.o.o.o',
+    'oooooo.o.o.o',
+    '...ooo...o.o',
+    '....oo..o..o',
+    '.....o....o.',
     '............',
   ],
 };

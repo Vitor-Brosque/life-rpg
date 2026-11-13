@@ -1,0 +1,6 @@
+/* Media in cards (Marco 3c). A missing file is not an error: calm dashed box, no alarm colour. */
+.rich__img { display: block; max-width: 100%; max-height: min(60vh, 480px); width: auto; height: auto; object-fit: contain; background: var(--bg); box-shadow: 0 0 0 2px var(--outline); }
+.rich__media-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: 96px; padding: var(--space-3); border: 2px dashed var(--stone-light); color: var(--text-dim); font-size: 0.875rem; text-align: center; }
+.rich__media-caption { font-style: italic; }
+.audio-player { display: inline-flex; vertical-align: middle; }
+.audio-player audio { display: none; }

@@ -1,5 +1,5 @@
 import type { Card, CardFace, CodeLang, DayKey, Note, NoteType } from '@life/shared';
-import { cardFace, cardOrds, dayKeyOf, diffDays, normalize, stripCloze } from '@life/shared';
+import { cardFace, cardOrds, dayKeyOf, diffDays, normalize, stripCloze, stripMedia } from '@life/shared';
 
 // Editor state and list helpers for notes (spec §6). Pure.
 
@@ -30,7 +30,7 @@ export function previewFaces(f: NoteForm): CardFace[] {
 
 /** First meaningful line of the front, without Markdown marks, answers in place of clozes. */
 export function noteTitle(front: string): string {
-  const line = stripCloze(front).split('\n').map((l) => l.trim()).find((l) => l !== '' && !l.startsWith('```')) ?? '';
+  const line = stripMedia(stripCloze(front)).split('\n').map((l) => l.trim()).find((l) => l !== '' && !l.startsWith('```')) ?? '';
   const plain = line.replace(/^([-*]|\d+[.)])\s+/, '').replace(/[*`$]/g, '').trim();
   if (!plain) return '(sem texto)';
   return plain.length > 80 ? `${plain.slice(0, 79)}…` : plain;
@@ -50,5 +50,5 @@ export function noteStatus(note: Note, cards: Card[], today: DayKey, dayStartHou
 
 export function matchesQuery(n: Note, q: string): boolean {
   const key = normalize(q.trim());
-  return !key || normalize(stripCloze(`${n.front}\n${n.back}\n${n.extra ?? ''}`)).includes(key);
+  return !key || normalize(stripMedia(stripCloze(`${n.front}\n${n.back}\n${n.extra ?? ''}`))).includes(key);
 }
