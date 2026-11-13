@@ -9,6 +9,7 @@ import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { SketchesPanel } from '../sketch/SketchesPanel';
+import { PracticePanel } from '../practice/PracticePanel';
 import { DeckSheet } from './DeckSheet';
 import { ForecastBars } from './ForecastBars';
 import { StudyPrefsSheet } from './StudyPrefsSheet';
@@ -95,6 +96,7 @@ export function StudyScreen() {
         )}
       </Panel>
 
+      <PracticePanel />
       <SketchesPanel />
 
       {input.cards.length > 0 && (

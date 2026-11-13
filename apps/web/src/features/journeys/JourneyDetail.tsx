@@ -19,6 +19,7 @@ import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { GripIcon } from '../agora/TodayList';
 import { useCompanion } from '../companion/store';
+import { JourneyPracticeLink } from '../practice/PracticePanel';
 import { EditableField } from '../mission/EditableField';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { DRAG_INSTRUCTIONS, usePlanSensors } from '../plan/planShared';
@@ -116,6 +117,7 @@ function JourneyBody({ journey }: { journey: Journey }) {
       {inactive && <p className="muted">Esta jornada está {journey.status === 'done' ? 'concluída' : 'arquivada'}.</p>}
 
       <ProgressBar value={done} max={total} label={total > 0 ? `${done}/${total} missões` : 'Sem missões ainda'} />
+      <JourneyPracticeLink journeyId={journey.id} />
 
       <div>
         <h2 className="section-title">Missões</h2>

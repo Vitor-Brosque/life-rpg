@@ -1,4 +1,5 @@
 import { PracticeScreen } from '../features/practice/PracticeScreen';
+import { PracticeListScreen } from '../features/practice/PracticeListScreen';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Route, Switch, useLocation } from 'wouter';
 import { db } from '../db/db';
@@ -68,6 +69,7 @@ export function App() {
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
           <Route path="/estudo/revisar"><ReviewSession /></Route>
           <Route path="/estudo/lousas"><SketchListScreen /></Route>
+          <Route path="/estudo/praticas"><PracticeListScreen /></Route>
           <Route path="/lousa/:id">{(params) => <SketchScreen key={params.id} id={params.id} />}</Route>
           <Route path="/pratica/:id">{(params) => <PracticeScreen key={params.id} id={params.id} />}</Route>
           <Route path="/estudo/nota/nova"><NoteEditor /></Route>
