@@ -11,3 +11,7 @@ configure({ asyncUtilTimeout: 3000 });
 
 // Other suites keep the plain textarea editor; codeMirror.test.tsx turns CodeMirror on.
 codeEditorOptions.enhanced = false;
+
+// jsdom has no canvas: the lousa draws nothing in tests (its geometry is tested in shared and with a
+// fake context). Returning null also avoids jsdom's "Not implemented: getContext" message.
+HTMLCanvasElement.prototype.getContext = (() => null) as never;

@@ -1,0 +1,47 @@
+/* Lousa (Marco 3b): a dark board with chalk inks from the palette. No red anywhere. */
+
+.sketch { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.sketch__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.sketch__bar .btn[aria-pressed='true'] { --btn-bg: rgba(242, 193, 78, 0.16); box-shadow: inset 0 0 0 3px var(--gold); }
+.sketch__inks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.sketch__swatch,
+.sketch__width {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sketch__swatch { box-shadow: inset 0 0 0 2px var(--outline); }
+.sketch__swatch--0 { background: var(--text); }
+.sketch__swatch--1 { background: var(--sky); }
+.sketch__swatch--2 { background: var(--leaf); }
+.sketch__swatch--3 { background: var(--gold); }
+.sketch__swatch[aria-pressed='true'],
+.sketch__width[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+.sketch__line { display: block; width: 20px; background: var(--text); }
+.sketch__line--0 { height: 2px; }
+.sketch__line--1 { height: 6px; }
+
+.sketch__area {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 0 0 2px var(--outline);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.sketch__area:focus-visible { outline-offset: -3px; }
+.sketch__area--pen { cursor: crosshair; }
+.sketch__area--eraser { cursor: cell; }
+.sketch__area--pan { cursor: grab; }
+.sketch__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+.sketch__msg { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.sketch__msg:empty { display: none; }
