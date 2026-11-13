@@ -105,7 +105,7 @@ function scoreMission(m: Mission, ctx: {
   const reasons: Reason[] = [];
   if (ctx.block && isOfBlock(m, ctx.block)) reasons.push({ code: 'block', text: 'do bloco atual', points: 40 });
   // The "when" of an if-then plan the user made for this very block: it goes first here.
-  if (ctx.block && m.cueBlockId === ctx.block.id) {
+  if (ctx.block && m.cueBlockId === ctx.block.id && m.date !== undefined && m.date <= ctx.today) {
     reasons.push({ code: 'cue', text: 'o plano que você fez para este bloco', points: 70 });
   }
   if (m.status === 'doing') reasons.push({ code: 'doing', text: 'você já começou', points: 30 });

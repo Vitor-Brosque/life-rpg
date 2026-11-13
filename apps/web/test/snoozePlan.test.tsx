@@ -52,6 +52,14 @@ describe('planMission', () => {
     expect((await db.missions.get(m.id))?.firstStep).toHaveLength(140);
   });
 
+  it('does nothing when the mission is not open or doing', async () => {
+    const m = await createMission({ title: 'Feita', postponeCount: 1, status: 'done' });
+    await planMission(m.id, { cueBlockId: 'b1', firstStep: 'x', date: TODAY });
+    expect(await db.missions.get(m.id)).toMatchObject({ postponeCount: 1, status: 'done' });
+    expect((await db.missions.get(m.id))?.cueBlockId).toBeUndefined();
+    expect((await db.events.where('missionId').equals(m.id).toArray()).some((e) => e.type === 'snoozed')).toBe(false);
+  });
+
   it('completing the mission removes the cue', async () => {
     const m = await createMission({ title: 'B', postponeCount: 1 });
     await planMission(m.id, { cueBlockId: 'b1', date: TODAY });
@@ -119,6 +127,22 @@ describe('SnoozeDialog plan', () => {
   });
 });
 
+describe('SnoozeDialog plan, block that does not happen', () => {
+  it('a Saturday-only block disables the button and explains why', async () => {
+    const user = userEvent.setup();
+    await db.blocks.put({
+      createdAt: 1, updatedAt: 1, deleted: false, id: 'bsat', name: 'Sabado', order: 9, targetStart: '10:00',
+      durationMin: 60, minimumMin: 30, kind: 'focus', weekdays: [6], protected: false, checklist: [], archived: false,
+    });
+    const m = await createMission({ title: 'Plano', postponeCount: 1 });
+    render(<><SnoozeDialog mission={m} today={TODAY} onClose={vi.fn()} /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));
+    await user.selectOptions(screen.getByLabelText('Quando?'), 'bsat');
+    expect(await screen.findByRole('button', { name: 'Guardar para o próximo Sabado' })).toBeDisabled();
+    expect(screen.getByText('Esse bloco não acontece nas próximas duas semanas.')).toBeInTheDocument();
+  });
+});
+
 describe('plan in the Agora', () => {
   it('inside the chosen block the cue mission leads and shows "Plano: bloco → primeiro passo"', async () => {
     await createMission({ title: 'Outra importante', important: true, areaId: 'area-vigor', postponeCount: 0 });
@@ -126,7 +150,18 @@ describe('plan in the Agora', () => {
     await planMission(m.id, { cueBlockId: 'b1', firstStep: 'abrir o editor', date: TODAY });
     render(<><AgoraScreen /><ToastHost /></>);
     const card = await screen.findByRole('region', { name: 'Missão agora' });
-    expect(await within(card).findByText('Plano: Tech → abrir o editor')).toBeInTheDocument();
+    expect(await within(card).findByText('Plano: Tech')).toBeInTheDocument();
     expect(within(card).getByText('Estudar SQL')).toBeInTheDocument();
+    // the first step is already the headline: not repeated in the plan line
+    expect(within(card).getAllByText('abrir o editor')).toHaveLength(1);
+  });
+
+  it('no first step: no plan line even when the mission has a cue', async () => {
+    const m = await createMission({ title: 'Sem passo', postponeCount: 1 });
+    await planMission(m.id, { cueBlockId: 'b1', date: TODAY });
+    render(<><AgoraScreen /><ToastHost /></>);
+    const card = await screen.findByRole('region', { name: 'Missão agora' });
+    await within(card).findByText('Sem passo');
+    expect(within(card).queryByText(/^Plano:/)).not.toBeInTheDocument();
   });
 });

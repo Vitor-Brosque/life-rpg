@@ -19,26 +19,51 @@ function mk(p: Partial<Mission> = {}): Mission {
   };
 }
 
-const MIN = (h: number, m = 0) => h * 60 + m;
+const at = (day: string, h: number, m = 0) => {
+  const [y, mo, d] = day.split('-').map(Number);
+  return new Date(y!, mo! - 1, d!, h, m).getTime();
+};
 
 describe('cueBlockDay (research P5)', () => {
   const tech = blk({ id: 'tech', weekdays: [1, 3], targetStart: '09:00' }); // seg, qua
 
   it('today when the block occurs today and has not started yet', () => {
-    expect(cueBlockDay(tech, '2026-11-11', MIN(8, 30))).toBe('2026-11-11'); // quarta
+    expect(cueBlockDay(tech, at('2026-11-11', 8, 30), 4)).toBe('2026-11-11'); // quarta
   });
 
   it('the next occurrence once the block already started today', () => {
-    expect(cueBlockDay(tech, '2026-11-11', MIN(9, 0))).toBe('2026-11-16'); // segunda
-    expect(cueBlockDay(tech, '2026-11-11', MIN(14, 0))).toBe('2026-11-16');
+    expect(cueBlockDay(tech, at('2026-11-11', 9, 0), 4)).toBe('2026-11-16'); // segunda
+    expect(cueBlockDay(tech, at('2026-11-11', 14, 0), 4)).toBe('2026-11-16');
   });
 
   it('the next occurrence when the block does not occur today', () => {
-    expect(cueBlockDay(tech, '2026-11-12', MIN(7, 0))).toBe('2026-11-16'); // quinta -> segunda
+    expect(cueBlockDay(tech, at('2026-11-12', 7, 0), 4)).toBe('2026-11-16'); // quinta -> segunda
   });
 
   it('undefined when the block never occurs', () => {
-    expect(cueBlockDay(blk({ id: 'x', weekdays: [] }), '2026-11-11', MIN(7))).toBeUndefined();
+    expect(cueBlockDay(blk({ id: 'x', weekdays: [] }), at('2026-11-11', 7), 4)).toBeUndefined();
+  });
+
+  it('uses the logical day: 01:30 of Thursday is still Wednesday, whose 09:00 block has passed', () => {
+    // logical Wednesday 11th; the block already passed in logical terms
+    expect(cueBlockDay(tech, at('2026-11-12', 1, 30), 4)).toBe('2026-11-16');
+    // a block at 02:00 (still inside logical Wednesday) is ahead
+    const late = blk({ id: 'late', weekdays: [3], targetStart: '02:00' });
+    expect(cueBlockDay(late, at('2026-11-12', 1, 30), 4)).toBe('2026-11-11');
+  });
+
+  it('skips free days: a Saturday-only block is never planned when weekends are free', () => {
+    const sat = blk({ id: 'sat', weekdays: [6] });
+    expect(cueBlockDay(sat, at('2026-11-11', 8), 4)).toBeUndefined();
+  });
+
+  it('skips days whose mode excludes the block kind, within 14 days', () => {
+    const wed = blk({ id: 'w', weekdays: [3] });
+    expect(cueBlockDay(wed, at('2026-11-11', 10), 4)).toBe('2026-11-18');
+    expect(cueBlockDay(wed, at('2026-11-11', 10), 4, () => 'free')).toBeUndefined();
+    const light = blk({ id: 'l', weekdays: [3], kind: 'light' });
+    const modeOf = (d: string) => (d === '2026-11-18' ? 'low' : 'normal') as 'low' | 'normal';
+    expect(cueBlockDay(light, at('2026-11-11', 10), 4, modeOf)).toBe('2026-11-25');
   });
 });
 
@@ -70,6 +95,12 @@ describe('cue block in the engine', () => {
     const out = suggest(base({ missions: [cued, rival], block: { id: 'b-other', endTs: block.endTs } }));
     expect(out.primary?.mission.id).toBe(rival.id);
     expect(out.ranked.find((s) => s.mission.id === cued.id)?.reasons.some((r) => r.code === 'cue')).toBe(false);
+  });
+
+  it('an undated mission with a stale cue gets no boost', () => {
+    const stale = mk({ cueBlockId: 'b-tech' });
+    const out = suggest(base({ missions: [stale], block }));
+    expect(out.ranked.find((s) => s.mission.id === stale.id)?.reasons.some((r) => r.code === 'cue')).toBe(false);
   });
 
   it('a cue mission planned for a later day is not a candidate yet', () => {

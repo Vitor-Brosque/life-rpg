@@ -1,5 +1,5 @@
 import type { Block, BlockSession, Commitment, DayKey, DayMode, ID } from './types';
-import { addDays, dayEndTimestamp, logicalTimestamp, parseHHmm, timestampAt, weekdayOf } from './dates';
+import { addDays, dayEndTimestamp, dayKeyOf, logicalTimestamp, timestampAt, weekdayOf } from './dates';
 import { occurrencesOn } from './engine';
 
 export interface BlockOccurrence {
@@ -55,13 +55,27 @@ export function nextBlockDay(block: Block, after: DayKey): DayKey | undefined {
   return undefined;
 }
 
+/** Days an if-then plan looks ahead for the block (today included). */
+export const CUE_LOOKAHEAD_DAYS = 14;
+
 /**
- * Day an if-then plan keeps a mission for `block`: today while the block has not reached its
- * start time (`nowMinutes` = minutes since midnight), else its next occurrence; undefined when it never occurs.
+ * Day an if-then plan keeps a mission for `block`: the first logical day (from the logical day of
+ * `now`, up to 14 days ahead) where the block is planned (it is on that weekday and `modeOf(day)`
+ * lets it through) and, for today, has not reached its start yet. `modeOf` defaults to the weekday
+ * default of a day with no stored state. Undefined when no such day exists.
  */
-export function cueBlockDay(block: Block, today: DayKey, nowMinutes: number): DayKey | undefined {
-  if (block.weekdays.includes(weekdayOf(today)) && nowMinutes < parseHHmm(block.targetStart)) return today;
-  return nextBlockDay(block, today);
+export function cueBlockDay(
+  block: Block, now: number, dayStartHour: number,
+  modeOf: (day: DayKey) => DayMode = (day) => defaultDayMode(day),
+): DayKey | undefined {
+  const today = dayKeyOf(now, dayStartHour);
+  for (let i = 0; i <= CUE_LOOKAHEAD_DAYS; i++) {
+    const day = addDays(today, i);
+    if (blocksForDay([block], day, modeOf(day)).length === 0) continue;
+    if (i === 0 && now >= logicalTimestamp(day, block.targetStart, dayStartHour)) continue;
+    return day;
+  }
+  return undefined;
 }
 
 /** The recorded mode, else the weekday default; a weekend stays free even with an old `hardDay`. */

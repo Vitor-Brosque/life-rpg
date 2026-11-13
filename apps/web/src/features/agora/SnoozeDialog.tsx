@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import type { Block, DayKey, Mission } from '@life/shared';
 import { addDays, cueBlockDay } from '@life/shared';
-import { useBlocks } from '../../db/hooks';
+import { useBlocks, useSettings } from '../../db/hooks';
 import { FIRST_STEP_MAX } from '../../domain/missionActions';
 import { Button } from '../../ui/Button';
 import { formatDay, WEEKDAY_ABBR } from '../../ui/format';
@@ -24,11 +24,6 @@ function blockWhen(b: Block): string {
   return `${days} · ${b.targetStart}`;
 }
 
-const minutesNow = (): number => {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
-};
-
 /**
  * "Agora não": later today, tomorrow or a chosen day. No judgement attached. From the second
  * postponement on, an optional if-then plan ("quando?" + "então, o primeiro passo") can be made.
@@ -39,6 +34,7 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
   const [planning, setPlanning] = useState(false);
   const [cueId, setCueId] = useState('');
   const [step, setStep] = useState('');
+  const dayStartHour = useSettings()?.dayStartHour ?? 4;
   const blocks = useBlocks().filter((b) => b.kind !== 'routine');
   const planId = useId();
   useEffect(() => {
@@ -48,7 +44,7 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
 
   const canPlan = (mission?.postponeCount ?? 0) >= 1;
   const cue = blocks.find((b) => b.id === cueId);
-  const cueDay = cue ? cueBlockDay(cue, today, minutesNow()) : undefined;
+  const cueDay = cue ? cueBlockDay(cue, Date.now(), dayStartHour) : undefined;
 
   const choose = async (option: 'later' | 'tomorrow' | { date: DayKey }) => {
     if (!mission) return;
@@ -110,9 +106,10 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
                   <input type="text" value={step} maxLength={FIRST_STEP_MAX} enterKeyHint="done" autoComplete="off"
                     onChange={(e) => setStep(e.target.value)} />
                 </label>
-                {cue && cueDay && (
-                  <Button variant="primary" onClick={savePlan}>Guardar para o próximo {cue.name}</Button>
+                {cue && (
+                  <Button variant="primary" disabled={!cueDay} onClick={savePlan}>Guardar para o próximo {cue.name}</Button>
                 )}
+                {cue && !cueDay && <p className="snooze-plan__hint">Esse bloco não acontece nas próximas duas semanas.</p>}
               </div>
             )}
           </div>

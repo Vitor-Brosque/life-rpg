@@ -242,8 +242,15 @@ export async function snoozeMission(
 export async function planMission(
   id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey },
 ): Promise<void> {
+  return withLock(`mission:${id}`, () => planMissionLocked(id, plan));
+}
+
+async function planMissionLocked(
+  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey },
+): Promise<void> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
+  if (m.deleted || (m.status !== 'open' && m.status !== 'doing')) return;
   const step = plan.firstStep?.trim().slice(0, FIRST_STEP_MAX).trim();
   await patch<Mission>('missions', id, {
     cueBlockId: plan.cueBlockId || undefined,
