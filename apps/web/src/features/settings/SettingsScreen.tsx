@@ -4,6 +4,7 @@ import { useProfile, useSettings } from '../../db/hooks';
 import { AreasSection } from './AreasSection';
 import { DataSection } from './DataSection';
 import { NotificationsSection } from './NotificationsSection';
+import { SleepSection } from './SleepSection';
 import { CompanionSection, DaySection, FocusSection } from './PreferenceSections';
 import { StorageSection } from './StorageSection';
 import { SettingsSection } from './SettingsSection';
@@ -34,6 +35,7 @@ export function SettingsScreen() {
         <div className="settings__col">
           <SyncSection />
           <NotificationsSection settings={settings} />
+          <SleepSection settings={settings} />
           <StorageSection />
           <DataSection />
           <SettingsSection title="Sobre" icon="book">

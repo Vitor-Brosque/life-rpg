@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Companion } from '../art/Companion';
 import { Icon, type IconName } from '../art/icons';
-import { useCommitmentReminders } from '../features/reminders/reminders';
+import { useCommitmentReminders, useWindDownReminders } from '../features/reminders/reminders';
 
 interface NavItem { href: string; label: string; icon: IconName; also?: string[] }
 
@@ -40,6 +40,8 @@ export function Layout({ children, aboveNav, floating }: LayoutProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   // Commitment reminders (server push) follow commitments, settings and the day.
   useCommitmentReminders();
+  // The wind-down push (Marco 4) follows the sleep setting, the day and tonight's "Deitei".
+  useWindDownReminders();
 
   useEffect(() => {
     const dock = dockRef.current;

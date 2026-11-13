@@ -8,6 +8,7 @@ import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { AgoraNow, showsMainCard } from '../agora/AgoraNow';
+import { CareStrip } from '../agora/CareStrip';
 import { MorningCard } from '../agora/MorningCard';
 import { pickDayMode } from '../agora/blockFeedback';
 import { ResumeNote, useResumeNote } from '../agora/ResumeNote';
@@ -123,6 +124,7 @@ export function PainelScreen() {
         {ready && (
           <>
             <StatusStrip engine={engine} block={current} now={now} compact />
+            <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
             <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
             <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
             {/* "Onde você parou" and the review status belong to the Apoio column here. */}

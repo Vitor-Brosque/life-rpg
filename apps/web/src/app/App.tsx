@@ -12,6 +12,7 @@ import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
+import { SleepSheetHost } from '../features/corpo/SleepSheet';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
@@ -84,6 +85,7 @@ export function App() {
       </Layout>
       <CaptureHost />
       <MissionSheetHost />
+      <SleepSheetHost />
       <TimerHost />
       <ResumePromptHost />
       <CheckinCardHost />

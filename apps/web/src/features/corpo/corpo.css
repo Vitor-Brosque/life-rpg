@@ -1,0 +1,10 @@
+/* Corpo (Marco 4): the Agora's "Cuidados" strip, the night sheet and (Task 5) the Corpo screen. */
+.care-strip { display: flex; flex-direction: column; gap: 6px; margin-block: 6px; }
+.care-strip:empty { display: none; }
+.care-row { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px; }
+.care-row__icon { flex: none; }
+.care-row__text { flex: 1; min-width: 0; }
+.care-row__meta { color: var(--text-dim); }
+.care-row__actions { display: flex; gap: 6px; flex: none; }
+.sleep-form__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sleep-form__error { font-weight: 600; }

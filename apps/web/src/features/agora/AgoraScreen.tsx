@@ -9,6 +9,7 @@ import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
 import { useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
+import { CareStrip } from './CareStrip';
 import { pickDayMode } from './blockFeedback';
 import { MorningCard } from './MorningCard';
 import { ShrinkDialog } from './ShrinkDialog';
@@ -57,6 +58,7 @@ function AgoraView() {
     <section className="screen agora" aria-labelledby="agora-title">
       <h1 id="agora-title" className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Agora</h1>
       <StatusStrip engine={engine} block={current} now={now} />
+      <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
       <WeekLine experiment={cycle.week?.experiment} onOpen={cycle.showLink ? cycle.open : undefined} />
       <MorningCard today={today} dayType={dayType} cycle={cycle} review={review} />
 

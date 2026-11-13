@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Commitment, DayKey } from '@life/shared';
-import { addDays, occurrencesOn } from '@life/shared';
+import type { Commitment, DayKey, SleepLog, SleepSettings } from '@life/shared';
+import { addDays, logicalTimestamp, occurrencesOn, sleepNightOf, sleepSettingsOf, weekdayOf } from '@life/shared';
 import { db } from '../../db/db';
 import { useSettings, useToday } from '../../db/hooks';
 import { getMeta, setMeta } from '../../db/repo';
@@ -53,12 +53,13 @@ export function desiredReminders(
 const same = (a: ScheduledReminder, b: ScheduledReminder) =>
   a.at === b.at && a.title === b.title && a.body === b.body;
 
-async function sync(
-  commitments: Commitment[], today: DayKey, reminderMin: number, now: number, dayStartHour: number,
-): Promise<void> {
-  const desired = desiredReminders(commitments, today, reminderMin, now, dayStartHour);
+/**
+ * Brings the pushes scheduled under `metaKey` in line with `desired`: cancels the tags no longer
+ * wanted (retrying failed cancels next time) and schedules the new or changed ones.
+ */
+async function syncScheduled(metaKey: string, desired: ScheduledReminder[], now: number): Promise<void> {
   const wanted = new Map(desired.map((r) => [r.tag, r]));
-  const prev = (await getMeta<ScheduledReminder[]>(META_KEY)) ?? [];
+  const prev = (await getMeta<ScheduledReminder[]>(metaKey)) ?? [];
   const prevByTag = new Map(prev.map((r) => [r.tag, r]));
   const kept: ScheduledReminder[] = [];
 
@@ -71,7 +72,7 @@ async function sync(
     if (old && same(old, r)) kept.push(r);
     else if (await schedulePush(r.tag, r.at, r.title, r.body)) kept.push(r);
   }
-  await setMeta(META_KEY, kept);
+  await setMeta(metaKey, kept);
 }
 
 let queue: Promise<void> = Promise.resolve();
@@ -84,7 +85,12 @@ let queue: Promise<void> = Promise.resolve();
 export function syncCommitmentReminders(
   commitments: Commitment[], today: DayKey, reminderMin: number, now: number, dayStartHour = 4,
 ): Promise<void> {
-  const run = queue.then(() => sync(commitments, today, reminderMin, now, dayStartHour)).catch(() => undefined);
+  return enqueue(() => syncScheduled(META_KEY, desiredReminders(commitments, today, reminderMin, now, dayStartHour), now));
+}
+
+/** Every reminder sync runs one at a time, so two quick changes never reach the server out of order. */
+function enqueue(task: () => Promise<void>): Promise<void> {
+  const run = queue.then(task).catch(() => undefined);
   queue = run;
   return run;
 }
@@ -109,4 +115,61 @@ export function useCommitmentReminders(): void {
     if (!commitments || reminderMin === undefined || !today) return;
     void syncCommitmentReminders(commitments, today, reminderMin, Date.now(), dayStartHour);
   }, [commitments, reminderMin, today, tokenTick, dayStartHour]);
+}
+
+// ------------------------------------------------------------------ wind-down (Marco 4)
+
+const WIND_DOWN_META = 'scheduledWindDown';
+export const WIND_DOWN_BODY = 'Hora de desacelerar: comer, banho e algo tranquilo antes de dormir.';
+
+/**
+ * Wind-down pushes that should exist now: today's and tomorrow's, Monday to Friday (the class
+ * nights), at `windDownAt` (earlier than `dayStartHour` = the next calendar morning), still ahead,
+ * and not for a night whose "Deitei" is already logged. Tag `winddown:${day}`.
+ */
+export function desiredWindDown(
+  sleep: SleepSettings, today: DayKey, now: number, logs: readonly SleepLog[], dayStartHour = 4,
+): ScheduledReminder[] {
+  if (!sleep.windDownReminder) return [];
+  const out: ScheduledReminder[] = [];
+  for (const day of [today, addDays(today, 1)]) {
+    const wd = weekdayOf(day);
+    if (wd === 0 || wd === 6) continue;
+    const at = logicalTimestamp(day, sleep.windDownAt, dayStartHour);
+    if (at <= now) continue;
+    const night = sleepNightOf(at);
+    if (logs.some((l) => !l.deleted && l.night === night && l.bedAt !== undefined)) continue;
+    out.push({ tag: `winddown:${day}`, at, title: TITLE, body: WIND_DOWN_BODY });
+  }
+  return out;
+}
+
+export function syncWindDownReminders(
+  sleep: SleepSettings, today: DayKey, now: number, logs: readonly SleepLog[], dayStartHour = 4,
+): Promise<void> {
+  return enqueue(() => syncScheduled(WIND_DOWN_META, desiredWindDown(sleep, today, now, logs, dayStartHour), now));
+}
+
+/** Layout effect: keeps the wind-down push in sync with the setting, the day, the nights and the token. */
+export function useWindDownReminders(): void {
+  const logs = useLiveQuery(() => db.sleepLogs.toArray());
+  const settings = useSettings();
+  const today = useToday();
+  const [tokenTick, setTokenTick] = useState(0);
+  const sleep = settings ? sleepSettingsOf(settings) : undefined;
+  const on = sleep?.windDownReminder;
+  const time = sleep?.windDownAt;
+  const dayStartHour = settings?.dayStartHour ?? 4;
+
+  useEffect(() => {
+    const onToken = () => setTokenTick((n) => n + 1);
+    window.addEventListener(TOKEN_EVENT, onToken);
+    return () => window.removeEventListener(TOKEN_EVENT, onToken);
+  }, []);
+
+  useEffect(() => {
+    if (!logs || on === undefined || time === undefined || !today) return;
+    const s = sleepSettingsOf({ sleep: { windDownReminder: on, windDownAt: time } });
+    void syncWindDownReminders(s, today, Date.now(), logs, dayStartHour);
+  }, [logs, on, time, today, tokenTick, dayStartHour]);
 }

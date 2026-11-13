@@ -58,6 +58,22 @@ describe('SettingsScreen', () => {
     expect(fileName).toBe('life-rpg-2026-11-11.json');
   });
 
+  it('Sono: the Agora taps and the wind-down reminder with its time', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    const section = await screen.findByRole('region', { name: 'Sono' });
+    const prompt = within(section).getByRole('checkbox', { name: 'Mostrar “Deitei” e “Acordei” no Agora' });
+    await waitFor(() => expect(prompt).toBeChecked());
+    const time = within(section).getByLabelText('Horário do lembrete');
+    expect(time).toBeDisabled();
+    await user.click(within(section).getByRole('checkbox', { name: 'Lembrete de desaceleração' }));
+    await waitFor(async () => expect((await db.settings.get('settings'))!.sleep?.windDownReminder).toBe(true));
+    await waitFor(() => expect(time).toBeEnabled());
+    expect(time).toHaveValue('22:45');
+    await user.click(prompt);
+    await waitFor(async () => expect((await db.settings.get('settings'))!.sleep?.agoraPrompt).toBe(false));
+  });
+
   it('"Sobre" shows the version without repository paths', async () => {
     renderSettings();
     expect(await screen.findByText(/LIFE RPG, versão/)).toBeInTheDocument();
