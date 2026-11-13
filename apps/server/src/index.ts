@@ -16,6 +16,7 @@ const app = await buildApp(cfg, { store, hub, push });
 await app.listen({ port: cfg.port, host: cfg.host });
 console.log(`LIFE RPG server listening on http://${cfg.host}:${cfg.port}`);
 console.log(`Access token file: ${join(cfg.dataDir, 'token')}`);
+console.log(cfg.ai ? `IA: ligada (até ${cfg.ai.dailyLimit} pedidos por dia)` : 'IA: desligada (sem ANTHROPIC_API_KEY)');
 
 const shutdown = () => {
   stopPush();

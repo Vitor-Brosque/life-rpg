@@ -61,6 +61,32 @@ As imagens e os áudios dos cards ficam em `data/media/` (um arquivo por conteú
 
 Opcional: a variável de ambiente `LIFE_RPG_VAPID_SUBJECT` (por exemplo `mailto:voce@exemplo.com`) define o contato informado aos serviços de push; o padrão é `mailto:life-rpg@example.com`.
 
+## IA opcional (Marco 7)
+
+Sem chave, o app funciona igual e não mostra nenhum controle de IA. Para ligar:
+
+1. Crie uma chave na Console da Anthropic.
+2. Grave a chave no servidor, fora do repositório (o `deploy.sh` nunca apaga esse arquivo):
+
+   ```bash
+   ssh -t homelab "nano ~/projects/life-rpg/.env && chmod 600 ~/projects/life-rpg/.env"
+   ```
+
+   com o conteúdo:
+
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   LIFE_RPG_AI_DAILY_LIMIT=30
+   ```
+
+3. Suba de novo: `./deploy/deploy.sh` (ou `ssh homelab "cd ~/projects/life-rpg && docker compose up -d"`).
+4. Confira: `ssh homelab "curl -s -H 'Authorization: Bearer <token>' http://127.0.0.1:8787/api/ai/status"` deve responder `{"available":true,...}`. O log do container mostra "IA: ligada".
+5. No app: Ajustes → "Inteligência (opcional)", e ligue só as ajudas que quiser.
+
+No notebook (`LIFE RPG.cmd`), defina `ANTHROPIC_API_KEY` como variável de ambiente do usuário do Windows e reabra o app.
+
+O que vai para a API: só o que cada ajuda mostra em "O que é enviado", quando você toca no botão. A chave nunca sai do servidor. `LIFE_RPG_AI_DAILY_LIMIT` (1 a 1000, padrão 30) limita os pedidos por dia; o log mostra uma linha por pedido, com tokens, sem conteúdo.
+
 ## Restaurar um backup
 
 Troque `AAAA-MM-DD` pela data do backup desejado (veja os disponíveis com `ssh homelab "sudo -n ls ~/projects/life-rpg/data/backups"`):

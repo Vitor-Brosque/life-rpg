@@ -8,3 +8,6 @@ services:
       - ./data:/data
     environment:
       TZ: America/Sao_Paulo
+      # Optional AI (Marco 7): the key lives in ./.env on the server (never in the repository).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LIFE_RPG_AI_DAILY_LIMIT: ${LIFE_RPG_AI_DAILY_LIMIT:-30}

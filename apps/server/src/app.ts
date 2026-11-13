@@ -8,6 +8,10 @@ import { z } from 'zod';
 import { SYNC_TABLES, type SyncChange, type SyncResponse } from '@life/shared';
 import type { ServerConfig } from './config';
 import { Hub } from './hub';
+import { anthropicModel, createAnthropic } from './ai/model';
+import { AiQuota, storeQuota } from './ai/quota';
+import { registerAiRoutes } from './ai/routes';
+import { AiService } from './ai/service';
 import { MediaStore, registerMediaRoutes } from './media';
 import { PushService } from './push';
 import { RecordStore } from './store';
@@ -17,6 +21,8 @@ export interface BuildDeps {
   hub?: Hub;
   push?: PushService;
   media?: MediaStore;
+  /** Optional AI (Marco 7). Absent: built from cfg.ai; no cfg.ai either → AI off. */
+  ai?: AiService;
   now?: () => number;
 }
 
@@ -66,6 +72,12 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
   const hub = deps.hub ?? new Hub();
   const push = deps.push ?? new PushService(store, cfg.dataDir);
   const media = deps.media ?? new MediaStore(join(cfg.dataDir, 'media'));
+  const ai = deps.ai ?? (cfg.ai
+    ? new AiService({
+      model: anthropicModel(createAnthropic(cfg.ai.apiKey)),
+      quota: new AiQuota(cfg.ai.dailyLimit, storeQuota(store)),
+    })
+    : undefined);
   const app = Fastify({ bodyLimit: 5 * 1024 * 1024 });
 
   // Open SSE responses: ended on close, otherwise they keep the server from shutting down.
@@ -92,6 +104,7 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
     });
     api.setNotFoundHandler((_req, reply) => reply.code(404).send({ error: 'not_found' }));
     registerApiRoutes(api, { store, hub, push, streams, media });
+    registerAiRoutes(api, ai);
   }, { prefix: '/api' });
 
   if (cfg.webDir && existsSync(cfg.webDir)) {
