@@ -71,6 +71,7 @@ export function StudyScreen() {
           <div className="study__actions">
             {active.length > 0 && <Button size="sm" icon="plus" onClick={() => navigate(newCardHref)}>Novo card</Button>}
             <Button size="sm" variant="ghost" onClick={() => setDeckSheet(true)}>Novo baralho</Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate('/estudo/materias')}>Matérias</Button>
             {cardsAi && <Button size="sm" variant="ghost" onClick={() => setSuggest(true)}>Sugerir cards</Button>}
           </div>
         </div>

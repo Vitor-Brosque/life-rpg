@@ -29,3 +29,4 @@ export * from './associations';
 export * from './world';
 export * from './npc';
 export * from './ai';
+export * from './subjects';

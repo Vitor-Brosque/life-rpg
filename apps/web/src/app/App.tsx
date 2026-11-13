@@ -27,6 +27,7 @@ import { DeckScreen } from '../features/study/DeckScreen';
 import { NoteEditor } from '../features/study/NoteEditor';
 import { ReviewSession } from '../features/study/ReviewSession';
 import { StudyScreen } from '../features/study/StudyScreen';
+import { SubjectsScreen } from '../features/study/SubjectsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { WorldWatcher } from '../features/world/WorldWatcher';
 import { TimerBar } from '../timer/TimerBar';
@@ -78,6 +79,7 @@ export function App() {
           <Route path="/estudo"><StudyScreen /></Route>
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
           <Route path="/estudo/revisar"><ReviewSession /></Route>
+          <Route path="/estudo/materias"><SubjectsScreen /></Route>
           <Route path="/estudo/lousas"><SketchListScreen /></Route>
           <Route path="/estudo/praticas"><PracticeListScreen /></Route>
           <Route path="/lousa/:id">{(params) => <SketchScreen key={params.id} id={params.id} />}</Route>
