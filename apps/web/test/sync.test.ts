@@ -288,7 +288,7 @@ class FakeES {
 
 describe('startSync', () => {
   beforeEach(() => { FakeES.instances = []; });
-  afterEach(() => { vi.useRealTimers(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
   const realSetTimeout = globalThis.setTimeout;
   // fake-indexeddb schedules with timers too, so let real time pass between small fake steps.
@@ -298,9 +298,12 @@ describe('startSync', () => {
       await new Promise((r) => { realSetTimeout(r, 3); });
     }
   };
-  /** Flushes in small steps until `cond` holds (Dexie reads need real time, which varies under load). */
-  const flushUntil = async (cond: () => boolean, tries = 100) => {
-    for (let i = 0; i < tries && !cond(); i++) await flush(10);
+  /**
+   * Flushes in small steps until `cond` holds (Dexie reads need real time, which varies under load).
+   * Rule for this file: a fixed `flush(T)` only asserts "not before T"; "eventually" always goes through here.
+   */
+  const flushUntil = async (cond: () => boolean, tries = 100, step = 10) => {
+    for (let i = 0; i < tries && !cond(); i++) await flush(step, step);
   };
   const fake = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
@@ -320,7 +323,7 @@ describe('startSync', () => {
     await put('missions', mk('local'));
     await flush(900);
     expect(f.mock.calls.length).toBe(initial);
-    await flush(200);
+    await flushUntil(() => f.mock.calls.length > initial, 300);
     expect(f.mock.calls.length).toBe(initial + 1);
 
     stop();
@@ -338,6 +341,8 @@ describe('startSync', () => {
     vi.stubGlobal('fetch', f);
     vi.stubGlobal('EventSource', FakeES);
     fake();
+    const spy = vi.spyOn(globalThis, 'setTimeout');
+    const retryDelays = () => spy.mock.calls.map((c) => c[1]).filter((ms): ms is number => typeof ms === 'number' && ms >= 2000 && ms <= 16_000);
     const stop = startSync();
     await flushUntil(() => f.mock.calls.length >= 1);
     expect(f).toHaveBeenCalledTimes(1);
@@ -345,12 +350,12 @@ describe('startSync', () => {
     window.dispatchEvent(new Event('online'));
     await flushUntil(() => f.mock.calls.length >= 2);
     expect(f).toHaveBeenCalledTimes(2);
-    await flush(2100);
-    expect(f).toHaveBeenCalledTimes(3); // first retry after 2s
-    await flush(3800);
-    expect(f).toHaveBeenCalledTimes(3); // next retry waits 4s
-    await flush(300);
-    expect(f).toHaveBeenCalledTimes(4);
+    // The retry timers armed so far: 2s after the first failure and 2s again after the failed "online" trigger
+    // (it re-arms without doubling). Each failed *retry* then doubles: 4s, then 8s.
+    await flushUntil(() => f.mock.calls.length >= 3, 300, 50); // the 2s retry
+    await flushUntil(() => f.mock.calls.length >= 4, 300, 50); // the 4s retry
+    await flushUntil(() => retryDelays().length >= 4, 300, 50);
+    expect(retryDelays()).toEqual([2000, 2000, 4000, 8000]);
     stop();
   });
 
@@ -364,7 +369,9 @@ describe('startSync', () => {
     const es = FakeES.instances[0]!;
     es.readyState = 2;
     es.emit('error');
-    await flush(2100);
+    await flush(1900); // the reopen waits 2s
+    expect(FakeES.instances).toHaveLength(1);
+    await flushUntil(() => FakeES.instances.length >= 2, 300);
     expect(FakeES.instances).toHaveLength(2);
     await setMeta('syncToken', 'tok2');
     window.dispatchEvent(new Event('life-rpg:token'));
