@@ -1,7 +1,8 @@
 import type {
-  Area, BaseRecord, Block, BlockSession, DayKey, DayMode, DayState, ID, Journey, Mission, Settings,
+  Area, BaseRecord, Block, BlockSession, DayKey, DayMode, DayState, EnergyLevel, EnergyLog, ID, Journey, Mission,
+  Settings,
 } from '@life/shared';
-import { BLOCK_XP, RESUMPTION_XP, defaultDayMode, isResumption, normalize } from '@life/shared';
+import { BLOCK_XP, RESUMPTION_XP, dayKeyOf, defaultDayMode, isResumption, normalize } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, patchMany, put, upsert } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, upsertDayState, withLock } from './common';
@@ -123,12 +124,24 @@ export async function copyBlockDays(fromWeekday: number, toWeekdays: number[]): 
 
 // ------------------------------------------------------------------ the lived day
 
-/** Today's type; the first answer also marks when the day started. `hardDay` mirrors it for old readers. */
+/** The day's energy implied by its type (one question per day: the type sets the energy). */
+const MODE_ENERGY: Record<DayMode, EnergyLevel> = { normal: 'medium', low: 'low', recovery: 'low', free: 'medium' };
+
+/**
+ * Today's type; the first answer also marks when the day started. `hardDay` mirrors it for old readers.
+ * Also records the day's energy, unless today's latest log already has that level.
+ */
 export async function setDayMode(mode: DayMode): Promise<void> {
   const today = await getToday();
   const existing = await db.dayState.get(today);
   const startedAt = (existing && !existing.deleted ? existing.startedAt : undefined) ?? Date.now();
   await upsertDayState(today, { mode, startedAt, hardDay: mode === 'low' || mode === 'recovery' });
+
+  const startHour = (await db.settings.get('settings'))?.dayStartHour ?? 4;
+  const level = MODE_ENERGY[mode];
+  const logs = await db.energyLogs.orderBy('at').reverse().filter((l) => !l.deleted).toArray();
+  const latest = logs.find((l) => dayKeyOf(l.at, startHour) === today);
+  if (latest?.level !== level) await put('energyLogs', newRecord<EnergyLog>({ at: Date.now(), level }));
 }
 
 export const startBlock = (blockId: ID): Promise<{ xp: number; resumption: boolean }> =>
