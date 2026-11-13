@@ -193,7 +193,7 @@ describe('audio in the note editor', () => {
     const back = await openEditor();
     await user.click(screen.getByRole('button', { name: 'Inserir áudio em Verso' }));
     await user.click(await screen.findByRole('button', { name: 'Gravar' }));
-    expect(await screen.findByText('Gravando · 0:00 / 2:00')).toBeInTheDocument();
+    expect(await screen.findByText(/^Gravando · 0:0\d \/ 2:00$/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Parar' }));
     expect(await screen.findByText('Gravação · 0:00')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ouvir a gravação' })).toBeEnabled();
@@ -233,7 +233,7 @@ describe('audio in the note editor', () => {
     await openEditor();
     await user.click(screen.getByRole('button', { name: 'Inserir áudio em Verso' }));
     await user.click(await screen.findByRole('button', { name: 'Gravar' }));
-    await screen.findByText('Gravando · 0:00 / 2:00');
+    await screen.findByText(/^Gravando · 0:0\d \/ 2:00$/);
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Áudio' })).toBeNull());
     expect(mic.instances[0]!.state).toBe('inactive');

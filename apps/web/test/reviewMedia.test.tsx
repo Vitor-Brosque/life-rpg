@@ -108,7 +108,7 @@ describe('"Responder falando"', () => {
     expect(localStorage.getItem('life-rpg.study.speakFirst')).toBe('1');
     expect(mic.getUserMedia).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Gravar resposta' }));
-    expect(await screen.findByText('Gravando · 0:00 / 2:00')).toBeInTheDocument();
+    expect(await screen.findByText(/^Gravando · 0:0\d \/ 2:00$/)).toBeInTheDocument(); // a loaded machine may already show 0:01
     await user.click(screen.getByRole('button', { name: 'Mostrar resposta' })); // still recording: it stops and is kept
     expect(await screen.findByRole('button', { name: 'Ouvir minha resposta' })).toBeEnabled();
     expect(screen.getByRole('heading', { name: 'Sua resposta falada' })).toBeInTheDocument();
@@ -116,8 +116,8 @@ describe('"Responder falando"', () => {
     await user.click(screen.getByRole('button', { name: /^Bom/ }));
     await screen.findByText('pear');
     expect((await liveReviews())[0]!.spoke).toBe(true);
-    expect(revoke).toHaveBeenCalledWith('blob:resp/1');
-    expect(screen.getByRole('button', { name: 'Gravar resposta' })).toBeInTheDocument();
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:resp/1'));
+    expect(await screen.findByRole('button', { name: 'Gravar resposta' })).toBeInTheDocument();
   });
 
   it('is hidden where the browser cannot record; without a recording there is no spoke', async () => {
