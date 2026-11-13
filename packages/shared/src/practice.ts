@@ -134,8 +134,8 @@ const items = (v: unknown): ChecklistItem[] =>
   (Array.isArray(v) ? v.filter(isItem).map((x) => ({ id: x.id, text: x.text, done: x.done === true })) : []);
 
 /** A valid Marco 7 hint reference, or undefined (bad data from sync or import is dropped). */
-function hintOf(v: unknown): PracticeFeedback['hint'] {
-  if (!v || typeof v !== 'object') return undefined;
+function hintOf(v: unknown, source: unknown): PracticeFeedback['hint'] {
+  if (source !== 'ai' || !v || typeof v !== 'object') return undefined;
   const h = v as { step?: unknown; level?: unknown };
   return isPracticeStep(h.step) && (h.level === 1 || h.level === 2 || h.level === 3)
     ? { step: h.step, level: h.level }
@@ -160,7 +160,7 @@ export function normalizePractice(s: PracticeSession): PracticeSession {
       && typeof (f as PracticeFeedback).id === 'string' && typeof (f as PracticeFeedback).text === 'string')
     .map((f) => {
       const { hint: rawHint, ...rest } = f;
-      const hint = hintOf(rawHint);
+      const hint = hintOf(rawHint, f.source);
       return {
         ...rest,
         at: typeof f.at === 'number' ? f.at : 0,

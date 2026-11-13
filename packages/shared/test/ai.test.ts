@@ -33,6 +33,19 @@ describe('settings and helpers', () => {
     expect(aiSettingsOf(undefined)).toEqual({ hints: false, cards: false, weekly: false });
     expect(aiSettingsOf({ ai: { cards: true } })).toEqual({ hints: false, cards: true, weekly: false });
   });
+  it('aiSettingsOf tolerates bad stored values and never switches anything on by accident', () => {
+    const off = { hints: false, cards: false, weekly: false };
+    expect(aiSettingsOf({ ai: { hints: 'no' } } as never)).toEqual(off);
+    expect(aiSettingsOf({ ai: { hints: 1 } } as never)).toEqual(off);
+    expect(aiSettingsOf({ ai: 'abc' } as never)).toEqual(off);
+    expect(aiSettingsOf({ ai: null } as never)).toEqual(off);
+    expect(aiSettingsOf({ ai: { hints: true, extra: true } } as never)).toEqual({ ...off, hints: true });
+  });
+  it('clip does not split a surrogate pair', () => {
+    const out = clip('abcdefgh😀ijkl', 10);
+    expect(out).toBe('abcdefgh…');
+    expect(/[\ud800-\udbff](?![\udc00-\udfff])/.test(out)).toBe(false);
+  });
   it('clip keeps short text and cuts at a word with an ellipsis', () => {
     expect(clip('abc', 3)).toBe('abc');
     expect(clip('uma frase bem comprida aqui', 15)).toBe('uma frase bem…');
@@ -270,5 +283,62 @@ describe('normalizePractice keeps a valid hint', () => {
     } as unknown as PracticeSession);
     expect(s.feedback[0]!.hint).toEqual({ step: 'plan', level: 2 });
     expect('hint' in s.feedback[1]!).toBe(false);
+  });
+});
+
+describe('rebuild rule in the builders', () => {
+  const rebuilding = (over = {}) => session({ rebuild: { startedAt: 1, code: 'def g(): pass', ...over } } as never);
+  it('hintRequestOf has no code for code/test while a rebuild is unfinished and not peeked', () => {
+    for (const step of ['code', 'test'] as const) {
+      const r = hintRequestOf(rebuilding(), step, 1);
+      expect(r.code).toBe('');
+      expect(hintPreview(r)).not.toContain('def f');
+    }
+    expect(hintRequestOf(rebuilding({ peeked: true }), 'code', 1).code).toContain('def f');
+    expect(hintRequestOf(rebuilding({ comparedAt: 5 }), 'code', 1).code).toContain('def f');
+  });
+  it('hintPrompt ignores code on steps other than code/test/rebuild', () => {
+    const r = { ...hintRequestOf(session(), 'code', 1), step: 'problem' as const };
+    expect(r.code).not.toBe('');
+    expect(hintPrompt(r).context).not.toContain('def f');
+  });
+});
+
+describe('cleanHint: other code forms', () => {
+  const O = HINT_CODE_OMITTED;
+  it('strips ~~~ fences with the same 2-line rule', () => {
+    expect(cleanHint('a\n~~~\n1\n2\n3\n~~~\nb')).toBe(`a\n${O}\nb`);
+    expect(cleanHint('a\n~~~\n1\n~~~\nb')).toBe('a\n~~~\n1\n~~~\nb');
+  });
+  it('drops runs of 3+ indented code lines', () => {
+    expect(cleanHint('a\n    x = 1\n    y = 2\n    z = 3\nb')).toBe(`a\n${O}\nb`);
+    expect(cleanHint('a\n\tx = 1\n\ty = 2\n\tz = 3\nb')).toBe(`a\n${O}\nb`);
+    expect(cleanHint('a\n    x = 1\n    y = 2\nb')).toBe('a\n    x = 1\n    y = 2\nb');
+  });
+  it('handles longer fences: closer must match char and be at least as long', () => {
+    expect(cleanHint('a\n````\n1\n```\n2\n3\n````\nb')).toBe(`a\n${O}\nb`);
+    expect(cleanHint('a\n~~~~\n1\n~~~\n2\n3\n~~~~\nb')).toBe(`a\n${O}\nb`);
+    expect(cleanHint('a\n```\n1\n~~~\n2\n3\n```\nb')).toBe(`a\n${O}\nb`);
+  });
+  it('a single-line fence does not cut the rest', () => {
+    expect(cleanHint('Use ```set()``` aqui.\nDepois filtre.')).toBe('Use ```set()``` aqui.\nDepois filtre.');
+    expect(cleanHint('```set()```\nDepois filtre.')).toBe('```set()```\nDepois filtre.');
+  });
+  it('never leaves an unclosed fence after the length clip', () => {
+    const fits = cleanHint(`${'a'.repeat(980)}\n\`\`\`\nx = 1\n\`\`\``);
+    expect(fits.match(/^`{3}/gm) ?? []).toHaveLength(2);
+    const cut = cleanHint(`${'a'.repeat(990)}\n\`\`\`\nx = 1\n\`\`\``);
+    expect(cut).not.toContain('```');
+    expect(cut.length).toBeLessThanOrEqual(AI_LIMITS.hintText);
+  });
+});
+
+describe('normalizePractice hint source', () => {
+  it('keeps hint only on ai feedback', () => {
+    const s = normalizePractice({
+      ...session(),
+      feedback: [{ id: 'p', at: 1, source: 'person', text: 'x', hint: { step: 'plan', level: 1 } }],
+    } as unknown as PracticeSession);
+    expect('hint' in s.feedback[0]!).toBe(false);
   });
 });

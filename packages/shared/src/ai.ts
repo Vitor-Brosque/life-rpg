@@ -14,7 +14,10 @@ export type AiFeature = (typeof AI_FEATURES)[number];
 export const DEFAULT_AI: AiSettings = { hints: false, cards: false, weekly: false };
 
 export function aiSettingsOf(s?: { ai?: Partial<AiSettings> }): AiSettings {
-  return { ...DEFAULT_AI, ...(s?.ai ?? {}) };
+  const raw = s?.ai && typeof s.ai === 'object' ? (s.ai as Record<string, unknown>) : {};
+  const out = { ...DEFAULT_AI };
+  for (const k of AI_FEATURES) out[k] = raw[k] === true;
+  return out;
 }
 
 export const AI_LIMITS = {
@@ -46,7 +49,8 @@ export interface AiOk<T> { result: T; usage: AiUsage }
 
 export function clip(text: string, max: number): string {
   if (text.length <= max) return text;
-  const cut = text.slice(0, max - 1);
+  let cut = text.slice(0, max - 1);
+  if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1); // never split a surrogate pair
   const space = cut.search(/\s\S*$/);
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
@@ -110,7 +114,8 @@ const items = (list: ChecklistItem[]): HintItem[] =>
   list.map((i) => ({ text: i.text.trim(), done: i.done })).filter((i) => i.text !== '');
 
 export function hintRequestOf(s: PracticeSession, step: HintStep, level: HintLevel): HintRequest {
-  const raw = step === 'code' || step === 'test' ? s.code : step === 'rebuild' ? (s.rebuild?.code ?? '') : '';
+  const paused = (step === 'code' || step === 'test') && hintStepState(s, step).kind === 'paused';
+  const raw = paused ? '' : step === 'code' || step === 'test' ? s.code : step === 'rebuild' ? (s.rebuild?.code ?? '') : '';
   return {
     step,
     level,
@@ -149,7 +154,7 @@ export function hintPrompt(r: HintRequest): { context: string; ask: string } {
   section('Alternativas consideradas', r.alternatives);
   section('Decisão', r.decision);
   section('Casos de teste', r.tests.map((t) => `- [${t.done ? 'x' : ' '}] ${t.text}`).join('\n'));
-  if (r.code.trim()) {
+  if (r.code.trim() && (r.step === 'code' || r.step === 'test' || r.step === 'rebuild')) {
     const fence = r.code.includes('```') ? '````' : '```';
     section(
       r.step === 'rebuild' ? 'Reconstrução (escrita de memória, sem consultar)' : 'Código da implementação',
@@ -169,19 +174,60 @@ export const hintPreview = (r: HintRequest): string => {
   return `${p.context}\n\n${p.ask}`;
 };
 
-const FENCED_RE = /^(`{3,})[^\n]*\n([\s\S]*?)^\1[ \t]*$/gm;
+const OPEN_RE = /^ {0,3}(`{3,}[^`]*|~{3,}.*)$/;
+const INDENT_RE = /^(?: {4}|\t)\S/;
+
+/** Index of the line closing the fence opened at `from`, or -1. */
+function fenceCloser(lines: string[], from: number): number {
+  const open = lines[from]!.trim();
+  const ch = open[0]!;
+  const len = open.match(ch === '`' ? /^`+/ : /^~+/)![0].length;
+  for (let k = from + 1; k < lines.length; k++) {
+    const m = lines[k]!.match(/^ {0,3}(`+|~+)[ \t]*$/);
+    if (m && m[1]![0] === ch && m[1]!.length >= len) return k;
+  }
+  return -1;
+}
+
+/** Index of the line where a fence is still open at the end of the text, or -1. */
+function openFenceStart(lines: string[]): number {
+  for (let i = 0; i < lines.length; i++) {
+    if (!OPEN_RE.test(lines[i]!)) continue;
+    const c = fenceCloser(lines, i);
+    if (c === -1) return i;
+    i = c;
+  }
+  return -1;
+}
 
 export function cleanHint(raw: string): string {
-  let t = raw.replace(/\r\n/g, '\n').trim();
-  t = t.replace(FENCED_RE, (all: string, _fence: string, body: string) =>
-    body.split('\n').filter((l) => l.trim() !== '').length > AI_LIMITS.hintCodeLines ? HINT_CODE_OMITTED : all);
-  // An unclosed fence (``` with no partner): drop it and everything after it.
-  const fences = t.match(/^`{3,}/gm) ?? [];
-  if (fences.length % 2 === 1) {
-    const last = t.lastIndexOf(fences[fences.length - 1]!);
-    t = `${t.slice(0, last).trimEnd()}\n${HINT_CODE_OMITTED}`.trim();
+  const lines = raw.replace(/\r\n/g, '\n').trim().split('\n');
+  const out: string[] = [];
+  let run: string[] = [];
+  const flush = (): void => {
+    if (run.length >= 3) out.push(HINT_CODE_OMITTED); else out.push(...run);
+    run = [];
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (OPEN_RE.test(line)) {
+      flush();
+      const c = fenceCloser(lines, i);
+      if (c === -1) { out.push(HINT_CODE_OMITTED); break; } // unclosed: drop it and everything after
+      const body = lines.slice(i + 1, c);
+      if (body.filter((l) => l.trim() !== '').length > AI_LIMITS.hintCodeLines) out.push(HINT_CODE_OMITTED);
+      else out.push(...lines.slice(i, c + 1));
+      i = c;
+    } else if (INDENT_RE.test(line)) run.push(line);
+    else { flush(); out.push(line); }
   }
-  return clip(t.replace(/\n{3,}/g, '\n\n').trim(), AI_LIMITS.hintText);
+  flush();
+  let t = clip(out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), AI_LIMITS.hintText);
+  // The clip may fall inside a kept short fence: drop that fence.
+  const ls = (t.endsWith('…') ? t.slice(0, -1) : t).split('\n');
+  const open = openFenceStart(ls);
+  if (open !== -1) t = ls.slice(0, open).join('\n').trimEnd();
+  return t;
 }
 
 // ------------------------------------------------------------------ card suggestions
