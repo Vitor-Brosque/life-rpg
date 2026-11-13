@@ -51,11 +51,17 @@ export function ReviewSession() {
   const busy = useRef(false);
   const spoke = useRef(false);
   const ratedAt = useRef<number | undefined>(undefined);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
 
-  const advance = useCallback(async (forceCardId?: ID): Promise<void> => {
+  const load = useCallback(async (forceCardId?: ID): Promise<void> => {
     if (!settings || !today) return;
     const study = studySettingsOf(settings);
     const data = await readStudyData(today);
+    if (!alive.current) return;
     const input: StudyInput = {
       cards: data.cards, reviews: data.reviews, deckOrder: data.deckOrder, settings: study, mode, today,
       now: Date.now(), dayStartHour: settings.dayStartHour,
@@ -63,9 +69,11 @@ export function ReviewSession() {
     const plan = studyPlan(input);
     const scoped = deckFilter ? { ...input, cards: input.cards.filter((c) => c.deckId === deckFilter) } : input;
     setRemaining(remainingOf(scoped, plan));
+    if (!alive.current) return;
     const forced = forceCardId ? await db.cards.get(forceCardId) : undefined;
     const card = forced && !forced.deleted ? forced : pickNext(scoped, plan);
     const note = card ? await db.notes.get(card.noteId) : undefined;
+    if (!alive.current) return;
     setRevealed(false);
     setAnswer('');
     setCovered([]);
@@ -78,6 +86,17 @@ export function ReviewSession() {
       ctx: { dayStartHour: settings.dayStartHour, restDays: study.restDays, retention: study.retention, shortTerm: !card.topic },
     });
   }, [settings, today, mode, deckFilter]);
+
+  // After unmount nothing is set and a late failure is swallowed (the database may be closing).
+  const advance = useCallback(async (forceCardId?: ID): Promise<void> => {
+    try {
+      await load(forceCardId);
+    } catch (e) {
+      if (!alive.current) return;
+      console.error('advance failed', e);
+      useToast.getState().show(FAILURE_TOAST);
+    }
+  }, [load]);
 
   const ready = !!settings && !!today;
   useEffect(() => {

@@ -130,11 +130,6 @@ describe('ReviewSession', () => {
     expect(window.location.search).toBe('?voltar=sessao');
   });
 
-  it('with nothing to review says so', async () => {
-    render(<ReviewSession />);
-    expect(await screen.findByText('Nada para revisar agora.')).toBeInTheDocument();
-  });
-
   it('Editar and back keeps the deck filter, counters and undo', async () => {
     const user = userEvent.setup();
     const d = await deck(3);
@@ -152,5 +147,10 @@ describe('ReviewSession', () => {
     render(<ReviewSession />);
     expect(await screen.findByText(/^2\//)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Desfazer' })).toBeEnabled();
+  });
+
+  it('with nothing to review says so', async () => {
+    render(<ReviewSession />);
+    expect(await screen.findByText('Nada para revisar agora.')).toBeInTheDocument();
   });
 });
