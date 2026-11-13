@@ -74,7 +74,7 @@ describe('PainelScreen', () => {
     const apoio = await screen.findByRole('region', { name: 'Apoio' });
     expect(await within(apoio).findByRole('link', { name: 'Revisão: 3 cards · ~2 min' })).toBeInTheDocument();
     const agora = screen.getByRole('region', { name: 'Agora' });
-    expect(await within(agora).findByText(/Nada pendente/)).toBeInTheDocument();
+    expect(await within(agora).findByText(/descanso também conta/)).toBeInTheDocument();
     // Each prompt has its own live query: the Agora's line must not show up even after it could answer.
     await expect(within(agora).findByRole('link', { name: /para revisar/ }, { timeout: 600 })).rejects.toThrow();
     expect(within(agora).queryByRole('heading', { name: 'Revisão espaçada' })).toBeNull();
