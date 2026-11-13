@@ -5,7 +5,7 @@ import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import type { Area, Journey, Mission, XpEvent } from '@life/shared';
 import { db } from '../src/db/db';
-import { newRecord, patch, put } from '../src/db/repo';
+import { newRecord, patch, put, setMeta } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { MapScreen, WORLD_VIEW_KEY } from '../src/features/world/MapScreen';
 import { seedBlocks } from './blockFixture';
@@ -107,6 +107,17 @@ describe('MapScreen', () => {
     expect(localStorage.getItem(WORLD_VIEW_KEY)).toBe('lista');
     await user.click(within(vigor).getByRole('button', { name: 'Abrir Vigor' }));
     expect(await screen.findByRole('dialog', { name: 'Vigor · Acampamento' })).toBeInTheDocument();
+  });
+
+  it('the list also says what the map draws: a stage reached in the last days', async () => {
+    await seedVigor();
+    await setMeta('world', { stages: { 'area-vigor': 1 }, outfits: [0, 1, 2, 3, 4, 5], news: [{ kind: 'stage', areaId: 'area-vigor', stage: 1, at: NOW - 1000 }] });
+    const user = userEvent.setup();
+    renderMap();
+    await user.click(await screen.findByRole('button', { name: 'Lista' }));
+    const list = screen.getByRole('list', { name: 'Territórios' });
+    const vigor = within(list).getByRole('heading', { name: 'Vigor · Acampamento' }).closest('li')!;
+    await waitFor(() => expect(vigor).toHaveTextContent('Cresceu nos últimos dias.'));
   });
 
   it('without active areas it points to Ajustes', async () => {

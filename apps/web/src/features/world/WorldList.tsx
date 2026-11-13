@@ -16,7 +16,7 @@ export function WorldList({ world, onOpen }: { world: WorldView; onOpen(areaId: 
           <p>{hubLabel(world.companionName, model.avatar.areaId === undefined)}</p>
         </div>
       </li>
-      {world.territories.map(({ t, lines, start }) => {
+      {world.territories.map(({ t, lines, start, talk, grew }) => {
         const j = t.journeys[0];
         const here = model.avatar.areaId === t.area.id;
         return (
@@ -28,6 +28,9 @@ export function WorldList({ world, onOpen }: { world: WorldView; onOpen(areaId: 
               <p className="muted">{nextStageText(t)}</p>
               {j && <p>{`Jornada “${j.title}”: ${j.done} de ${j.total} missões`}</p>}
               <p className="world-list__npc">{`${t.npc.name} (${t.npc.role}): “${lines[start]!.text}”`}</p>
+              {/* the same cues the map draws (balloon, sparkle), as text */}
+              {talk && <p>Tem um recado para hoje.</p>}
+              {grew && <p>Cresceu nos últimos dias.</p>}
             </div>
             <Button size="sm" aria-label={`Abrir ${t.area.attribute}`} onClick={() => onOpen(t.area.id)}>Abrir</Button>
           </li>
