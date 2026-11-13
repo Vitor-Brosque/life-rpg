@@ -130,6 +130,63 @@ describe('CaptureBar', () => {
     expect(input).toHaveValue('ler 20min');
   });
 
+  it('"toda seg" mostra o chip de repetição e salva a missão recorrente na próxima segunda', async () => {
+    const user = setup();
+    render(<CaptureBar open onClose={() => {}} />);
+    const input = await screen.findByRole('textbox', { name: 'Capturar' });
+    await user.type(input, 'lavar roupa toda seg');
+    expect(await screen.findByText('Repete toda seg')).toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    await waitFor(async () => {
+      const ms = await liveMissions();
+      expect(ms).toHaveLength(1);
+      expect(ms[0]).toMatchObject({
+        title: 'lavar roupa', recurrence: { kind: 'weekly', weekdays: [1] }, date: '2026-11-16',
+      });
+    });
+  });
+
+  it('"todo dia 5" salva repetição mensal; remover o chip tira o texto', async () => {
+    const user = setup();
+    render(<CaptureBar open onClose={() => {}} />);
+    const input = await screen.findByRole('textbox', { name: 'Capturar' });
+    await user.type(input, 'pagar aluguel todo dia 5');
+    await user.click(await screen.findByRole('button', { name: 'Remover Repete todo dia 5' }));
+    expect(input).toHaveValue('pagar aluguel');
+    await user.type(input, ' todo dia 5{Enter}');
+    await waitFor(async () => {
+      const [m] = await liveMissions();
+      expect(m).toMatchObject({ title: 'pagar aluguel', recurrence: { kind: 'monthly', day: 5 }, date: '2026-12-05' });
+    });
+  });
+
+  it('"aula 19h toda ter e qui" vira um compromisso com os dias da semana', async () => {
+    const user = setup();
+    render(<CaptureBar open onClose={() => {}} />);
+    const input = await screen.findByRole('textbox', { name: 'Capturar' });
+    await user.type(input, 'aula 19h toda ter e qui{Enter}');
+    await waitFor(async () => {
+      const cs = (await db.commitments.toArray()).filter((c) => !c.deleted);
+      expect(cs).toHaveLength(1);
+      expect(cs[0]).toMatchObject({ title: 'aula', start: '19:00', weekdays: [2, 4], date: '2026-11-12' });
+    });
+    expect(await liveMissions()).toHaveLength(0);
+  });
+
+  it('um compromisso recorrente trocado para Missão mantém a repetição', async () => {
+    const user = setup();
+    render(<CaptureBar open onClose={() => {}} />);
+    const input = await screen.findByRole('textbox', { name: 'Capturar' });
+    await user.type(input, 'aula 19h toda ter e qui');
+    await user.click(await screen.findByRole('button', { name: 'Missão' }));
+    await user.click(input);
+    await user.keyboard('{Enter}');
+    await waitFor(async () => {
+      const [m] = await liveMissions();
+      expect(m).toMatchObject({ title: 'aula', recurrence: { kind: 'weekly', weekdays: [2, 4] }, date: '2026-11-12' });
+    });
+  });
+
   it('a half-typed capture survives the page being unloaded (saved when the page hides)', async () => {
     const user = setup();
     const first = render(<CaptureBar open onClose={() => {}} />);

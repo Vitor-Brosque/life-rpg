@@ -3,7 +3,7 @@
 
 .routine { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 /* Planejar widens to 1480 px for the 7-day columns; the routine reads better as one column. */
-.routine, .routine-setup { max-width: 760px; }
+.routine, .routine-setup, .recurring { max-width: 760px; }
 .routine__panel { display: flex; flex-direction: column; gap: var(--space-4); }
 .routine__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .routine__note { margin: 0; font-size: 0.875rem; }
@@ -150,3 +150,10 @@
 .routine-notes--warn p { color: var(--text-dim); font-size: 0.875rem; }
 .routine-notes__list li::before { content: '•'; color: var(--gold); }
 .block-card__note { color: var(--text-dim); font-size: 0.8125rem; font-style: italic; }
+
+/* Recorrentes: missions that repeat and weekly commitments. */
+.recurring { margin-top: var(--space-4); }
+.recurring__title { margin: 0; color: var(--gold); font-size: 1.25rem; }
+.recurring__group { display: flex; flex-direction: column; gap: var(--space-2); }
+.recurring__subtitle { margin: 0; color: var(--text); font-size: 1rem; }
+.recurring__item { min-height: 52px; padding-left: var(--space-3); }

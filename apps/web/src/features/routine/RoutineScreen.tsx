@@ -5,6 +5,7 @@ import { useAreas, useJourneys, useRoutineBlocks, useSettings, useToday } from '
 import { Button } from '../../ui/Button';
 import { BlockSheet } from './BlockSheet';
 import { CopyDaySheet } from './CopyDaySheet';
+import { RecurringSection } from './RecurringSection';
 import { RoutineEditor } from './RoutineEditor';
 import { RoutineSetup } from './RoutineSetup';
 import './routine.css';
@@ -67,6 +68,7 @@ export function RoutineScreen() {
           <Button variant="primary" icon="calendar" onClick={() => setSetupOpen(true)}>Criar rotina sugerida</Button>
           <Button icon="plus" aria-label="Novo bloco" onClick={() => setSheet({ kind: 'block' })}>Bloco</Button>
         </div>
+        <RecurringSection today={today} />
         {sheets}
       </div>
     );
@@ -86,6 +88,7 @@ export function RoutineScreen() {
         onAdd={() => setSheet({ kind: 'block' })}
         onCopy={() => setSheet({ kind: 'copy' })}
       />
+      <RecurringSection today={today} />
       {sheets}
     </>
   );

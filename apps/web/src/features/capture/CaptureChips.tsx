@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Area, CaptureToken, DayKey, Energy, Mission, ParsedCapture } from '@life/shared';
+import { describeRecurrence } from '@life/shared';
 import { areaIcon, Icon, type IconName } from '../../art/icons';
 import { resolveArea, updateMission } from '../../domain/actions';
 import { Chip } from '../../ui/Chip';
@@ -7,7 +8,7 @@ import { DURATION_OPTIONS, ENERGY_LABEL, ENERGY_OPTIONS, formatDay, formatDurati
 import { safeRun } from '../../ui/safeRun';
 
 const TOKEN_ICON: Record<CaptureToken['type'], IconName> = {
-  date: 'calendar', time: 'timer', duration: 'timer', journey: 'journey', area: 'star', important: 'star',
+  date: 'calendar', time: 'timer', duration: 'timer', journey: 'journey', area: 'star', important: 'star', recurrence: 'calendar',
 };
 
 function tokenLabel(t: CaptureToken, p: ParsedCapture, today: DayKey, areas: Area[]): string {
@@ -18,6 +19,7 @@ function tokenLabel(t: CaptureToken, p: ParsedCapture, today: DayKey, areas: Are
     case 'journey': return p.journeyName ?? t.text;
     case 'area': return (p.areaQuery && resolveArea(areas, p.areaQuery)?.name) ?? t.text;
     case 'important': return 'importante';
+    case 'recurrence': return p.recurrence ? `Repete ${describeRecurrence(p.recurrence)}` : t.text;
   }
 }
 

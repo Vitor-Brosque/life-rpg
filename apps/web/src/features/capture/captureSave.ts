@@ -1,6 +1,7 @@
-import type { Commitment, DayKey, Mission, Note } from '@life/shared';
+import type { Commitment, DayKey, Mission, Note, Recurrence } from '@life/shared';
 import { dayKeyToDate, parseCapture } from '@life/shared';
 import { captureLines } from '../../domain/actions';
+import { patch } from '../../db/repo';
 import { captureCardDraft, isCardCapture } from '../../domain/studyActions';
 
 export type Captured = Mission | Commitment | Note;
@@ -30,6 +31,11 @@ function slashDate(day: DayKey): string {
   return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
+/** A commitment line's "todo dia" arrives as all seven weekdays; as a mission it is simply daily. */
+function missionRecurrence(rec: Recurrence): Recurrence {
+  return rec.kind === 'weekly' && rec.weekdays.length === 7 ? { kind: 'daily' } : rec;
+}
+
 export interface SaveOptions {
   today: DayKey;
   /** The user switched a "time ⇒ commitment" line to a plain mission (single-line capture only). */
@@ -54,7 +60,8 @@ export async function saveCapture(text: string, opts: SaveOptions): Promise<Capt
     }
     const p = parseCapture(line, opts.today);
     if (p.title === '') continue;
-    const hasDate = p.tokens.some((t) => t.type === 'date');
+    // A recurrence gives the line its own first date (next occurrence), like a date token does.
+    const hasDate = p.tokens.some((t) => t.type === 'date' || t.type === 'recurrence');
     let src = line;
     const extra: Partial<Mission> = {};
     if (p.kind === 'commitment' && opts.asMission && lines.length === 1) {
@@ -64,7 +71,15 @@ export async function saveCapture(text: string, opts: SaveOptions): Promise<Capt
       if (p.kind === 'commitment') src = `${line} ${slashDate(opts.defaultDate)}`;
       else extra.date = opts.defaultDate;
     }
-    out.push(...(await captureLines(src, extra)));
+    const asMission = p.kind === 'mission' || (opts.asMission === true && lines.length === 1);
+    if (p.recurrence && asMission) extra.recurrence = missionRecurrence(p.recurrence);
+    const saved = await captureLines(src, extra);
+    // Commitments keep the weekly days (the parser already turned "todo dia" into the 7 days).
+    for (const r of saved) {
+      out.push(p.recurrence?.kind === 'weekly' && !isMission(r)
+        ? await patch<Commitment>('commitments', r.id, { weekdays: p.recurrence.weekdays })
+        : r);
+    }
   }
   return out;
 }

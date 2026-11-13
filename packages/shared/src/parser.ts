@@ -1,7 +1,8 @@
 import { addDays, daysInMonth, formatHHmm, isValidDayKey, weekdayOf } from './dates';
+import { nextOccurrence } from './recurrence';
 import type { DayKey, HHmm, Recurrence } from './types';
 
-export type CaptureTokenType = 'date' | 'time' | 'duration' | 'journey' | 'area' | 'important';
+export type CaptureTokenType = 'date' | 'time' | 'duration' | 'journey' | 'area' | 'important' | 'recurrence';
 export interface CaptureToken {
   type: CaptureTokenType;
   text: string;
@@ -79,6 +80,24 @@ const PREV_WORD_RE = /(?<!\S)(\S+)\s+$/u;
 function dateTokenAt(n: string, index: number): boolean {
   DATE_AT_RE.lastIndex = index;
   return DATE_AT_RE.test(n);
+}
+
+const WD_NAME = String.raw`(?:domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)(?:-feira)?s?`;
+const WD_LIST = String.raw`${WD_NAME}(?:(?:\s*,\s*(?:e\s+)?|\s+e\s+)${WD_NAME})*`;
+const RECUR_WEEKLY_RE = new RegExp(
+  B_BEFORE + String.raw`(?:toda|todas|todo|todos)\s+(?:(?:as|os)\s+)?(${WD_LIST})` + B_AFTER, 'u',
+);
+const RECUR_MONTHLY_RE = new RegExp(
+  B_BEFORE + String.raw`todo\s+(?:mes\s+)?dia\s+(\d{1,2})(?![\p{L}\p{N}:/-])`, 'u',
+);
+const RECUR_DAILY_RE = new RegExp(
+  B_BEFORE + String.raw`(?:todos\s+os\s+dias|todo\s+dia(?!\s+\d)|diariamente)` + B_AFTER, 'u',
+);
+const RECUR_SAME_WEEKDAY_RE = new RegExp(B_BEFORE + String.raw`toda\s+semana` + B_AFTER, 'u');
+
+function weekdayIndex(word: string): number | undefined {
+  const w = word.replace(/-feiras?$/u, '');
+  return WEEKDAYS[w] ?? WEEKDAYS[w.replace(/s$/u, '')];
 }
 
 const TIME_RE = new RegExp(
@@ -185,6 +204,31 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
     }
   }
 
+  // Recurrence ("toda seg e qui", "todo dia", "todo dia 5", "toda semana"): claimed before time and date.
+  let recurrence: Recurrence | undefined;
+  let sameWeekday = false;
+  {
+    const weekly = RECUR_WEEKLY_RE.exec(n);
+    const monthly = RECUR_MONTHLY_RE.exec(n);
+    const daily = RECUR_DAILY_RE.exec(n);
+    const same = RECUR_SAME_WEEKDAY_RE.exec(n);
+    const monthDay = monthly ? Number(monthly[1]) : 0;
+    const hit = [
+      weekly && { m: weekly, rec: (): Recurrence => ({
+        kind: 'weekly',
+        weekdays: [...new Set(weekly[1]!.split(/\s*,\s*(?:e\s+)?|\s+e\s+/u).map(weekdayIndex).filter((d): d is number => d !== undefined))]
+          .sort((a, b) => a - b),
+      }) },
+      monthly && monthDay >= 1 && monthDay <= 31 && { m: monthly, rec: (): Recurrence => ({ kind: 'monthly', day: monthDay }) },
+      daily && { m: daily, rec: (): Recurrence => ({ kind: 'daily' }) },
+      same && { m: same, rec: (): Recurrence => { sameWeekday = true; return { kind: 'weekly', weekdays: [] }; } },
+    ].find((h) => h && free({ start: h.m.index, end: h.m.index + h.m[0].length }));
+    if (hit) {
+      claim('recurrence', hit.m.index, hit.m.index + hit.m[0].length);
+      recurrence = hit.rec();
+    }
+  }
+
   // Time
   for (const m of n.matchAll(TIME_RE)) {
     const [whole, as, colonH, colonM, plainH, hPart, hMin] = m;
@@ -262,9 +306,19 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
     break;
   }
 
+  if (recurrence) {
+    if (sameWeekday) recurrence = { kind: 'weekly', weekdays: [weekdayOf(result.date ?? today)] };
+    // First occurrence on or after today, unless the line names a date.
+    result.date ??= nextOccurrence(recurrence, undefined, addDays(today, -1));
+    result.recurrence = recurrence;
+  }
+
   if (result.time !== undefined) {
     result.kind = 'commitment';
     result.date ??= today;
+    if (recurrence?.kind === 'daily') result.recurrence = { kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] };
+    // Monthly does not apply to commitments: only the date stays.
+    else if (recurrence?.kind === 'monthly') delete result.recurrence;
   }
 
   tokens.sort((a, b) => a.start - b.start);

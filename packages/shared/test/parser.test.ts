@@ -115,3 +115,103 @@ describe('normalize', () => {
     expect(normalize('Ação')).toBe('acao');
   });
 });
+
+describe('recorrência na captura', () => {
+  // today = 2026-11-11, quarta
+  const rec = (input: string) => parseCapture(input, today);
+
+  it('"toda seg" vira semanal [1], sai do título e a data é a próxima segunda', () => {
+    const p = rec('lavar roupa toda seg');
+    expect(p.title).toBe('lavar roupa');
+    expect(p.recurrence).toEqual({ kind: 'weekly', weekdays: [1] });
+    expect(p.date).toBe('2026-11-16');
+    expect(p.kind).toBe('mission');
+    expect(p.tokens.map((t) => t.type)).toEqual(['recurrence']);
+  });
+
+  it('lista com vírgula e "e", ordenada e sem repetição', () => {
+    expect(rec('academia toda seg, qua e sex').recurrence).toEqual({ kind: 'weekly', weekdays: [1, 3, 5] });
+    expect(rec('academia toda seg, qua e sex').title).toBe('academia');
+    expect(rec('toda sex e seg e sex ler').recurrence).toEqual({ kind: 'weekly', weekdays: [1, 5] });
+  });
+
+  it('"todas as segundas e quartas ler artigo"', () => {
+    const p = rec('todas as segundas e quartas ler artigo');
+    expect(p.title).toBe('ler artigo');
+    expect(p.recurrence).toEqual({ kind: 'weekly', weekdays: [1, 3] });
+    expect(p.date).toBe('2026-11-11'); // hoje é quarta
+  });
+
+  it('plural com acento e domingo', () => {
+    expect(rec('missa todos os domingos').recurrence).toEqual({ kind: 'weekly', weekdays: [0] });
+    expect(rec('feira todos os sábados').recurrence).toEqual({ kind: 'weekly', weekdays: [6] });
+    expect(rec('piano toda terça').recurrence).toEqual({ kind: 'weekly', weekdays: [2] });
+  });
+
+  it('diária', () => {
+    for (const text of ['regar plantas todo dia', 'regar plantas todos os dias', 'regar plantas diariamente']) {
+      const p = rec(text);
+      expect(p.title).toBe('regar plantas');
+      expect(p.recurrence).toEqual({ kind: 'daily' });
+      expect(p.date).toBe('2026-11-11');
+    }
+  });
+
+  it('mensal: "todo dia 5" e "todo mês dia 5"', () => {
+    const a = rec('pagar aluguel todo dia 5');
+    expect(a.title).toBe('pagar aluguel');
+    expect(a.recurrence).toEqual({ kind: 'monthly', day: 5 });
+    expect(a.date).toBe('2026-12-05');
+    const b = rec('pagar aluguel todo mês dia 15');
+    expect(b.recurrence).toEqual({ kind: 'monthly', day: 15 });
+    expect(b.date).toBe('2026-11-15');
+  });
+
+  it('"toda semana" usa o dia da semana da data da missão (ou de hoje)', () => {
+    expect(rec('revisar finanças toda semana').recurrence).toEqual({ kind: 'weekly', weekdays: [3] });
+    expect(rec('revisar finanças toda semana 20/11').recurrence).toEqual({ kind: 'weekly', weekdays: [5] });
+  });
+
+  it('com data explícita mantém a data', () => {
+    const p = rec('lavar roupa toda seg 25/11');
+    expect(p.date).toBe('2026-11-25');
+    expect(p.recurrence).toEqual({ kind: 'weekly', weekdays: [1] });
+  });
+
+  it('compromisso: semanal vira weekdays, diária vira os 7 dias, mensal só a data', () => {
+    const a = rec('aula 19h toda ter e qui');
+    expect(a.kind).toBe('commitment');
+    expect(a.title).toBe('aula');
+    expect(a.time).toBe('19:00');
+    expect(a.recurrence).toEqual({ kind: 'weekly', weekdays: [2, 4] });
+    expect(a.date).toBe('2026-11-12'); // próxima: quinta
+    expect(rec('remédio 8h todo dia').recurrence).toEqual({ kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] });
+    const m = rec('contador 10h todo dia 5');
+    expect(m.kind).toBe('commitment');
+    expect(m.recurrence).toBeUndefined();
+    expect(m.date).toBe('2026-12-05');
+    expect(m.title).toBe('contador');
+  });
+
+  it('"toda quarta" sozinho não quebra', () => {
+    const p = rec('toda quarta');
+    expect(p.recurrence).toEqual({ kind: 'weekly', weekdays: [3] });
+    expect(p.title).toBe('');
+  });
+
+  it('palavras que não são recorrência ficam no título', () => {
+    for (const text of ['todo o capítulo 3', 'toda terra é boa', 'todos os livros', 'todo diálogo ler']) {
+      const p = rec(text);
+      expect(p.recurrence, text).toBeUndefined();
+    }
+    expect(rec('todo o capítulo 3').title).toBe('todo o capítulo 3');
+    expect(rec('toda terra é boa').title).toBe('toda terra é boa');
+  });
+
+  it('a marca de importante e a área continuam funcionando junto', () => {
+    const p = rec('regar plantas todo dia @casa !');
+    expect(p.important).toBe(true);
+    expect(p.areaQuery).toBe('casa');
+    expect(p.title).toBe('regar plantas');
+  });
+});
