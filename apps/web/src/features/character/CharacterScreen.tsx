@@ -76,7 +76,7 @@ export function CharacterScreen() {
         </div>
       </Panel>
 
-      {stats && <WorldCard stages={stats.byArea.map(({ info }) => stageForLevel(info.level))} />}
+      {stats && <WorldCard territories={stats.byArea.map(({ area, info }) => ({ areaId: area.id, stage: stageForLevel(info.level) }))} totalLevel={stats.total.level} />}
 
       <section aria-labelledby="attributes-title">
         <h2 id="attributes-title" className="section-title">Atributos</h2>

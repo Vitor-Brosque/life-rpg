@@ -85,7 +85,11 @@ export function useWorld(): WorldView | undefined {
       ...(d.freezer ? { freezer: d.freezer } : {}),
       ...(d.sleepNights !== undefined ? { sleepNights: d.sleepNights } : {}),
     };
-    const grew = new Set(activeNews(normalizeSeen(seenRaw), now).flatMap((n) => (n.kind === 'stage' ? [n.areaId] : [])));
+    const stageOf = new Map(model.territories.map((t) => [t.area.id, t.stage]));
+    // A stage news only counts while the territory still has that stage (an undo can drop it).
+    const grew = new Set(activeNews(normalizeSeen(seenRaw), now).flatMap(
+      (n) => (n.kind === 'stage' && (stageOf.get(n.areaId) ?? -1) >= n.stage ? [n.areaId] : []),
+    ));
     const territories = model.territories.map((t): TerritoryView => {
       const lines = npcLines({
         kind: t.npc.kind, area: t.area, stage: t.stage, facts: facts[t.area.id]!, world,

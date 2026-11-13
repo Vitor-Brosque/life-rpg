@@ -31,9 +31,15 @@ export function newsLine(n: WorldNews, areas: readonly AreaRef[]): string | unde
   return area ? `${area.attribute} virou ${STAGES[n.stage]!.one}` : undefined;
 }
 
+/** "Jornada “X”: 3 de 7 missões" / "…: 0 de 1 missão" / "…: sem missões ainda" (no closing period). */
+export function journeyLine(j: { title: string; done: number; total: number }): string {
+  if (j.total === 0) return `Jornada “${j.title}”: sem missões ainda`;
+  return `Jornada “${j.title}”: ${j.done} de ${j.total} ${j.total === 1 ? 'missão' : 'missões'}`;
+}
+
 export function nextStageText(t: Pick<Territory, 'next'>): string {
   if (!t.next) return 'Estágio máximo. O castelo fica, mesmo nos dias parados.';
-  return `Próximo estágio: ${STAGES[t.next.stage]!.name}, no nível ${t.next.level} (faltam ${t.next.xpLeft} XP)`;
+  return `Próximo estágio: ${STAGES[t.next.stage]!.name}, no nível ${t.next.level} (${t.next.xpLeft === 1 ? 'falta' : 'faltam'} ${t.next.xpLeft} XP)`;
 }
 
 export interface TerritoryFlags { avatarHere: boolean; talk: boolean; grew: boolean }
@@ -46,7 +52,7 @@ export function territoryLabel(t: Territory, f: TerritoryFlags): string {
     `${t.npc.name} (${t.npc.role}) ${f.talk ? 'tem um recado para hoje' : 'está aqui'}.`,
     ...(f.avatarHere ? ['Você está aqui.'] : []),
     ...(f.grew ? ['Cresceu nos últimos dias.'] : []),
-    ...(j ? [`Jornada “${j.title}”: ${j.done} de ${j.total} missões.`] : []),
+    ...(j ? [`${journeyLine(j)}.`] : []),
   ].join(' ');
 }
 

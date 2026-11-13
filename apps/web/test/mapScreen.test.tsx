@@ -57,7 +57,7 @@ describe('MapScreen', () => {
     await put('missions', mission({ title: 'Fonte nova', journeyId: 'j-tech', journeyOrder: 1, firstStep: 'Ler a doc da API' }));
     renderMap();
     expect(await screen.findByText(/^Você está em Ofício · /)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Ofício, Trabalho: .*Você está aqui\. Jornada “Tech News”: 0 de 1 missões\.$/ }))
+    expect(screen.getByRole('button', { name: /^Ofício, Trabalho: .*Você está aqui\. Jornada “Tech News”: 0 de 1 missão\.$/ }))
       .toBeInTheDocument();
   });
 
@@ -118,6 +118,18 @@ describe('MapScreen', () => {
     const list = screen.getByRole('list', { name: 'Territórios' });
     const vigor = within(list).getByRole('heading', { name: 'Vigor · Acampamento' }).closest('li')!;
     await waitFor(() => expect(vigor).toHaveTextContent('Cresceu nos últimos dias.'));
+  });
+
+  it('the list does not say "Cresceu" for a stage that an undo took back', async () => {
+    await seedVigor();
+    await setMeta('world', { stages: { 'area-vigor': 2 }, outfits: [0, 1, 2, 3, 4, 5], news: [{ kind: 'stage', areaId: 'area-vigor', stage: 2, at: NOW - 1000 }] });
+    const user = userEvent.setup();
+    renderMap();
+    await user.click(await screen.findByRole('button', { name: 'Lista' }));
+    const list = screen.getByRole('list', { name: 'Territórios' });
+    const vigor = within(list).getByRole('heading', { name: 'Vigor · Acampamento' }).closest('li')!;
+    await new Promise((r) => setTimeout(r, 100));
+    expect(vigor).not.toHaveTextContent('Cresceu nos últimos dias.');
   });
 
   it('without active areas it points to Ajustes', async () => {

@@ -70,7 +70,7 @@ function TerritoryBody({ view, world, onClose }: { view: TerritoryView; world: W
                 <Link href={`/jornadas/${j.id}`} className="territory__journey" onClick={onClose}>
                   <span className="territory__journey-title">{j.title}</span>
                   <ProgressBar value={j.done} max={j.total} color={t.area.color}
-                    label={j.total > 0 ? `${j.done} de ${j.total} missões` : 'Sem missões ainda'} />
+                    label={j.total > 0 ? `${j.done} de ${j.total} ${j.total === 1 ? 'missão' : 'missões'}` : 'Sem missões ainda'} />
                   {j.nextTitle && <span className="territory__journey-next">{`Próxima: ${j.nextTitle}`}</span>}
                 </Link>
               </li>

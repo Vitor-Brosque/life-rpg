@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Area } from '@life/shared';
 import { buildWorld } from '@life/shared';
 import {
-  celebrationText, hubLabel, newsLine, nextStageText, territoryLabel, worldSummary,
+  celebrationText, hubLabel, journeyLine, newsLine, nextStageText, territoryLabel, worldSummary,
 } from '../src/features/world/worldText';
 
 const area = (id: string, attribute: string, name: string, order: number): Area => ({
@@ -45,12 +45,15 @@ describe('news, labels and summary', () => {
       .toBe('Vigor, Corpo: Ruínas, nível 1. Dara (treinadora) está aqui. Você está aqui. Cresceu nos últimos dias.');
     expect(territoryLabel(oficio!, { avatarHere: false, talk: true, grew: false }))
       .toBe('Ofício, Trabalho: Ruínas, nível 1. Bruna (ferreira) tem um recado para hoje. Jornada “Tech News”: 3 de 7 missões.');
+    expect(journeyLine({ title: 'X', done: 0, total: 1 })).toBe('Jornada “X”: 0 de 1 missão');
+    expect(journeyLine({ title: 'X', done: 0, total: 0 })).toBe('Jornada “X”: sem missões ainda');
     expect(worldSummary(w)).toBe('Você está em Vigor · 2 territórios · 2 em ruínas');
     expect(worldSummary({ ...w, avatar: { cell: w.hub.cell } })).toBe('Você está na Encruzilhada · 2 territórios · 2 em ruínas');
   });
 
   it('nextStageText and hubLabel', () => {
     expect(nextStageText({ next: { stage: 2, level: 5, xpLeft: 115 } })).toBe('Próximo estágio: Aldeia, no nível 5 (faltam 115 XP)');
+    expect(nextStageText({ next: { stage: 2, level: 5, xpLeft: 1 } })).toBe('Próximo estágio: Aldeia, no nível 5 (falta 1 XP)');
     expect(nextStageText({})).toBe('Estágio máximo. O castelo fica, mesmo nos dias parados.');
     expect(hubLabel('Faísca', true)).toBe('Encruzilhada, onde começam as estradas das jornadas. Faísca está aqui. Você está aqui.');
     expect(hubLabel('Lume', false)).toBe('Encruzilhada, onde começam as estradas das jornadas. Lume está aqui.');

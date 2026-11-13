@@ -60,6 +60,18 @@ describe('unlockable outfit colours', () => {
     await waitFor(async () => expect((await db.profile.get('me'))?.look.outfit).toBe(6));
   });
 
+  it('the saved colour stays available after the preview moved to another one', async () => {
+    const me = (await db.profile.get('me'))!;
+    await patch<Profile>('profile', 'me', { look: { ...me.look, outfit: 9 } });
+    const { user, outfit } = await openEditor();
+    await user.click(await within(outfit).findByRole('radio', { name: 'Ardósia' }));
+    const dourado = within(outfit).getByRole('radio', { name: 'Dourado' });
+    expect(dourado).toBeEnabled();
+    expect(dourado).not.toBeChecked();
+    await user.click(dourado);
+    expect(within(outfit).getByRole('radio', { name: 'Dourado' })).toBeChecked();
+  });
+
   it('the current colour is never shown as locked, even above the level', async () => {
     const me = (await db.profile.get('me'))!;
     await patch<Profile>('profile', 'me', { look: { ...me.look, outfit: 9 } });
@@ -90,6 +102,22 @@ describe('Personagem and the world', () => {
     expect(card).toHaveAttribute('href', '/mapa');
     expect(card).toHaveTextContent('6 territórios · 1 acampamento, 5 em ruínas');
     await waitFor(() => expect(card).toHaveTextContent('Novidade: Vigor virou acampamento'));
+  });
+
+  it('news of a stage or colour that an undo took back is not shown', async () => {
+    await addXp(25, { areaId: 'area-vigor' });
+    await setMeta('world', {
+      stages: { 'area-vigor': 2 }, outfits: [0, 1, 2, 3, 4, 5, 6],
+      news: [
+        { kind: 'stage', areaId: 'area-vigor', stage: 2, at: NOW - 1000 },
+        { kind: 'outfit', outfit: 6, at: NOW - 2000 },
+      ],
+    });
+    renderCharacter();
+    const card = await screen.findByRole('link', { name: /Mapa do mundo/ });
+    await waitFor(() => expect(card).toHaveTextContent('1 acampamento, 5 em ruínas'));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(card).not.toHaveTextContent('Novidade');
   });
 
   it('attributes show the stage of their territory', async () => {

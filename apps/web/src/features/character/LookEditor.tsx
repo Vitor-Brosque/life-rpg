@@ -72,20 +72,23 @@ export interface LookFieldsProps {
   nameLabel?: string;
   /** Total level, for the unlockable outfit colours. Absent (first access): only the 6 base colours. */
   totalLevel?: number;
+  /** The saved outfit: it stays selectable (never locked) even above the level, also after the preview moved away. */
+  keepOutfit?: number;
 }
 
 /** Name, companion name and the layered look pickers, with a live avatar preview. */
-export function LookFields({ value, onChange, nameLabel = 'Nome', totalLevel }: LookFieldsProps) {
+export function LookFields({ value, onChange, nameLabel = 'Nome', totalLevel, keepOutfit }: LookFieldsProps) {
   const group = useId();
   const { look } = value;
   const setLook = (changes: Partial<CharacterLook>) => onChange({ ...value, look: { ...look, ...changes } });
   const outfitColors = totalLevel === undefined ? OUTFIT_COLORS.slice(0, BASE_OUTFITS) : OUTFIT_COLORS;
   const lockedLevel = (i: number): number | undefined => {
+    if (i === keepOutfit) return undefined;
     const level = outfitUnlockLevel(i);
     return level !== undefined && totalLevel !== undefined && totalLevel < level ? level : undefined;
   };
   const hint = totalLevel === undefined ? undefined
-    : unlockHint(OUTFIT_UNLOCKS.filter((u) => totalLevel < u.level && u.outfit !== look.outfit).map((u) => u.level));
+    : unlockHint(OUTFIT_UNLOCKS.filter((u) => totalLevel < u.level && u.outfit !== look.outfit && u.outfit !== keepOutfit).map((u) => u.level));
   return (
     <div className="look-fields">
       <div className="look-fields__head">
@@ -139,7 +142,7 @@ function LookEditorForm({ profile, onDone }: { profile: Profile; onDone(): void 
   });
   return (
     <form className="look-editor" onSubmit={(e) => { e.preventDefault(); save(); }}>
-      <LookFields value={draft} onChange={setDraft} totalLevel={totalLevel} />
+      <LookFields value={draft} onChange={setDraft} totalLevel={totalLevel} keepOutfit={profile.look.outfit} />
       <div className="look-editor__actions">
         <Button type="submit" variant="primary">Salvar</Button>
         <Button onClick={onDone}>Cancelar</Button>

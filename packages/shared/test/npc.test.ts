@@ -82,6 +82,9 @@ describe('week helpers and Marco 4 rows', () => {
       { delta: 'x', kind: 'fix' },
     ])).toEqual({ portions: 5, everPrepped: true });
     expect(freezerFacts([{ delta: -2, kind: 'eat', deleted: false }])).toEqual({ portions: 0, everPrepped: false });
+    // per dish, like the Casa tab: a negative dish does not eat into another one
+    expect(freezerFacts([{ recipeId: 'a', delta: 4, kind: 'prep' }, { recipeId: 'b', delta: -2, kind: 'eat' }]))
+      .toEqual({ portions: 4, everPrepped: true });
     const h = 3_600_000;
     expect(sleepFacts([
       { night: '2026-11-12', bedAt: 0, wakeAt: 7 * h, deleted: false },
@@ -137,6 +140,9 @@ describe('npcLines', () => {
       .toEqual(['e-done', 'stage']);
     expect(ids(ctx({ kind: 'escriba', world: world({ study: { due: 9, fresh: 0, minutes: 2, goalMet: false, restDay: true, cards: 80 } }) })))
       .toEqual(['e-rest', 'stage']);
+    const freeDay = ctx({ kind: 'escriba', world: world({ mode: 'free', study: { due: 9, fresh: 0, minutes: 2, goalMet: false, restDay: true, cards: 80 } }) });
+    expect(npcLines(freeDay)[0]).toMatchObject({ id: 'e-free', now: true });
+    expect(ids(freeDay)).not.toContain('e-rest');
     const more = ctx({ kind: 'escriba', world: world({ sketchesThisWeek: 2, reasonDays: { practice: 1 }, study: { due: 0, fresh: 0, minutes: 0, goalMet: false, restDay: false, cards: 0 } }) });
     expect(ids(more)).toEqual(['e-sketch', 'e-practice', 'e-first', 'stage']);
     expect(text(more, 'e-sketch')).toBe('2 lousas mexidas nesta semana. Pensar desenhando também é estudar.');

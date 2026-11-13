@@ -145,17 +145,20 @@ export function workoutFacts(rows: readonly unknown[], weekStart: DayKey, today:
   return { total, cardio };
 }
 
-/** Marco 4 `freezerMoves`: portions = sum of live deltas (never below 0); any live 'prep' move. */
+/** Marco 4 `freezerMoves`: portions = sum over dishes of their live deltas (a dish never below 0, as in the Casa tab); any live 'prep' move. */
 export function freezerFacts(rows: readonly unknown[]): { portions: number; everPrepped: boolean } {
-  let sum = 0;
+  const perDish = new Map<string, number>();
   let everPrepped = false;
   for (const raw of rows) {
     const r = rec(raw);
     if (!r || r.deleted === true || typeof r.delta !== 'number' || !Number.isFinite(r.delta)) continue;
-    sum += r.delta;
+    const id = typeof r.recipeId === 'string' ? r.recipeId : '';
+    perDish.set(id, (perDish.get(id) ?? 0) + r.delta);
     if (r.kind === 'prep') everPrepped = true;
   }
-  return { portions: Math.max(0, Math.round(sum)), everPrepped };
+  let sum = 0;
+  for (const n of perDish.values()) sum += Math.max(0, n);
+  return { portions: Math.round(sum), everPrepped };
 }
 
 /** Marco 4 `sleepLogs`: complete nights (bed and wake, wake after bed, at most 16 h) of the 7 nights before today. */
@@ -237,6 +240,7 @@ function kindLines(c: NpcCtx, add: (id: string, text: string, now?: boolean) => 
     }
     case 'escriba': {
       const s = w.study;
+      if (free) add('e-free', 'Dia livre. Os estudos esperam, sem pressa.', true);
       if (s && !s.restDay && !free && !s.goalMet && s.due + s.fresh > 0) {
         const parts = [
           ...(s.due > 0 ? [plural(s.due, 'revisão', 'revisões')] : []),
@@ -245,7 +249,7 @@ function kindLines(c: NpcCtx, add: (id: string, text: string, now?: boolean) => 
         add('e-due', `Hoje há ${parts.join(' e ')} esperando, uns ${Math.max(1, Math.round(s.minutes))} min. Lembrar com esforço é o que fixa.`, true);
       }
       if (s && s.goalMet) add('e-done', 'Revisão de hoje feita. O resto volta na hora certa.');
-      else if (s && (s.restDay || free) && s.cards > 0) add('e-rest', 'Dia sem revisão. Os cards esperam sem pressa.');
+      else if (s && s.restDay && !free && s.cards > 0) add('e-rest', 'Dia sem revisão. Os cards esperam sem pressa.');
       if (w.sketchesThisWeek > 0) {
         add('e-sketch', `${plural(w.sketchesThisWeek, 'lousa mexida', 'lousas mexidas')} nesta semana. Pensar desenhando também é estudar.`);
       }

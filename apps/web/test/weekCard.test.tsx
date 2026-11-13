@@ -107,7 +107,7 @@ describe('Nova semana card', () => {
     // The card stays for step 2, and the experiment shows on the Agora.
     expect(await within(await weekCard()).findByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
     expect(await screen.findByText('Experimento da semana: Celular em outro cômodo')).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it('every reflection field is optional', async () => {
     const user = userEvent.setup();

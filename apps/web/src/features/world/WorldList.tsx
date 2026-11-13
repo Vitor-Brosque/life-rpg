@@ -3,7 +3,7 @@ import { PixelSprite } from '../../art/PixelSprite';
 import { territorySprite } from '../../art/worldSprites';
 import { Button } from '../../ui/Button';
 import type { WorldView } from './useWorld';
-import { hubLabel, nextStageText } from './worldText';
+import { hubLabel, journeyLine, nextStageText } from './worldText';
 
 /** "Lista": everything the map shows, as text (screen readers, or simply preferring text). */
 export function WorldList({ world, onOpen }: { world: WorldView; onOpen(areaId: string): void }) {
@@ -26,7 +26,7 @@ export function WorldList({ world, onOpen }: { world: WorldView; onOpen(areaId: 
               <h2 className="world-list__title">{`${t.area.attribute} · ${STAGES[t.stage]!.name}`}</h2>
               <p>{`${t.area.name} · Nível ${t.level.level}${here ? ' · Você está aqui' : ''}`}</p>
               <p className="muted">{nextStageText(t)}</p>
-              {j && <p>{`Jornada “${j.title}”: ${j.done} de ${j.total} missões`}</p>}
+              {j && <p>{journeyLine(j)}</p>}
               <p className="world-list__npc">{`${t.npc.name} (${t.npc.role}): “${lines[start]!.text}”`}</p>
               {/* the same cues the map draws (balloon, sparkle), as text */}
               {talk && <p>Tem um recado para hoje.</p>}
