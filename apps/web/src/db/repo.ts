@@ -112,6 +112,28 @@ export async function patch<T extends BaseRecord>(
   return saved;
 }
 
+/**
+ * Read-modify-write of record `id` in ONE transaction: `fn` gets the stored record and returns the
+ * fields to change, or undefined to write nothing (then nothing is notified). Lists, error entries
+ * and feedback change from the stored value this way, never from a screen's older copy.
+ * `fn` must be synchronous (it runs inside the IndexedDB transaction).
+ */
+export async function mutate<T extends BaseRecord>(
+  table: SyncTable, id: string, fn: (prev: T) => Partial<T> | undefined,
+): Promise<T> {
+  let wrote = false;
+  const saved = await db.transaction('rw', tableOf(table), db.outbox, async () => {
+    const prev = (await tableOf(table).get(id)) as T | undefined;
+    if (!prev) throw new Error(`${table}:${id} not found`);
+    const changes = fn(prev);
+    if (!changes) return prev;
+    wrote = true;
+    return writeInTx(table, { ...prev, ...changes, id } as T);
+  });
+  if (wrote) notify();
+  return saved;
+}
+
 /** Patches several records of `table` in one transaction, so live queries see one change. */
 export async function patchMany<T extends BaseRecord>(
   table: SyncTable, entries: Array<{ id: string; changes: Partial<T> }>,

@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, Journey,
-  LifeEvent, MediaType, Mission, Note, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
+  LifeEvent, MediaType, Mission, Note, PracticeSession, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
@@ -35,6 +35,7 @@ export class LifeDB extends Dexie {
   cards!: Table<Card, string>;
   reviews!: Table<Review, string>;
   sketches!: Table<Sketch, string>;
+  practiceSessions!: Table<PracticeSession, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -101,6 +102,14 @@ export class LifeDB extends Dexie {
       mediaInfo: 'hash',
       mediaData: 'hash',
       mediaQueue: 'hash,addedAt',
+    });
+
+    // v6 (Marco 3d): practice sessions (v5 belongs to Marco 3c; Dexie accepts the gap). Same cursor
+    // restart as v2-v4, so sessions a v4/v5 client skipped (unknown table) are pulled again.
+    this.version(6).stores({
+      practiceSessions: 'id,status,journeyId,updatedAt',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
   }
 }

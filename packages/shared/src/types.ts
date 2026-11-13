@@ -350,6 +350,7 @@ export const SYNC_TABLES = [
   'blocks', 'blockSessions', 'weeks', 'checkins',
   'decks', 'notes', 'cards', 'reviews',
   'sketches',
+  'practiceSessions',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews'];

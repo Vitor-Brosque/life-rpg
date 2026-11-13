@@ -1,5 +1,5 @@
-import type { ID, Sketch, Stroke } from '@life/shared';
-import { SKETCH_TITLE_MAX, missionSketchId } from '@life/shared';
+import type { ID, PracticeSession, Sketch, Stroke } from '@life/shared';
+import { SKETCH_TITLE_MAX, missionSketchId, practiceSketchId } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put, putPlaceholder, softDelete } from '../db/repo';
 
@@ -22,6 +22,19 @@ export async function ensureMissionSketch(missionId: ID): Promise<Sketch> {
   if (prev && !prev.deleted) return prev;
   // Placeholder (updatedAt 1) when new: it must never beat a real version drawn on another device.
   return putPlaceholder('sketches', newRecord<Sketch>({ id, title: '', missionId, strokes: [] }));
+}
+
+/**
+ * The practice session's lousa (deterministic id `sketch-p-<id>`, Marco 3d), created as a low-priority
+ * placeholder when missing, like the mission's. Its title starts as "Lousa · <session title>".
+ */
+export async function ensurePracticeSketch(session: Pick<PracticeSession, 'id' | 'title'>): Promise<Sketch> {
+  const id = practiceSketchId(session.id);
+  const prev = await db.sketches.get(id);
+  if (prev && !prev.deleted) return prev;
+  return putPlaceholder('sketches', newRecord<Sketch>({
+    id, title: cleanTitle(`Lousa · ${session.title}`), practiceId: session.id, strokes: [],
+  }));
 }
 
 export const saveSketchStrokes = (id: ID, strokes: Stroke[]): Promise<Sketch> =>

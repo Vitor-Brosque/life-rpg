@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import Dexie from 'dexie';
+import { newPracticeFields } from '@life/shared';
 import { LifeDB } from '../src/db/db';
 
 // Frozen copy of the v1 schema that is already in the user's browser: never edit it.
@@ -66,7 +67,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -148,7 +149,7 @@ describe('Dexie v2 → v3 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
     expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -184,7 +185,7 @@ describe('Dexie v3 → v4 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
     expect(await db.decks.get('d1')).toMatchObject({ name: 'SQL' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -213,13 +214,39 @@ describe('Dexie v4 → v5 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'conta' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
-    // No cursor restart: v5 adds no synced table, only local stores.
-    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 42 });
+    // v5 alone keeps the cursor (no synced table), but a v4 database also goes through v6, which restarts it.
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
     for (const t of ['mediaInfo', 'mediaData', 'mediaQueue']) expect(await db.table(t).count(), t).toBe(0);
     await db.mediaQueue.bulkPut([{ hash: 'b'.repeat(64), addedAt: 2 }, { hash: 'a'.repeat(64), addedAt: 1 }]);
     expect((await db.mediaQueue.orderBy('addedAt').first())!.hash).toBe('a'.repeat(64));
+  });
+});
+
+describe('Dexie v4 → v6 migration', () => {
+  it('keeps every v4 row, adds practiceSessions and restarts the cursor', async () => {
+    const v4 = new Dexie(NAME);
+    v4.version(1).stores(V1);
+    v4.version(2).stores(V2_ADDED);
+    v4.version(3).stores(V3_ADDED);
+    v4.version(4).stores(V4_ADDED);
+    await v4.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v4.table(table).bulkPut(rows);
+    await v4.table('sketches').put({ ...base, id: 's1', title: 'Lista 3', strokes: [] });
+    v4.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(6);
+    expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista 3' });
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    expect(await db.practiceSessions.count()).toBe(0);
+    await db.practiceSessions.put({ ...base, id: 'p1', ...newPracticeFields({ title: 'Dedup' }) });
+    expect(await db.practiceSessions.where('status').equals('open').count()).toBe(1);
   });
 });

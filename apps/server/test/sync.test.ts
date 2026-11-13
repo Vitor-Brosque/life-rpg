@@ -268,4 +268,26 @@ describe('SSE stream', () => {
     const changes = (pull.json() as { changes: Array<{ record: { id: string; updatedAt: number; strokes: unknown[] } }> }).changes;
     expect(changes.find((c) => c.record.id === 'sketch-m-m1')!.record).toMatchObject({ updatedAt: 10, strokes });
   });
+
+  it('syncs a practice session with its lists and errors, and a soft-deleted one', async () => {
+    const { app } = await make();
+    const session = {
+      id: 'p1', createdAt: 1, updatedAt: 10, deleted: false, title: 'Dedup', status: 'open', step: 'plan',
+      problem: 'remover repetidas', inputs: '', outputs: '', basics: [], plan: [{ id: 'a', text: 'normalizar URL', done: false }],
+      alternatives: '', decision: '', language: 'python', code: 'x', tests: [], feedback: [],
+      errors: [{ id: 'e1', at: 5, what: 'return no for', why: '', fix: 'acumular' }], ratings: { delivered: 1 }, explanation: '',
+    };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'practiceSessions', record: session },
+        { table: 'practiceSessions', record: { ...session, id: 'p2', deleted: true } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'p1')).toMatchObject({ table: 'practiceSessions', record: { plan: session.plan, errors: session.errors } });
+    expect(changes.find((c) => c.record.id === 'p2')!.record.deleted).toBe(true);
+  });
 });
