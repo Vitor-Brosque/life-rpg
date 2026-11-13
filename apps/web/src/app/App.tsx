@@ -27,6 +27,7 @@ import { NoteEditor } from '../features/study/NoteEditor';
 import { ReviewSession } from '../features/study/ReviewSession';
 import { StudyScreen } from '../features/study/StudyScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { WorldWatcher } from '../features/world/WorldWatcher';
 import { TimerBar } from '../timer/TimerBar';
 import { TimerHost } from '../timer/TimerSheet';
 import { Panel } from '../ui/Panel';
@@ -99,6 +100,7 @@ export function App() {
       <TimerHost />
       <ResumePromptHost />
       <CheckinCardHost />
+      <WorldWatcher />
       <ToastHost />
     </>
   );
