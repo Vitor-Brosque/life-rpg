@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PracticePatch } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
-import { createPracticeSession, setPracticeRating, startRebuild, updatePractice } from '../src/domain/practiceActions';
+import { compareRebuild, createPracticeSession, setPracticeRating, startRebuild, updatePractice } from '../src/domain/practiceActions';
 import { PracticeScreen } from '../src/features/practice/PracticeScreen';
 import { ToastHost, useToast } from '../src/ui/Toast';
 
@@ -52,7 +52,7 @@ describe('focus in the practice steps', () => {
     const user = userEvent.setup();
     const { title } = await openAt('rebuild', { code: 'x = 1' }, async (id) => {
       await startRebuild(id);
-      await updatePractice(id, { rebuild: { code: 'x', startedAt: 1, comparedAt: 2 } });
+      await compareRebuild(id);
     });
     await user.click(await screen.findByRole('button', { name: 'Refazer reconstrução' }, SLOW));
     expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
