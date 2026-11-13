@@ -75,8 +75,10 @@ export function CodeEditor({
       // Swap before the next paint: the textarea leaves in the same frame CodeMirror appears.
       flushSync(() => setCmReady(true));
       if (hadFocus) cmRef.current.focus(caret);
-      else if (autoFocus) cmRef.current.focus();
-    }, (e: unknown) => {
+      else if (autoFocus && (!ta || document.activeElement === document.body)) cmRef.current.focus();
+    }).catch((e: unknown) => {
+      cmRef.current?.destroy();
+      cmRef.current = null;
       console.warn('CodeMirror indisponível; o campo simples continua.', e);
     });
     return () => {

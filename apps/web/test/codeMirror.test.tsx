@@ -96,4 +96,24 @@ describe('CodeEditor with CodeMirror', () => {
     expect(screen.getByTestId('v').textContent).toBe('x');
     expect(screen.queryByText(/Esc para sair/)).toBeNull();
   });
+
+  it('readOnly toggles false -> true -> false (reveal, next card) and typing works again', async () => {
+    const props = { label: 'Solução', value: 'x', onChange: () => {}, language: 'python' as const };
+    const { rerender } = render(<CodeEditor {...props} />);
+    const el = await editor();
+    expect(el.getAttribute('contenteditable')).toBe('true');
+    expect(el.getAttribute('aria-readonly')).toBeNull();
+    rerender(<CodeEditor {...props} readOnly />);
+    await waitFor(() => expect(el.getAttribute('contenteditable')).toBe('false'));
+    expect(el.getAttribute('aria-readonly')).toBe('true');
+    expect(screen.queryByText(/Esc para sair/)).toBeNull();
+    rerender(<CodeEditor {...props} />);
+    await waitFor(() => expect(el.getAttribute('contenteditable')).toBe('true'));
+    expect(el.getAttribute('aria-readonly')).toBeNull();
+    expect(screen.getByText(/Esc para sair/)).toBeInTheDocument();
+    const view = EditorView.findFromDOM(el)!;
+    act(() => { view.dispatch({ selection: { anchor: 0 } }); view.focus(); });
+    fireEvent.keyDown(el, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(docOf(el)).toBe('    x');
+  });
 });
