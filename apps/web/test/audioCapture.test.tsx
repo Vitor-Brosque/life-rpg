@@ -69,6 +69,67 @@ describe('useRecorder', () => {
     act(() => { vi.advanceTimersByTime(90_000); });
     await flush();
     expect(result.current.state).toMatchObject({ kind: 'done', capped: true, durationMs: 120_000 });
+    expect(mic.track.stop).toHaveBeenCalled();
+  });
+  it('a failure while setting up the recorder frees the microphone and shows the calm message', async () => {
+    mic = installFakeMic();
+    vi.spyOn(MediaRecorder.prototype, 'start').mockImplementation(() => { throw new Error('start failed'); });
+    const { result } = renderHook(() => useRecorder());
+    act(() => result.current.start());
+    await flush();
+    expect(result.current.state).toEqual({ kind: 'error', message: RECORDER_MESSAGES.failed });
+    expect(mic.track.stop).toHaveBeenCalled();
+  });
+  it('a late microphone after reset or unmount has its stream stopped at once and records nothing', async () => {
+    mic = installFakeMic();
+    const stream = { getTracks: () => [mic!.track] } as unknown as MediaStream;
+    let release: (s: MediaStream) => void = () => {};
+    mic.getUserMedia.mockImplementationOnce(() => new Promise<MediaStream>((r) => { release = r; }));
+    const { result, unmount } = renderHook(() => useRecorder());
+    act(() => result.current.start());
+    act(() => result.current.reset());
+    release(stream);
+    await flush();
+    expect(mic.track.stop).toHaveBeenCalledTimes(1);
+    expect(mic.instances).toHaveLength(0);
+    expect(result.current.state.kind).toBe('idle');
+    mic.track.stop.mockClear();
+    mic.getUserMedia.mockImplementationOnce(() => new Promise<MediaStream>((r) => { release = r; }));
+    act(() => result.current.start());
+    unmount();
+    release(stream);
+    await flush();
+    expect(mic.track.stop).toHaveBeenCalledTimes(1);
+    expect(mic.instances).toHaveLength(0);
+  });
+  it('falls back to a recorder without options when the constructor refuses them', async () => {
+    mic = installFakeMic();
+    const Base = MediaRecorder as unknown as new (s: MediaStream, o?: MediaRecorderOptions) => object;
+    class Picky extends Base {
+      static isTypeSupported = () => true;
+      constructor(s: MediaStream, o?: MediaRecorderOptions) {
+        if (o) throw new Error('options refused');
+        super(s);
+      }
+    }
+    vi.stubGlobal('MediaRecorder', Picky);
+    const { result } = renderHook(() => useRecorder());
+    act(() => result.current.start());
+    await flush();
+    expect(result.current.state).toEqual({ kind: 'recording', elapsedMs: 0 });
+    expect(mic.instances).toHaveLength(1);
+    expect(mic.instances[0]!.options).toBeUndefined();
+  });
+  it('a track that ends by itself (an interruption) finishes the recording cleanly', async () => {
+    mic = installFakeMic();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:rec/3');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const { result } = renderHook(() => useRecorder());
+    act(() => result.current.start());
+    await flush();
+    act(() => { (mic!.track as unknown as { onended: () => void }).onended(); });
+    await flush();
+    expect(result.current.state.kind).toBe('done');
   });
   it('turns denial, a missing mic and an empty recording into gentle messages', async () => {
     for (const [opts, message] of [
