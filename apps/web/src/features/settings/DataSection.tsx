@@ -1,8 +1,12 @@
+import { useLiveQuery } from 'dexie-react-hooks';
+import { EXPORT_MEDIA_MAX_BYTES } from '@life/shared';
 import { useId, useState, type ChangeEvent } from 'react';
 import { downloadExport } from '../../db/exportData';
+import { mediaUsage } from '../../db/media';
 import { Button } from '../../ui/Button';
+import { formatBytes } from '../../ui/format';
 import { useToast } from '../../ui/Toast';
-import { ImportError, importFile } from './importData';
+import { ImportError, importFile, importSummary } from './importData';
 import { SettingsSection } from './SettingsSection';
 
 /** Dados: full JSON export (every synced table) and import that keeps the newer copy of each record. */
@@ -10,6 +14,7 @@ export function DataSection() {
   const inputId = useId();
   const [busy, setBusy] = useState(false);
   const toast = useToast((s) => s.show);
+  const usage = useLiveQuery(() => mediaUsage(), []);
 
   const exportJson = async () => {
     try {
@@ -26,8 +31,7 @@ export function DataSection() {
     if (!file) return;
     setBusy(true);
     try {
-      const n = await importFile(file);
-      toast(n === 1 ? '1 registro importado' : `${n} registros importados`);
+      toast(importSummary(await importFile(file)));
     } catch (err) {
       if (!(err instanceof ImportError)) console.error('import failed', err);
       toast(err instanceof ImportError ? err.message : 'Não foi possível importar. Tente de novo.');
@@ -51,6 +55,13 @@ export function DataSection() {
           {busy ? 'Importando…' : 'Importar JSON'}
         </label>
       </div>
+      {usage && usage.count > 0 && (
+        <p className="settings-hint">
+          {usage.bytes <= EXPORT_MEDIA_MAX_BYTES
+            ? `Imagens e áudios (${formatBytes(usage.bytes)}) entram na exportação.`
+            : 'Imagens e áudios passam de 25 MB e ficam fora da exportação (continuam guardados neste aparelho e, com a sincronização, no servidor).'}
+        </p>
+      )}
     </SettingsSection>
   );
 }

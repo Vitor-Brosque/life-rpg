@@ -1,6 +1,8 @@
 import type { BaseRecord, SyncChange, SyncTable } from '@life/shared';
-import { SYNC_TABLES } from '@life/shared';
+import { SYNC_TABLES, base64ToBytes, isMediaHash } from '@life/shared';
+import { storeMedia } from '../../db/media';
 import { importRecords } from '../../db/repo';
+import { plural } from '../../ui/format';
 
 /** The file is not an export (the message is PT-BR and shown as is). */
 export class ImportError extends Error {}
@@ -45,13 +47,49 @@ export function parseImport(data: unknown): SyncChange[] {
   return changes;
 }
 
-/** Reads an exported JSON file and imports the records newer than the local copies. */
-export async function importFile(file: Blob): Promise<number> {
+export interface ImportResult { records: number; media: number }
+
+/** The export's embedded media (well-formed entries only; the rest is ignored). */
+export function parseImportMedia(data: unknown): Array<{ hash: string; data: string }> {
+  if (typeof data !== 'object' || data === null) return [];
+  const list = (data as { media?: unknown }).media;
+  if (!Array.isArray(list)) return [];
+  const out: Array<{ hash: string; data: string }> = [];
+  for (const m of list) {
+    if (typeof m !== 'object' || m === null) continue;
+    const { hash, data: b64 } = m as { hash?: unknown; data?: unknown };
+    if (typeof hash === 'string' && isMediaHash(hash) && typeof b64 === 'string') out.push({ hash, data: b64 });
+  }
+  return out;
+}
+
+/** Keeps each media whose bytes match its hash, queued for the server. Returns how many were new. */
+export async function importMedia(entries: Array<{ hash: string; data: string }>): Promise<number> {
+  let added = 0;
+  for (const e of entries) {
+    try {
+      if ((await storeMedia(base64ToBytes(e.data), { upload: true, expectHash: e.hash })).created) added += 1;
+    } catch (err) {
+      console.warn(`import: media ${e.hash} skipped`, err);
+    }
+  }
+  return added;
+}
+
+/** Reads an exported JSON file: media first (so their uploads go before the records), then records. */
+export async function importFile(file: Blob): Promise<ImportResult> {
   let data: unknown;
   try {
     data = JSON.parse(await file.text());
   } catch {
     throw new ImportError('Arquivo inválido: não é um JSON.');
   }
-  return importRecords(parseImport(data));
+  const changes = parseImport(data);
+  const media = await importMedia(parseImportMedia(data));
+  return { records: await importRecords(changes), media };
+}
+
+export function importSummary(r: ImportResult): string {
+  if (r.media === 0) return r.records === 1 ? '1 registro importado' : `${r.records} registros importados`;
+  return `${plural(r.records, 'registro', 'registros')} e ${plural(r.media, 'mídia', 'mídias')} importados`;
 }

@@ -64,3 +64,12 @@ export function formatMinSec(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 60)}:${pad2(s % 60)}`;
 }
+
+/** 512 → "512 B", 120 KiB → "120 KB", 8.2 MiB → "8,2 MB", 12 MiB → "12 MB", 1.2 GiB → "1,2 GB". */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${Math.max(0, Math.round(n))} B`;
+  if (n < 1024 ** 2) return `${Math.round(n / 1024)} KB`;
+  const one = (v: number): string => v.toFixed(1).replace(/\.0$/, '').replace('.', ',');
+  if (n < 1024 ** 3) return `${one(n / 1024 ** 2)} MB`;
+  return `${one(n / 1024 ** 3)} GB`;
+}

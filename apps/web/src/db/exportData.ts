@@ -1,12 +1,26 @@
-import { SYNC_TABLES, type SyncTable } from '@life/shared';
-import { tableOf } from './db';
+import type { MediaType, SyncTable } from '@life/shared';
+import { EXPORT_MEDIA_MAX_BYTES, SYNC_TABLES, bytesToBase64 } from '@life/shared';
+import { db, tableOf } from './db';
+import { mediaUsage } from './media';
 
-export type ExportData = { exportedAt: number } & Record<SyncTable, unknown[]>;
+export interface ExportMedia { hash: string; type: MediaType; data: string } // data: base64
+export type ExportData = { exportedAt: number; media?: ExportMedia[]; mediaNote?: string } & Record<SyncTable, unknown[]>;
 
-/** Every record of every synced table (soft-deleted included), keyed by table name. */
-export async function collectExport(): Promise<ExportData> {
+export const MEDIA_LEFT_OUT = 'Mídias não incluídas: passam de 25 MB. Elas continuam guardadas no aparelho e, com a sincronização, no servidor.';
+
+/**
+ * Every record of every synced table (soft-deleted included), keyed by table name, plus the media
+ * kept on this device in base64 while they add up to at most `mediaCap` (spec Decisão 14).
+ */
+export async function collectExport(mediaCap: number = EXPORT_MEDIA_MAX_BYTES): Promise<ExportData> {
   const data = { exportedAt: Date.now() } as ExportData;
   for (const table of SYNC_TABLES) data[table] = await tableOf(table).toArray();
+  const usage = await mediaUsage();
+  if (usage.count > 0 && usage.bytes <= mediaCap) {
+    data.media = (await db.mediaData.toArray()).map((m) => ({ hash: m.hash, type: m.type, data: bytesToBase64(new Uint8Array(m.bytes)) }));
+  } else if (usage.count > 0) {
+    data.mediaNote = MEDIA_LEFT_OUT;
+  }
   return data;
 }
 
