@@ -5,6 +5,7 @@ import { MediaInputError, saveMediaBlob } from '../../db/media';
 import { Button } from '../../ui/Button';
 import { FAILURE_TOAST } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
+import { AudioSheet, saveAudioFile } from './AudioSheet';
 import { DrawingSheet } from './DrawingSheet';
 import { compressImage } from './imageCompress';
 import './media.css';
@@ -65,7 +66,7 @@ export function MarkdownField({
   const fileId = `${id}-image-file`;
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
-  const [sheet, setSheet] = useState<'drawing' | undefined>(undefined);
+  const [sheet, setSheet] = useState<'drawing' | 'audio' | undefined>(undefined);
 
   /** The reference at the cursor (end of the text when the field never had focus), label selected. */
   const insert = (kind: MediaKind, hash: string, defaultLabel?: string): void => {
@@ -93,6 +94,20 @@ export function MarkdownField({
       setBusy(false);
     }
   };
+  const addAudio = async (file: Blob): Promise<void> => {
+    if (working.current) return;
+    working.current = true;
+    setBusy(true);
+    try {
+      insert('audio', (await saveAudioFile(file)).hash);
+      onStatus(FIELD_STATUS.audio);
+    } catch (e) {
+      showError(e, 'audio');
+    } finally {
+      working.current = false;
+      setBusy(false);
+    }
+  };
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>): void => {
     const file = candidate(e.clipboardData?.files);
     if (!file) return; // text: the browser pastes it
@@ -110,6 +125,8 @@ export function MarkdownField({
     if (working.current) return;
     const image = candidate(files);
     if (image) { void addImage(image); return; }
+    const audio = firstFile(files, 'audio/');
+    if (audio) { void addAudio(audio); return; }
     useToast.getState().show(DROP_UNSUPPORTED);
   };
 
@@ -122,6 +139,8 @@ export function MarkdownField({
           onClick={() => document.getElementById(fileId)?.click()}>Imagem</Button>
         <Button size="sm" variant="ghost" icon="pen" disabled={busy} aria-label={`Inserir desenho em ${name}`}
           onClick={() => setSheet('drawing')}>Desenho</Button>
+        <Button size="sm" variant="ghost" icon="mic" disabled={busy} aria-label={`Inserir áudio em ${name}`}
+          onClick={() => setSheet('audio')}>Áudio</Button>
       </div>
       <input id={fileId} type="file" accept="image/*" className="visually-hidden" tabIndex={-1} disabled={busy}
         aria-label={`Arquivo de imagem para ${name}`}
@@ -138,6 +157,12 @@ export function MarkdownField({
           setSheet(undefined);
           insert('image', hash, 'desenho');
           onStatus(FIELD_STATUS.drawing);
+        }} />
+      <AudioSheet open={sheet === 'audio'} onClose={() => setSheet(undefined)}
+        onInsert={(hash) => {
+          setSheet(undefined);
+          insert('audio', hash);
+          onStatus(FIELD_STATUS.audio);
         }} />
     </div>
   );

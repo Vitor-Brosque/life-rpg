@@ -58,3 +58,9 @@ export function formatClock(ts: number): string {
   const d = new Date(ts);
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
+
+/** Recording clocks: 12_400 → "0:12", 120_000 → "2:00". */
+export function formatMinSec(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${pad2(s % 60)}`;
+}
