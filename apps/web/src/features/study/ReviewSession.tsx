@@ -50,6 +50,7 @@ export function ReviewSession() {
   const [goal, setGoal] = useState(false);
   const busy = useRef(false);
   const spoke = useRef(false);
+  const ratedAt = useRef<number | undefined>(undefined);
 
   const advance = useCallback(async (forceCardId?: ID): Promise<void> => {
     if (!settings || !today) return;
@@ -101,8 +102,9 @@ export function ReviewSession() {
   };
 
   const onRate = async (rating: Rating): Promise<void> => {
-    if (view.kind !== 'card' || !revealed || busy.current) return;
+    if (view.kind !== 'card' || !revealed || busy.current || ratedAt.current === view.shownAt) return;
     busy.current = true;
+    ratedAt.current = view.shownAt;
     try {
       const durationMs = Date.now() - view.shownAt;
       const points = view.face.points;
@@ -115,6 +117,7 @@ export function ReviewSession() {
       }
       await advance();
     } catch (e) {
+      ratedAt.current = undefined;
       console.error('rate failed', e);
       useToast.getState().show(FAILURE_TOAST);
     } finally {
@@ -139,7 +142,7 @@ export function ReviewSession() {
   };
 
   const edit = (): void => {
-    if (view.kind === 'card') navigate(`/estudo/nota/${view.note.id}?voltar=sessao`);
+    if (view.kind === 'card') navigate(`/estudo/nota/${view.note.id}?voltar=sessao${deckFilter ? `&baralho=${deckFilter}` : ''}`);
   };
   const suspend = (): void => {
     if (view.kind !== 'card') return;

@@ -134,4 +134,23 @@ describe('ReviewSession', () => {
     render(<ReviewSession />);
     expect(await screen.findByText('Nada para revisar agora.')).toBeInTheDocument();
   });
+
+  it('Editar and back keeps the deck filter, counters and undo', async () => {
+    const user = userEvent.setup();
+    const d = await deck(3);
+    window.history.pushState({}, '', `/estudo/revisar?baralho=${d.id}`);
+    const first = render(<ReviewSession />);
+    await screen.findByText('pergunta 0');
+    await user.keyboard(' ');
+    await screen.findByRole('button', { name: /^Bom,/ });
+    await user.keyboard('3');
+    await screen.findByText('pergunta 1');
+    await user.keyboard('e');
+    expect(window.location.search).toBe(`?voltar=sessao&baralho=${d.id}`);
+    first.unmount();
+    window.history.pushState({}, '', `/estudo/revisar?baralho=${d.id}`);
+    render(<ReviewSession />);
+    expect(await screen.findByText(/^2\//)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeEnabled();
+  });
 });

@@ -65,7 +65,7 @@ export function NoteEditor({ id }: { id?: string }) {
   const isNew = !id;
   const isDraft = !!existing?.draft;
   const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]): void => setForm((f) => ({ ...f, [k]: v }));
-  const leave = (deckId?: string): void => navigate(backToSession ? '/estudo/revisar' : deckId ? `/estudo/baralho/${deckId}` : '/estudo');
+  const leave = (deckId?: string): void => navigate(backToSession ? (params.get('baralho') ? `/estudo/revisar?baralho=${params.get('baralho')}` : '/estudo/revisar') : deckId ? `/estudo/baralho/${deckId}` : '/estudo');
 
   const save = async (next: boolean): Promise<void> => {
     try {

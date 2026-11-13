@@ -104,6 +104,17 @@ describe('NoteEditor', () => {
     expect(screen.getByLabelText('Solução')).toHaveClass('code-editor__input');
   });
 
+  it('Salvar goes back to the session keeping the deck filter', async () => {
+    const user = userEvent.setup();
+    const d = await saveDeck({ name: 'SQL' });
+    const n = await saveNote({ deckId: d.id, type: 'basic', front: 'q', back: 'a' });
+    go(`/estudo/nota/${n.id}?voltar=sessao&baralho=${d.id}`);
+    render(<NoteEditor id={n.id} />);
+    await screen.findByLabelText('Frente');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await vi.waitFor(() => expect(window.location.pathname + window.location.search).toBe(`/estudo/revisar?baralho=${d.id}`));
+  });
+
   it('completing a draft: pick the deck, write the back, save', async () => {
     const user = userEvent.setup();
     const d = await saveDeck({ name: 'SQL' });
