@@ -154,6 +154,8 @@ export interface RateOpts {
   durationMs: number;
   wrote: boolean;
   coverage?: { covered: number; total: number };
+  /** "Desenhar antes": at least one stroke when the answer was revealed. */
+  drew?: boolean;
   /** When the answer was revealed: FSRS schedules from it, so the saved interval is the one shown. */
   now?: number;
 }
@@ -186,6 +188,7 @@ async function rateLocked(cardId: ID, rating: Rating, opts: RateOpts): Promise<R
     cardId, noteId: card.noteId, ...(card.deckId ? { deckId: card.deckId } : {}), at: now, day: today, rating,
     durationMs: Math.max(0, Math.min(maxDurationMs(card), Math.round(opts.durationMs))), wrote: opts.wrote, before, after,
     ...(opts.coverage ? { coverage: opts.coverage } : {}),
+    ...(opts.drew ? { drew: true } : {}),
   });
   const next: Card = { ...card, ...after, ...(card.introducedDay || before.state !== 'new' ? {} : { introducedDay: today }) };
 

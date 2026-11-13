@@ -238,4 +238,21 @@ describe('SSE stream', () => {
     expect(tables.map((c) => c.table).sort()).toEqual(['cards', 'decks', 'notes', 'reviews']);
     expect(tables.find((c) => c.table === 'reviews')!.record.deleted).toBe(true);
   });
+
+  it('syncs a lousa (sketches) with its strokes, and a soft-deleted one', async () => {
+    const { app } = await make();
+    const strokes = [{ c: 1, w: 0, p: [0, 0, 10.5, 3.2] }];
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'sketches', record: { id: 's1', createdAt: 1, updatedAt: 10, deleted: false, title: 'Lista 3', strokes } },
+        { table: 'sketches', record: { id: 'sketch-m-m1', createdAt: 1, updatedAt: 10, deleted: true, title: '', missionId: 'm1', strokes: [] } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 's1')).toMatchObject({ table: 'sketches', record: { title: 'Lista 3', strokes } });
+    expect(changes.find((c) => c.record.id === 'sketch-m-m1')!.record.deleted).toBe(true);
+  });
 });

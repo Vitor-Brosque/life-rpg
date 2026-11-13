@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, Journey,
-  LifeEvent, Mission, Note, Profile, Review, Settings, SyncTable, Week, XpEvent,
+  LifeEvent, Mission, Note, Profile, Review, Settings, Sketch, SyncTable, Week, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
@@ -28,6 +28,7 @@ export class LifeDB extends Dexie {
   notes!: Table<Note, string>;
   cards!: Table<Card, string>;
   reviews!: Table<Review, string>;
+  sketches!: Table<Sketch, string>;
   outbox!: Table<OutboxEntry, string>;
   meta!: Table<MetaEntry, string>;
 
@@ -73,6 +74,14 @@ export class LifeDB extends Dexie {
       notes: 'id,deckId',
       cards: 'id,noteId,deckId,due',
       reviews: 'id,cardId,day,at',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v4 (Marco 3b): lousas (one record per lousa, every stroke inside). Same cursor restart as v2/v3,
+    // so sketches a v3 client skipped (unknown table) are pulled again.
+    this.version(4).stores({
+      sketches: 'id,updatedAt',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });

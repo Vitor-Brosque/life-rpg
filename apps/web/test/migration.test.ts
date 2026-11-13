@@ -66,7 +66,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -148,7 +148,7 @@ describe('Dexie v2 → v3 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -159,5 +159,38 @@ describe('Dexie v2 → v3 migration', () => {
     expect(await db.cards.where('due').below(10).count()).toBe(1);
     await db.reviews.put({ ...base, id: 'r1', cardId: 'n1-0', noteId: 'n1', at: 5, day: '2026-11-12', rating: 3, durationMs: 1000, wrote: false, before: {} as never, after: {} as never });
     expect(await db.reviews.where('day').equals('2026-11-12').count()).toBe(1);
+  });
+});
+
+// Frozen copy of the v3 additions that are already in the user's browser: never edit it.
+const V3_ADDED = {
+  decks: 'id,order',
+  notes: 'id,deckId',
+  cards: 'id,noteId,deckId,due',
+  reviews: 'id,cardId,day,at',
+};
+
+describe('Dexie v3 → v4 migration', () => {
+  it('keeps every v3 row, adds the sketches table and restarts the cursor', async () => {
+    const v3 = new Dexie(NAME);
+    v3.version(1).stores(V1);
+    v3.version(2).stores(V2_ADDED);
+    v3.version(3).stores(V3_ADDED);
+    await v3.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v3.table(table).bulkPut(rows);
+    await v3.table('decks').put({ ...base, id: 'd1', name: 'SQL', order: 0, archived: false });
+    v3.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(4);
+    expect(await db.decks.get('d1')).toMatchObject({ name: 'SQL' });
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    expect(await db.sketches.count()).toBe(0);
+    await db.sketches.put({ ...base, id: 's1', title: '', strokes: [{ c: 0, w: 0, p: [1, 2] }] });
+    expect(await db.sketches.orderBy('updatedAt').first()).toMatchObject({ id: 's1' });
   });
 });
