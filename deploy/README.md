@@ -63,7 +63,7 @@ Opcional: a variável de ambiente `LIFE_RPG_VAPID_SUBJECT` (por exemplo `mailto:
 
 ## IA opcional (Marco 7)
 
-Sem chave, o app funciona igual e não mostra nenhum controle de IA. Para ligar:
+Sem chave, o app funciona igual e não mostra nenhum controle de IA. A IA é paga: cada pedido é cobrado na sua conta da Anthropic, e o teto diário (`LIFE_RPG_AI_DAILY_LIMIT`) limita quantos pedidos, e portanto o gasto, podem acontecer por dia. Para ligar:
 
 1. Crie uma chave na Console da Anthropic.
 2. Grave a chave no servidor, fora do repositório (o `deploy.sh` nunca apaga esse arquivo):
@@ -80,12 +80,12 @@ Sem chave, o app funciona igual e não mostra nenhum controle de IA. Para ligar:
    ```
 
 3. Suba de novo: `./deploy/deploy.sh` (ou `ssh homelab "cd ~/projects/life-rpg && docker compose up -d"`).
-4. Confira: `ssh homelab "curl -s -H 'Authorization: Bearer <token>' http://127.0.0.1:8787/api/ai/status"` deve responder `{"available":true,...}`. O log do container mostra "IA: ligada".
+4. Confira: `ssh homelab "curl -s -H 'Authorization: Bearer <token>' http://127.0.0.1:8787/api/ai/status"` deve responder `{"available":true,...}` (troque `<token>` pelo conteúdo de `data/token`, o mesmo código de acesso de Ajustes → Sincronização). O log do container mostra "IA: ligada".
 5. No app: Ajustes → "Inteligência (opcional)", e ligue só as ajudas que quiser.
 
 No notebook (`LIFE RPG.cmd`), defina `ANTHROPIC_API_KEY` como variável de ambiente do usuário do Windows e reabra o app.
 
-O que vai para a API: só o que cada ajuda mostra em "O que é enviado", quando você toca no botão. A chave nunca sai do servidor. `LIFE_RPG_AI_DAILY_LIMIT` (1 a 1000, padrão 30) limita os pedidos por dia; o log mostra uma linha por pedido, com tokens, sem conteúdo.
+O que vai para a API: só o que cada ajuda mostra em "O que é enviado", quando você toca no botão. A chave nunca sai do servidor. `LIFE_RPG_AI_DAILY_LIMIT` (1 a 1000, padrão 30) limita os pedidos por dia (e com isso o custo máximo do dia); o log mostra uma linha por pedido, com tokens, sem conteúdo.
 
 ## Restaurar um backup
 

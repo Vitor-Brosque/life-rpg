@@ -105,6 +105,26 @@ describe('AI routes', () => {
     expect(res.json()).toEqual({ error: code });
   });
 
+  it('an unknown error is upstream (502) and its message never reaches the response', async () => {
+    const app = await make(aiWith(async () => { throw new Error('secret upstream text'); }));
+    const res = await post(app, '/api/ai/hint', hint);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: 'upstream' });
+    expect(res.body).not.toContain('secret upstream text');
+  });
+
+  it('a second request while one is running → 429 busy', async () => {
+    let release!: () => void;
+    const app = await make(aiWith(() => new Promise((resolve) => { release = () => resolve({ text: 'ok', usage }); }), 5));
+    const first = post(app, '/api/ai/hint', hint);
+    await new Promise((r) => setTimeout(r, 20));
+    const second = await post(app, '/api/ai/hint', hint);
+    expect(second.statusCode).toBe(429);
+    expect(second.json()).toEqual({ error: 'busy' });
+    release();
+    expect((await first).statusCode).toBe(200);
+  });
+
   it('daily limit → 429', async () => {
     const app = await make(aiWith(async () => ({ text: 'ok', usage }), 1));
     expect((await post(app, '/api/ai/hint', hint)).statusCode).toBe(200);

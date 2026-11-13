@@ -22,8 +22,19 @@ export const AI_ERROR_STATUS: Record<AiServerError, number> = {
 
 /** The /ai/* routes; registered inside the authenticated '/api' plugin (spec §5.4). Never logs or returns content or the key. */
 export function registerAiRoutes(app: FastifyInstance, ai: AiService | undefined): void {
-  app.get('/ai/status', async (): Promise<AiStatusResponse> =>
-    (ai ? { available: true, ...ai.usage() } : { available: false }));
+  app.get('/ai/status', async (_request, reply) => {
+    if (!ai) return { available: false } satisfies AiStatusResponse;
+    try {
+      return { available: true, ...ai.usage() } satisfies AiStatusResponse;
+    } catch {
+      return reply.code(AI_ERROR_STATUS.upstream).send({ error: 'upstream' }); // stable code only, never the message
+    }
+  });
+
+  /** The usage line after a call that already happened (and was billed): never turn it into an error. */
+  const usageOrNull = (svc: AiService): ReturnType<AiService['usage']> | null => {
+    try { return svc.usage(); } catch { return null; }
+  };
 
   function aid<S extends z.ZodType, R>(
     path: string, schema: S, run: (svc: AiService, body: z.infer<S>) => Promise<R>,
@@ -33,8 +44,10 @@ export function registerAiRoutes(app: FastifyInstance, ai: AiService | undefined
       const parsed = schema.safeParse(request.body);
       if (!parsed.success) return reply.code(400).send({ error: 'invalid_body' });
       try {
+        const before = usageOrNull(ai);
         const result = await run(ai, parsed.data);
-        return { result, usage: ai.usage() } satisfies AiOk<R>;
+        const usage = usageOrNull(ai) ?? (before ? { used: before.used + 1, limit: before.limit } : { used: 0, limit: 0 });
+        return { result, usage } satisfies AiOk<R>;
       } catch (e) {
         const err = toAiError(e);
         return reply.code(AI_ERROR_STATUS[err.code]).send({ error: err.code });
