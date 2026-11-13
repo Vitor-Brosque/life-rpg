@@ -16,7 +16,7 @@ import { useSleepSheet } from './SleepSheet';
 import { logMinimumCardio, useWorkoutSheet } from './WorkoutSheet';
 import './corpo.css';
 
-export const SYMPTOMS_NOTE = 'Sintomas como ronco, obstrução nasal ou bruxismo merecem avaliação profissional; o app só registra horários.';
+export const SYMPTOMS_NOTE = 'Sintomas como ronco, obstrução nasal ou bruxismo: procure avaliação profissional. O app só registra horários.';
 
 /** "/corpo": sleep regularity (observed) and the week's workouts (spec §6.3). */
 export function CorpoScreen() {

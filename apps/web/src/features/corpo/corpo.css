@@ -12,7 +12,7 @@
 /* Tela Corpo, folha de treino, bloco Treino e cartão do Personagem (Task 5). */
 .sleep-nights { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .sleep-night {
-  display: grid; grid-template-columns: 5ch 1fr auto; align-items: center; gap: 10px;
+  display: grid; grid-template-columns: 9ch 1fr auto; align-items: center; gap: 10px;
   width: 100%; min-height: 44px; padding: 4px 8px; text-align: left;
   background: none; border: 0; color: inherit; font: inherit; cursor: pointer;
 }
@@ -31,3 +31,5 @@
 .body-block__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .body-block__done, .body-block__minimum { margin: 4px 0; }
 .body-card__link { color: var(--sky); display: inline-flex; align-items: center; min-height: 44px; }
+.corpo__why summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.corpo__note { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
