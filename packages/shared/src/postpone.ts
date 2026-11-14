@@ -1,9 +1,10 @@
-import type { DayKey, DayMode, Energy, ID, LifeEvent } from './types';
+import type { DayKey, DayMode, Energy, ID, LifeEvent, SnoozeReason } from './types';
 import { addDays, dayKeyOf, weekdayOf } from './dates';
 import { weekKey } from './weekStats';
 import { defaultDayMode } from './planDay';
 import { PART_LABEL, WEEKDAY_NAMES, partOfDay, type PartOfDay } from './periods';
 import { atypicalWeekSet, type PatternData } from './trends';
+import { SNOOZE_REASONS, SNOOZE_REASON_LABEL, isSnoozeReason } from './outcomes';
 
 export const POSTPONE_WINDOW_DAYS = 28;
 /** No hypothesis about missions or groups before this many postponements in the window. */
@@ -29,6 +30,8 @@ export const DIM_TITLE: Record<PostponeDim, string> = {
 export interface Bucket { key: string; label: string; postponed: number; started: number; shrunk: number; dropped: number }
 export interface MissionTally { missionId: ID; title: string; postponed: number; started: number; open: boolean }
 export interface FeelingTally { feeling: string; count: number; withOutcome: number; continued: number }
+/** How often a reason was marked when postponing ("Agora não"), Acompanhamento B. */
+export interface ReasonTally { key: SnoozeReason; label: string; count: number }
 export interface PostponeObserved {
   from: DayKey;
   to: DayKey;
@@ -44,6 +47,8 @@ export interface PostponeObserved {
   missions: MissionTally[];
   /** Start-card feelings, most frequent first. */
   feelings: FeelingTally[];
+  /** Reasons marked on "snoozed" events of the window, most marked first (ties: the chips' order). */
+  reasons: ReasonTally[];
 }
 export interface Hypothesis {
   id: string;            // 'mission:<id>' · '<dim>:<key>' · 'feeling:<feeling>'
@@ -96,6 +101,7 @@ export function postponeObserved(
   const groups = Object.fromEntries(POSTPONE_DIMS.map((d) => [d, new Map<string, Bucket>()])) as Record<PostponeDim, Map<string, Bucket>>;
   const perMission = new Map<ID, MissionTally>();
   const totals = { postponed: 0, started: 0, shrunk: 0, dropped: 0 };
+  const reasonCounts = new Map<SnoozeReason, number>();
   const add = (dim: PostponeDim, key: string, label: string, kind: PostponeKind): void => {
     let b = groups[dim].get(key);
     if (!b) {
@@ -114,6 +120,8 @@ export function postponeObserved(
     const kind = classifyEvent(e, data.dayStartHour);
     if (!kind) continue;
     totals[kind] += 1;
+    const reason = e.type === 'snoozed' ? e.data?.reason : undefined;
+    if (isSnoozeReason(reason)) reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
     const energy = m.energy ?? 'none';
     add('energy', energy, ENERGY_LABEL[energy], kind);
     const areaName = m.areaId ? areas.get(m.areaId) : undefined;
@@ -161,6 +169,10 @@ export function postponeObserved(
       .filter((t) => t.postponed >= MISSION_LIST_MIN)
       .sort((a, b) => b.postponed - a.postponed || byLabel(a.title, b.title)),
     feelings: [...feelings.values()].sort((a, b) => b.count - a.count || byLabel(a.feeling, b.feeling)),
+    reasons: SNOOZE_REASONS.flatMap((key) => {
+      const n = reasonCounts.get(key) ?? 0;
+      return n > 0 ? [{ key, label: SNOOZE_REASON_LABEL[key], count: n }] : [];
+    }).sort((a, b) => b.count - a.count),   // stable: equal counts keep the chips' order
   };
 }
 

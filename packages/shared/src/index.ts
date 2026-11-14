@@ -31,3 +31,5 @@ export * from './npc';
 export * from './ai';
 export * from './subjects';
 export * from './training';
+export * from './outcomes';
+export * from './dayClose';

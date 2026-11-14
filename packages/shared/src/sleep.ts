@@ -1,4 +1,4 @@
-import type { DayKey, HHmm, ID, SleepLog } from './types';
+import type { DayKey, HHmm, ID, SleepLog, SleepQuality } from './types';
 import { addDays, dayKeyOf, formatHHmm, parseHHmm, timestampAt, toDayKey } from './dates';
 
 // Sono (Marco 4, spec §4): pure rules for the two-tap log, editing and the 14-night window.
@@ -171,4 +171,29 @@ export function sleepWindow(logs: readonly SleepLog[], endNight: DayKey, count =
     bed: spread(done.map((n) => n.bedMin!)),
     wake: spread(done.map((n) => n.wakeMin!)),
   };
+}
+
+// ------------------------------------------------------------------ perceived quality (Acompanhamento C)
+
+/** Nights with a quality needed before the Corpo screen shows the mean. */
+export const SLEEP_QUALITY_MIN = 3;
+export const SLEEP_QUALITIES: readonly SleepQuality[] = [1, 2, 3, 4, 5];
+export const SLEEP_QUALITY_LABEL: Record<SleepQuality, string> = {
+  1: 'Muito ruim', 2: 'Ruim', 3: 'Mais ou menos', 4: 'Bom', 5: 'Muito bom',
+};
+export const isSleepQuality = (v: unknown): v is SleepQuality => v === 1 || v === 2 || v === 3 || v === 4 || v === 5;
+
+/**
+ * Mean perceived quality (one decimal) of the `count` nights ending at `endNight` that have one,
+ * only with at least 3 such nights. Observed: no scoring and no medical meaning.
+ */
+export function sleepQualityOf(
+  logs: readonly SleepLog[], endNight: DayKey, count = SLEEP_WINDOW,
+): { avg: number; nights: number } | undefined {
+  const from = addDays(endNight, -(count - 1));
+  const values = logs
+    .filter((l) => !l.deleted && l.night >= from && l.night <= endNight && isSleepQuality(l.quality))
+    .map((l) => l.quality!);
+  if (values.length < SLEEP_QUALITY_MIN) return undefined;
+  return { avg: Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10, nights: values.length };
 }

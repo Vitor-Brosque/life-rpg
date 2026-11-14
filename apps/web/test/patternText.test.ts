@@ -108,7 +108,7 @@ describe('association sentences', () => {
 
 describe('postponement and month sentences', () => {
   it('totals', () => {
-    const o = { from: '', to: '', atypicalWeeks: 0, postponed: 14, started: 22, shrunk: 3, dropped: 2, byDim: {} as never, missions: [], feelings: [] };
+    const o = { from: '', to: '', atypicalWeeks: 0, postponed: 14, started: 22, shrunk: 3, dropped: 2, byDim: {} as never, missions: [], feelings: [], reasons: [] };
     expect(postponeTotalsText(o)).toBe('Nas últimas 4 semanas: adiou 14 vezes, começou 22, encolheu 3 e soltou 2.');
     expect(postponeTotalsText({ ...o, postponed: 1 })).toBe('Nas últimas 4 semanas: adiou 1 vez, começou 22, encolheu 3 e soltou 2.');
     expect(postponeTotalsText({ ...o, postponed: 0, started: 0, shrunk: 0, dropped: 0 })).toBe('Nenhum adiamento nem começo de missão nas últimas 4 semanas.');
