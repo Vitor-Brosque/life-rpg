@@ -165,7 +165,8 @@ export function suggest(input: EngineInput): EngineOutput {
   const journeyHead = new Map<ID, ID>();
   const headOrder = new Map<ID, number>();
   for (const m of live) {
-    if (!m.journeyId) continue;
+    // An avaliação (prova/trabalho) is a dated marker, never the journey's next step (Acompanhamento E).
+    if (!m.journeyId || m.assessment) continue;
     const ord = m.journeyOrder ?? Infinity;
     const cur = headOrder.get(m.journeyId);
     if (cur === undefined || ord < cur) {

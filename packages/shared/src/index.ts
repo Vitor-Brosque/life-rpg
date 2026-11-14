@@ -35,3 +35,4 @@ export * from './outcomes';
 export * from './dayClose';
 export * from './daySnapshot';
 export * from './planVsDone';
+export * from './faculty';

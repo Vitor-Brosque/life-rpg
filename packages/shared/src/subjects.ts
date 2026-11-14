@@ -52,7 +52,8 @@ export function subjectsOf(data: SubjectsData, today: DayKey): Subject[] {
     const recent = reviews.filter((r) => r.day >= from30 && r.day <= today && r.before.state === 'review');
     const ended = sessions.filter((p) => p.status === 'done' && p.endedAt !== undefined
       && dayKeyOf(p.endedAt, data.dayStartHour) >= from30 && dayKeyOf(p.endedAt, data.dayStartHour) <= today);
-    const next = ms.filter((m) => m.deadline !== undefined && m.deadline >= today)
+    // Provas and trabalhos have their own line in Matérias (Acompanhamento E).
+    const next = ms.filter((m) => !m.assessment && m.deadline !== undefined && m.deadline >= today)
       .sort((a, b) => a.deadline!.localeCompare(b.deadline!))[0];
     return {
       id, kind, title, deckIds: own.map((d) => d.id),
@@ -70,7 +71,8 @@ export function subjectsOf(data: SubjectsData, today: DayKey): Subject[] {
   for (const j of journeys) {
     const own = decks.filter((d) => d.journeyId === j.id);
     const sessions = practice.filter((p) => p.journeyId === j.id);
-    if (own.length === 0 && sessions.length === 0) continue;
+    // A disciplina (Acompanhamento E) is a subject even before it has decks or practice.
+    if (own.length === 0 && sessions.length === 0 && j.subject !== true) continue;
     out.push(build(j.id, 'journey', j.title, own, sessions, missions.filter((m) => m.journeyId === j.id)));
   }
   const journeyIds = new Set(data.journeys.filter((j) => !j.deleted).map((j) => j.id));

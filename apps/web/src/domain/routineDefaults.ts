@@ -1,7 +1,9 @@
 import type {
   Area, BaseRecord, Block, BlockKind, Commitment, DayKey, HHmm, ID, Journey,
 } from '@life/shared';
-import { compactTitle, formatHHmm, normalize, parseHHmm, ulid } from '@life/shared';
+import {
+  CLASS_END as CLASS_END_HHMM, CLASS_START as CLASS_START_HHMM, compactTitle, formatHHmm, normalize, parseHHmm, ulid,
+} from '@life/shared';
 
 /**
  * Suggested routine (an example for someone who studies in the evening, every time editable after it
@@ -35,8 +37,6 @@ interface Template {
 /** The start the example below is written for (the setup screen offers it; another start shifts the day). */
 export const ROUTINE_BASE_START: HHmm = '08:00';
 const BASE_START = parseHHmm(ROUTINE_BASE_START);
-const CLASS_START_HHMM: HHmm = '19:30';
-const CLASS_END_HHMM: HHmm = '22:30';
 const CLASS_START = parseHHmm(CLASS_START_HHMM);
 const CLASS_END = parseHHmm(CLASS_END_HHMM);
 const WEEKDAYS = [1, 2, 3, 4, 5];
