@@ -1,10 +1,11 @@
 import type {
-  Area, Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayState, LifeEvent, Mission,
+  Area, Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayPlan, DayState, FocusSession, Journey, LifeEvent, Mission,
   MonthObserved, MonthReview, PracticeSession, Review, SleepLog, Week, Workout, XpEvent,
 } from './types';
 import { addDays, dayKeyOf } from './dates';
 import { defaultDayMode } from './planDay';
 import { countedBlocksOn, type CountedBlock } from './weekStats';
+import { blocksFromPlan, commitmentsFromPlan } from './daySnapshot';
 import { SLEEP_MIN_NIGHTS, minutesFromNoon, sleepMinutes } from './sleep';
 import {
   PARTS_OF_DAY, PART_LABEL, addMonths, monthKeyOf, monthPeriod, partOfDay, periodDays, type MonthKey, type Period,
@@ -30,6 +31,9 @@ export interface PatternData {
   workouts: Workout[];           // Marco 4
   weeks: Week[];
   watchDismissed: string[];      // settings.patterns.watchDismissed
+  dayPlans?: DayPlan[];          // Acompanhamento D: the days' plans (absent = none recorded)
+  focusSessions?: FocusSession[];// Acompanhamento D: planned × executed
+  journeys?: Journey[];          // Acompanhamento D: area of a block linked to a journey
 }
 
 export interface DayIndex {
@@ -38,8 +42,10 @@ export interface DayIndex {
   /** The mode chosen that day ("Como está hoje?"), when there is one. */
   recordedMode(day: DayKey): DayMode | undefined;
   isWorkday(day: DayKey): boolean;
-  /** countedBlocksOn for the day, memoised (the same array on every call). */
+  /** countedBlocksOn for the day, memoised (the same array on every call); from the day's plan when it has one. */
   blocks(day: DayKey): CountedBlock[];
+  /** The day's plan (Acompanhamento D), when one was recorded. */
+  plan(day: DayKey): DayPlan | undefined;
 }
 
 export function dayIndex(data: PatternData): DayIndex {
@@ -53,6 +59,7 @@ export function dayIndex(data: PatternData): DayIndex {
   }
   const blocks = data.blocks.filter((b) => !b.deleted);
   const commitments = data.commitments.filter((c) => !c.deleted);
+  const plans = new Map((data.dayPlans ?? []).filter((p) => !p.deleted).map((p) => [p.day, p]));
   const cache = new Map<DayKey, CountedBlock[]>();
   const mode = (day: DayKey): DayMode => defaultDayMode(day, states.get(day));
   return {
@@ -62,14 +69,19 @@ export function dayIndex(data: PatternData): DayIndex {
     blocks(day) {
       let counted = cache.get(day);
       if (!counted) {
+        // A day with a recorded plan is read from it; older days keep the current routine (same result as before).
+        const plan = plans.get(day);
         counted = countedBlocksOn({
-          day, mode: mode(day), dayStartedAt: states.get(day)?.startedAt, blocks, commitments,
+          day, mode: mode(day), dayStartedAt: states.get(day)?.startedAt,
+          blocks: plan ? blocksFromPlan(plan, blocks) : blocks,
+          commitments: plan ? commitmentsFromPlan(plan) : commitments,
           sessions: sessionsByDay.get(day) ?? [], dayStartHour: data.dayStartHour, dayEndHour: data.dayEndHour,
         });
         cache.set(day, counted);
       }
       return counted;
     },
+    plan: (day) => plans.get(day),
   };
 }
 

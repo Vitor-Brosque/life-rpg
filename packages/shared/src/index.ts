@@ -33,3 +33,5 @@ export * from './subjects';
 export * from './training';
 export * from './outcomes';
 export * from './dayClose';
+export * from './daySnapshot';
+export * from './planVsDone';

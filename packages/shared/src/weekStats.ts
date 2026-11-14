@@ -1,6 +1,6 @@
 import type { Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayState, XpEvent } from './types';
 import { addDays, dayEndTimestamp, dayKeyOf, weekdayOf } from './dates';
-import { defaultDayMode, planDay } from './planDay';
+import { blocksForDay, defaultDayMode, planDay } from './planDay';
 
 export interface WeekStatsInput {
   weekStart: DayKey;
@@ -31,7 +31,15 @@ export function weekKey(day: DayKey): DayKey {
 }
 
 /** One work block of a day that counts as planned (the weekly review's rule). */
-export interface CountedBlock { block: Block; started: boolean; minimum: boolean }
+export interface CountedBlock {
+  block: Block;
+  started: boolean;
+  minimum: boolean;
+  /** Minutes the plan gave it: the day mode's version when the routine listed it that day; 0 when it was only lived. */
+  plannedMin: number;
+  /** When started: the lived window as planning sees it (an open session ends where planDay ends it). */
+  lived?: { start: number; end: number };
+}
 
 export interface CountedBlocksInput {
   day: DayKey;
@@ -60,6 +68,7 @@ export function countedBlocksOn(input: CountedBlocksInput): CountedBlock[] {
     blocks: input.blocks, commitments: input.commitments,
     sessions: input.sessions.filter((s) => s.day === day && !s.deleted),
   });
+  const listed = new Set(blocksForDay(input.blocks, day, mode).map((x) => x.block.id));
   const out: CountedBlock[] = [];
   for (const o of occs) {
     // Routine blocks are checklists (start of day, wind-down), not work blocks: they don't count.
@@ -67,7 +76,11 @@ export function countedBlocksOn(input: CountedBlocksInput): CountedBlock[] {
     const started = o.state !== 'skipped' && o.session?.startedAt !== undefined;
     // A block that did not exist yet at its target time was not planned (unless it was started).
     if (o.block.createdAt > o.plannedStart && !started) continue;
-    out.push({ block: o.block, started, minimum: started && o.version === 'minimum' });
+    out.push({
+      block: o.block, started, minimum: started && o.version === 'minimum',
+      plannedMin: listed.has(o.block.id) ? (mode === 'normal' ? o.block.durationMin : o.block.minimumMin) : 0,
+      ...(started ? { lived: { start: o.start, end: o.end } } : {}),
+    });
   }
   return out;
 }
