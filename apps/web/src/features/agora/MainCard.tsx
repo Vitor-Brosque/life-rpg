@@ -7,6 +7,7 @@ import { Button } from '../../ui/Button';
 import { ENERGY_LABEL, formatDuration, formatPoints } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { useCompanion } from '../companion/store';
+import { usePartialSheet } from '../mission/PartialSheet';
 import type { AgoraActions } from './useAgora';
 
 /** Companion sitting on the card corner, with its speech bubble. */
@@ -108,6 +109,12 @@ function MissionView({ suggestion, area, canSkip, actions }: {
         <Button size="sm" variant="ghost" icon="snooze" className="btn--stacked" onClick={() => actions.snooze(m)}>
           Agora não
         </Button>
+        {m.status === 'doing' && (
+          <Button size="sm" variant="ghost" icon="pause" className="btn--stacked"
+            onClick={() => usePartialSheet.getState().open(m.id)}>
+            Parcial
+          </Button>
+        )}
       </div>
     </>
   );

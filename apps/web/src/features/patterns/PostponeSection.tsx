@@ -5,7 +5,7 @@ import { safeRun } from '../../ui/safeRun';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { EvidenceLine } from './Evidence';
 import type { PatternsView } from './patternData';
-import { atypicalWeeksText, bucketLine, hypothesisGateText, postponeTotalsText } from './patternText';
+import { atypicalWeeksText, bucketLine, hypothesisGateText, postponeTotalsText, reasonsText } from './patternText';
 import { UseAsExperiment } from './UseAsExperiment';
 
 const MISSIONS_SHOWN = 5;
@@ -27,6 +27,12 @@ export function PostponeSection({ view }: { view: PatternsView }) {
     <section className="postpone stack" aria-labelledby={titleId}>
       <h2 id={titleId} className="section-title">Adiamentos</h2>
       <EvidenceLine kind="observado">{postponeTotalsText(postpone)}</EvidenceLine>
+      {postpone.reasons.length > 0 && (
+        <>
+          <EvidenceLine kind="observado">{reasonsText(postpone)}</EvidenceLine>
+          <p className="muted">Só conta quando um motivo foi marcado em “Agora não”.</p>
+        </>
+      )}
       {postpone.atypicalWeeks > 0 && <p className="muted">{atypicalWeeksText(postpone.atypicalWeeks)}</p>}
 
       {missions.length > 0 && (

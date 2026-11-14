@@ -1,8 +1,8 @@
 import type {
-  Area, Commitment, DayKey, HHmm, ID, Journey, LifeEvent, Mission, MissionStatus,
+  Area, Commitment, DayKey, HHmm, ID, Journey, LifeEvent, Mission, MissionStatus, SnoozeReason,
 } from '@life/shared';
 import {
-  addDays, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, parseHHmm,
+  addDays, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, oneLine, parseHHmm,
   parseLines, startXp, strategyXp, ulid,
 } from '@life/shared';
 import { db } from '../db/db';
@@ -221,7 +221,7 @@ async function shrinkMissionLocked(id: string, firstStep: string): Promise<{ xp:
 }
 
 export async function snoozeMission(
-  id: string, option: 'later' | 'tomorrow' | { date: DayKey },
+  id: string, option: 'later' | 'tomorrow' | { date: DayKey }, reason?: SnoozeReason,
 ): Promise<void> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
@@ -235,7 +235,7 @@ export async function snoozeMission(
     changes.snoozedUntil = undefined;
   }
   await patch<Mission>('missions', id, changes);
-  await logEvent('snoozed', id, { option });
+  await logEvent('snoozed', id, { option, ...(reason ? { reason } : {}) });
 }
 
 /**
@@ -243,13 +243,13 @@ export async function snoozeMission(
  * block where it starts (`cueBlockId`) and the first step, and counts as a postponement.
  */
 export async function planMission(
-  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey },
+  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey; reason?: SnoozeReason },
 ): Promise<void> {
   return withLock(`mission:${id}`, () => planMissionLocked(id, plan));
 }
 
 async function planMissionLocked(
-  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey },
+  id: string, plan: { cueBlockId?: ID; firstStep?: string; date: DayKey; reason?: SnoozeReason },
 ): Promise<void> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
@@ -263,7 +263,45 @@ async function planMissionLocked(
     snoozedUntil: undefined,
     postponeCount: m.postponeCount + 1,
   });
-  await logEvent('snoozed', id, { option: { date: plan.date }, plan: true });
+  await logEvent('snoozed', id, { option: { date: plan.date }, plan: true, ...(plan.reason ? { reason: plan.reason } : {}) });
+}
+
+export type PartialWhen = 'later' | 'tomorrow' | { date: DayKey };
+
+/**
+ * "Parcial" (Acompanhamento B): a started mission goes back to open with what came out noted and the
+ * next action as its first step. Progress, not a postponement: `postponeCount` does not change.
+ */
+export const closePartial = (
+  id: string, input: { result?: string; next?: string; when: PartialWhen },
+): Promise<void> => withLock(`mission:${id}`, () => closePartialLocked(id, input));
+
+async function closePartialLocked(
+  id: string, input: { result?: string; next?: string; when: PartialWhen },
+): Promise<void> {
+  const m = await db.missions.get(id);
+  if (!m) throw new Error(`mission ${id} not found`);
+  if (m.deleted || (m.status !== 'open' && m.status !== 'doing')) return;
+  const result = oneLine(input.result);
+  const next = oneLine(input.next, FIRST_STEP_MAX);
+  const changes: Partial<Mission> = { status: 'open', ...(next ? { firstStep: next } : {}) };
+  if (input.when === 'later') {
+    changes.snoozedUntil = Date.now() + 3 * 3600_000;
+  } else {
+    const today = await getToday();
+    changes.date = input.when === 'tomorrow' ? addDays(today, 1) : input.when.date;
+    changes.dayOrder = undefined;
+    changes.snoozedUntil = undefined;
+  }
+  await patch<Mission>('missions', id, changes);
+  await logEvent('partial', id, {
+    option: input.when, ...(result ? { result } : {}), ...(next ? { next } : {}),
+  });
+}
+
+/** "O que saiu?" of a concluded mission: append-only, the newest counts, blank clears it. */
+export async function noteResult(id: string, text: string): Promise<void> {
+  await logEvent('result', id, { result: oneLine(text) ?? '' });
 }
 
 export async function rescheduleMission(id: string, date: DayKey | null): Promise<void> {

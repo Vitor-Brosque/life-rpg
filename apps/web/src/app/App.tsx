@@ -22,6 +22,7 @@ import { PatternsScreen } from '../features/patterns/PatternsScreen';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
 import { WorkoutSheetHost } from '../features/corpo/WorkoutSheet';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
+import { PartialSheetHost } from '../features/mission/PartialSheet';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { PainelScreen } from '../features/painel/PainelScreen';
 import { PlanScreen } from '../features/plan/PlanScreen';
@@ -103,6 +104,7 @@ export function App() {
       </Layout>
       <CaptureHost />
       <MissionSheetHost />
+      <PartialSheetHost />
       <SleepSheetHost />
       <WorkoutSheetHost />
       <TimerHost />

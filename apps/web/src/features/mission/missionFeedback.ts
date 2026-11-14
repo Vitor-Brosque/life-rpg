@@ -1,11 +1,11 @@
 import { navigate } from 'wouter/use-browser-location';
-import type { DayKey, MissionStatus } from '@life/shared';
+import type { DayKey, MissionStatus, SnoozeReason } from '@life/shared';
 import { db } from '../../db/db';
 import {
   completeMission, dropMission, shrinkMission, snoozeMission, splitMission, startMission, undoComplete,
   updateMission, type CompletionResult,
 } from '../../domain/actions';
-import { planMission } from '../../domain/missionActions';
+import { closePartial, planMission, type PartialWhen } from '../../domain/missionActions';
 import { formatDay } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
@@ -86,9 +86,9 @@ export async function shrinkWithFeedback(id: string, firstStep: string): Promise
 }
 
 export async function snoozeWithFeedback(
-  id: string, option: 'later' | 'tomorrow' | { date: DayKey }, today: DayKey,
+  id: string, option: 'later' | 'tomorrow' | { date: DayKey }, today: DayKey, reason?: SnoozeReason,
 ): Promise<void> {
-  await snoozeMission(id, option);
+  await snoozeMission(id, option, reason);
   toast(option === 'later' ? 'Ela volta em 3 horas.'
     : option === 'tomorrow' ? 'Guardada para amanhã.'
       : `Guardada para ${formatDay(option.date, today)}.`);
@@ -97,11 +97,21 @@ export async function snoozeWithFeedback(
 
 /** "Guardar para o próximo {bloco}": the if-then plan of a repeated postponement. */
 export async function planWithFeedback(
-  id: string, plan: { cueBlockId?: string; firstStep?: string; date: DayKey }, today: DayKey,
+  id: string, plan: { cueBlockId?: string; firstStep?: string; date: DayKey; reason?: SnoozeReason }, today: DayKey,
 ): Promise<void> {
   await planMission(id, plan);
   toast(`Plano guardado para ${formatDay(plan.date, today)}.`);
   say('snooze');
+}
+
+/** "Parcial": the mission goes back to open with what came out noted (not a postponement). */
+export async function partialWithFeedback(
+  id: string, input: { result?: string; next?: string; when: PartialWhen }, today: DayKey,
+): Promise<void> {
+  await closePartial(id, input);
+  toast(input.when === 'later' ? 'Parcial anotada. Ela volta em 3 horas.'
+    : input.when === 'tomorrow' ? 'Parcial anotada. Guardada para amanhã.'
+      : `Parcial anotada. Guardada para ${formatDay(input.when.date, today)}.`);
 }
 
 /** Mission → journey (checklist items become its missions). */

@@ -1,12 +1,13 @@
 import { useId, useState, type FormEvent } from 'react';
 import { create } from 'zustand';
-import type { ChecklistItem, ID } from '@life/shared';
-import { isOfBlock } from '@life/shared';
+import type { BlockOutcome, ChecklistItem, ID } from '@life/shared';
+import { BLOCK_OUTCOMES, BLOCK_OUTCOME_LABEL, RESULT_MAX, isOfBlock } from '@life/shared';
 import { readCurrentBlock } from '../../db/dayPlan';
 import { db } from '../../db/db';
 import { refreshNow } from '../../db/hooks';
 import { endBlock, saveNextAction } from '../../domain/actions';
 import { Button } from '../../ui/Button';
+import { Chip } from '../../ui/Chip';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
@@ -63,10 +64,12 @@ async function currentBlockOf(missionId: ID | undefined): Promise<ID | undefined
 }
 
 /** Saves the note (session + mission first step) and ends the block when asked. */
-async function resolve(request: ResumeRequest, text: string): Promise<void> {
+async function resolve(
+  request: ResumeRequest, text: string, close: { outcome?: BlockOutcome; result?: string } = {},
+): Promise<void> {
   const note = text.trim();
   if (request.endsBlock && request.blockId) {
-    await endBlock(request.blockId, note || undefined);
+    await endBlock(request.blockId, note || undefined, close);
     refreshNow(); // the next block may start at this very moment
     if (note && request.missionId) await saveNextAction({ missionId: request.missionId, text: note });
   } else if (note) {
@@ -81,10 +84,13 @@ async function resolve(request: ResumeRequest, text: string): Promise<void> {
 
 function ResumeForm({ request, onDone }: { request: ResumeRequest; onDone(): void }) {
   const [text, setText] = useState(request.suggestion ?? '');
+  const [outcome, setOutcome] = useState<BlockOutcome>();
+  const [result, setResult] = useState('');
   const inputId = useId();
+  const resultId = useId();
   const finish = (save: boolean) => {
     onDone();
-    safeRun(resolve(request, save ? text : ''));
+    safeRun(resolve(request, save ? text : '', save && request.endsBlock ? { outcome, result } : {}));
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -92,6 +98,25 @@ function ResumeForm({ request, onDone }: { request: ResumeRequest; onDone(): voi
   };
   return (
     <form className="resume-form" onSubmit={submit}>
+      {request.endsBlock && (
+        <>
+          <fieldset className="opt-group">
+            <legend className="field__label">Como foi? (opcional)</legend>
+            <div className="cluster">
+              {BLOCK_OUTCOMES.map((o) => (
+                <Chip key={o} selected={outcome === o} onClick={() => setOutcome((cur) => (cur === o ? undefined : o))}>
+                  {BLOCK_OUTCOME_LABEL[o]}
+                </Chip>
+              ))}
+            </div>
+          </fieldset>
+          <label className="field" htmlFor={resultId}>
+            <span className="field__label">O que saiu? (opcional)</span>
+            <input id={resultId} type="text" value={result} maxLength={RESULT_MAX} enterKeyHint="next" autoComplete="off"
+              onChange={(e) => setResult(e.target.value)} />
+          </label>
+        </>
+      )}
       <label className="field" htmlFor={inputId}>
         <span className="field__label resume-form__question">Qual a primeira ação da próxima vez?</span>
         <input

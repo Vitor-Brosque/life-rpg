@@ -138,7 +138,7 @@
 .main-card__hint-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 .main-card__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3); }
-.main-card__tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-top: var(--space-3); }
+.main-card__tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }
 .btn--stacked.btn { flex-direction: column; gap: 2px; min-height: 60px; padding: 6px 4px; font-size: 0.875rem; }
 .main-card__after { margin: var(--space-3) 0 var(--space-2); color: var(--ink); }
 
@@ -284,3 +284,4 @@ button.row-card { width: 100%; align-items: center; gap: 10px; padding: 0 12px 0
 .snooze-plan__toggle { align-self: flex-start; min-height: 36px; }
 .snooze-plan__hint { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
 .main-card__plan { margin: 0 0 var(--space-2); color: var(--ink-soft); font-size: 0.9375rem; overflow-wrap: anywhere; }
+.opt-group { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin: 0; padding: 0; border: 0; }

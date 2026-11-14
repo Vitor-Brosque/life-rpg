@@ -1,8 +1,8 @@
 import type {
-  Area, BaseRecord, Block, BlockSession, DayKey, DayMode, DayState, EnergyLevel, EnergyLog, ID, Journey, Mission,
+  Area, BaseRecord, Block, BlockOutcome, BlockSession, DayKey, DayMode, DayState, EnergyLevel, EnergyLog, ID, Journey, Mission,
   Settings,
 } from '@life/shared';
-import { BLOCK_XP, RESUMPTION_XP, dayKeyOf, defaultDayMode, isResumption, normalize } from '@life/shared';
+import { BLOCK_XP, RESUMPTION_XP, dayKeyOf, defaultDayMode, isResumption, normalize, oneLine } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, patchMany, put, upsert } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, upsertDayState, withLock } from './common';
@@ -207,11 +207,17 @@ async function isStartedToday(blockId: ID, today: DayKey): Promise<boolean> {
  * Ends today's occurrence; a blank `nextAction` is not stored. A block that was never started is
  * skipped instead (`skipBlock`): ending is not starting.
  */
-export async function endBlock(blockId: ID, nextAction?: string): Promise<void> {
+export async function endBlock(
+  blockId: ID, nextAction?: string, close: { outcome?: BlockOutcome; result?: string } = {},
+): Promise<void> {
   const today = await getToday();
   if (!(await isStartedToday(blockId, today))) return skipBlock(blockId, nextAction);
   const text = nextAction?.trim();
-  await upsertSession(blockId, today, { endedAt: Date.now(), ...(text ? { nextAction: text } : {}) });
+  const result = oneLine(close.result);
+  await upsertSession(blockId, today, {
+    endedAt: Date.now(), ...(text ? { nextAction: text } : {}),
+    ...(close.outcome ? { outcome: close.outcome } : {}), ...(result ? { result } : {}),
+  });
 }
 
 /**

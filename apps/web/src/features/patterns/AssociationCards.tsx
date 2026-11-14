@@ -61,6 +61,7 @@ const HOW: string[] = [
   'Blocos planejados seguem o cálculo da revisão semanal: dias livres, blocos de rotina e blocos que não couberam no dia não contam.',
   'Acerto: revisões de cards já aprendidos que não foram “Errei”, só com 20 revisões ou mais.',
   'Adiar é tocar “Adiar” ou mover uma missão de hoje (ou de antes) para um dia depois. Encolher e soltar são contados à parte.',
+  'Motivos de adiamento só aparecem quando você marca um em “Agora não”. Parcial não conta como adiamento.',
   'Hipóteses só aparecem a partir de 8 adiamentos em 4 semanas. Um grupo precisa de 5 adiamentos e de uma taxa de adiamento 25 pontos acima do resto.',
   'Semanas 5–8 comparam as 4 primeiras semanas de um bloco com as mais recentes. O aviso só aparece com queda de pelo menos 30% e de 15 pontos, e com pelo menos 8 blocos planejados nas primeiras semanas.',
   'Associações usam os últimos 90 dias e precisam de 14 pares, divididos pela mediana.',

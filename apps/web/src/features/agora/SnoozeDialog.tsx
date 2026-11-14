@@ -1,10 +1,11 @@
 import { useEffect, useId, useState } from 'react';
-import type { Block, DayKey, Mission } from '@life/shared';
-import { addDays, cueBlockDay, defaultDayMode } from '@life/shared';
+import type { Block, DayKey, Mission, SnoozeReason } from '@life/shared';
+import { SNOOZE_REASONS, SNOOZE_REASON_LABEL, addDays, cueBlockDay, defaultDayMode } from '@life/shared';
 import { useBlocks, useDayMode, useSettings } from '../../db/hooks';
 import { updateMission } from '../../domain/actions';
 import { FIRST_STEP_MAX } from '../../domain/missionActions';
 import { Button } from '../../ui/Button';
+import { Chip } from '../../ui/Chip';
 import { formatDay, WEEKDAY_ABBR } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
@@ -35,13 +36,14 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
   const [planning, setPlanning] = useState(false);
   const [cueId, setCueId] = useState('');
   const [step, setStep] = useState('');
+  const [reason, setReason] = useState<SnoozeReason>();
   const dayStartHour = useSettings()?.dayStartHour ?? 4;
   const todayMode = useDayMode(today);
   const blocks = useBlocks().filter((b) => b.kind !== 'routine');
   const planId = useId();
   useEffect(() => {
     setPicking(false); setDate(addDays(today, 2));
-    setPlanning(false); setCueId(''); setStep(mission?.firstStep ?? '');
+    setPlanning(false); setCueId(''); setStep(mission?.firstStep ?? ''); setReason(undefined);
   }, [mission?.id, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canPlan = (mission?.postponeCount ?? 0) >= 1;
@@ -58,9 +60,10 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
           ...(cue ? { cueBlockId: cue.id } : {}),
           firstStep: step,
           date: option === 'tomorrow' ? addDays(today, 1) : option.date,
+          ...(reason ? { reason } : {}),
         }, today);
       } else {
-        await snoozeWithFeedback(mission.id, option, today);
+        await snoozeWithFeedback(mission.id, option, today, reason);
         if (planned) {
           const first = step.trim().slice(0, FIRST_STEP_MAX).trim();
           await updateMission(mission.id, { firstStep: first || undefined, cueBlockId: cue?.id });
@@ -76,7 +79,7 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
   const savePlan = () => {
     if (!mission || !cue || !cueDay) return;
     safeRun(async () => {
-      await planWithFeedback(mission.id, { cueBlockId: cue.id, firstStep: step, date: cueDay }, today);
+      await planWithFeedback(mission.id, { cueBlockId: cue.id, firstStep: step, date: cueDay, ...(reason ? { reason } : {}) }, today);
       onClose();
     });
   };
@@ -85,6 +88,16 @@ export function SnoozeDialog({ mission, today, onClose }: SnoozeDialogProps) {
     <Sheet open={!!mission} onClose={onClose} title="Agora não">
       <div className="dialog-form">
         <p className="dialog-form__context">Tudo bem. Quando “{mission?.title}” volta?</p>
+        <fieldset className="opt-group">
+          <legend className="field__label">Motivo (opcional)</legend>
+          <div className="cluster">
+            {SNOOZE_REASONS.map((r) => (
+              <Chip key={r} selected={reason === r} onClick={() => setReason((cur) => (cur === r ? undefined : r))}>
+                {SNOOZE_REASON_LABEL[r]}
+              </Chip>
+            ))}
+          </div>
+        </fieldset>
         <div className="snooze-options">
           <Button icon="snooze" onClick={() => { void choose('later'); }}>Mais tarde hoje</Button>
           <Button icon="moon" onClick={() => { void choose('tomorrow'); }}>Amanhã</Button>

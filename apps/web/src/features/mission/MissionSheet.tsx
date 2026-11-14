@@ -16,6 +16,8 @@ import { startWithCheckin } from '../agora/startWithCheckin';
 import { ChecklistEditor } from './ChecklistEditor';
 import { EditableField } from './EditableField';
 import { MissionAttributes } from './MissionAttributes';
+import { MissionResult } from './MissionResult';
+import { usePartialSheet } from './PartialSheet';
 import {
   completeWithFeedback, dropWithFeedback, reopenMission, splitWithFeedback,
 } from './missionFeedback';
@@ -119,6 +121,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
         onSave={(title) => set({ title })} />
       <EditableField label="Primeiro passo" value={mission.firstStep} placeholder="A menor ação para começar"
         onSave={(v) => set({ firstStep: v || undefined })} />
+      <MissionResult mission={mission} />
 
       {live && (
         <div className="mission-sheet__actions">
@@ -126,6 +129,9 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
             <Button variant="primary" icon="play" onClick={run(() => startWithCheckin(mission.id))}>Começar</Button>
           )}
           <Button icon="check" onClick={run(() => completeWithFeedback(mission.id), true)}>Concluir</Button>
+          {mission.status === 'doing' && (
+            <Button icon="pause" onClick={() => { onClose(); usePartialSheet.getState().open(mission.id); }}>Parcial</Button>
+          )}
           {startTimer && (
             <Button icon="timer" onClick={() => { startTimer(mission.id); onClose(); }}>Cronômetro</Button>
           )}

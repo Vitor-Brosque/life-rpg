@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
-import { dayKeyOf } from '@life/shared';
+import type { Blocker } from '@life/shared';
+import { BLOCKERS, blockerOption, dayKeyOf } from '@life/shared';
 import { db } from '../../db/db';
-import { saveCheckin } from '../../domain/actions';
+import { saveCheckin, updateMission } from '../../domain/actions';
 import { primeChime } from '../../timer/clock';
 import { useTimer } from '../../timer/store';
 import { Button } from '../../ui/Button';
@@ -9,7 +10,7 @@ import { Chip } from '../../ui/Chip';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
-import { startWithFeedback } from '../mission/missionFeedback';
+import { shrinkWithFeedback, startWithFeedback } from '../mission/missionFeedback';
 import { currentBlockOf, hideCheckinToday, useCheckinCard, type CheckinRequest } from './startWithCheckin';
 import './checkin.css';
 
@@ -45,7 +46,9 @@ const checkinLead = (xp: number) => (xp > 0 ? `Check-in · +${xp} XP` : undefine
 type Answer = 'experiment' | 'start' | 'skip' | 'off';
 
 /** Saves what the card asked for, starts the mission and, for the experiment, the 10-min countdown. */
-async function answer(kind: Answer, request: CheckinRequest, feelings: string[], thought: string): Promise<void> {
+async function answer(
+  kind: Answer, request: CheckinRequest, feelings: string[], thought: string, blocker?: Blocker,
+): Promise<void> {
   const { mission } = request;
   if (kind === 'off') {
     const settings = await db.settings.get('settings');
@@ -58,7 +61,7 @@ async function answer(kind: Answer, request: CheckinRequest, feelings: string[],
   }
   const blockId = await currentBlockOf(mission);
   const { id, xp } = await saveCheckin({
-    feelings, thought, missionId: mission.id, blockId,
+    feelings, thought, missionId: mission.id, blockId, ...(blocker ? { blocker } : {}),
     ...(kind === 'experiment' ? { experimentMin: EXPERIMENT_MIN } : {}),
   });
   let timerBusy = false;
@@ -76,16 +79,37 @@ function CheckinForm({ request, onDone }: { request: CheckinRequest; onDone(): v
   const { mission } = request;
   const [feelings, setFeelings] = useState<string[]>([]);
   const [thought, setThought] = useState('');
+  const [blocker, setBlocker] = useState<Blocker>();
+  const [blockersOpen, setBlockersOpen] = useState(false);
+  const [firstStep, setFirstStep] = useState(mission.firstStep);
+  const [small, setSmall] = useState('');
   const thoughtId = useId();
+  const blockersId = useId();
+  const smallId = useId();
   const willing = helperText(feelings);
-  const step = inSentence(mission.firstStep || mission.title);
+  const step = inSentence(firstStep || mission.title);
+  const offer = blocker ? blockerOption(blocker) : undefined;
+
+  const useStep = (text: string) => safeRun(async () => {
+    await updateMission(mission.id, { firstStep: text });
+    setFirstStep(text);
+    toast('Primeiro passo salvo.');
+  });
+  const shrink = () => {
+    const text = small.trim();
+    if (!text) return;
+    safeRun(async () => {
+      await shrinkWithFeedback(mission.id, text);
+      setFirstStep(text);
+    });
+  };
 
   const toggle = (value: string) =>
     setFeelings((list) => (list.includes(value) ? list.filter((f) => f !== value) : [...list, value]));
   const choose = (kind: Answer) => () => {
     if (kind === 'experiment') primeChime(); // inside the tap, so the end chime can play on iOS
     onDone();
-    safeRun(answer(kind, request, feelings, thought));
+    safeRun(answer(kind, request, feelings, thought, blocker));
   };
 
   return (
@@ -115,6 +139,44 @@ function CheckinForm({ request, onDone }: { request: CheckinRequest; onDone(): v
           onChange={(e) => setThought(e.target.value)}
         />
       </label>
+
+      <Button variant="ghost" className="checkin__blockers-toggle" aria-expanded={blockersOpen} aria-controls={blockersId}
+        onClick={() => setBlockersOpen((v) => !v)}>
+        O que trava? (opcional)
+      </Button>
+      <div id={blockersId} hidden={!blockersOpen}>
+        {blockersOpen && (
+          <fieldset className="checkin__group">
+            <legend className="checkin__question">O que trava?</legend>
+            <div className="cluster checkin__chips">
+              {BLOCKERS.map((b) => (
+                <Chip key={b.key} selected={blocker === b.key} onClick={() => setBlocker((cur) => (cur === b.key ? undefined : b.key))}>
+                  {b.label}
+                </Chip>
+              ))}
+            </div>
+            {offer?.offer === 'step' && offer.step && (
+              <div className="checkin__offer">
+                <p className="checkin__helper">{`Primeira ação sugerida: ${offer.step}`}</p>
+                <Button size="sm" onClick={() => useStep(offer.step!)}>Usar como primeiro passo</Button>
+              </div>
+            )}
+            {offer?.offer === 'shrink' && (
+              <div className="checkin__offer">
+                <label className="field" htmlFor={smallId}>
+                  <span className="checkin__helper">Versão de 5 minutos</span>
+                  <input id={smallId} type="text" value={small} enterKeyHint="done" autoComplete="off"
+                    onChange={(e) => setSmall(e.target.value)} />
+                </label>
+                <Button size="sm" disabled={!small.trim()} onClick={shrink}>Encolher</Button>
+              </div>
+            )}
+            {offer?.offer === 'experiment' && (
+              <p className="checkin__helper">{`Experimento de ${EXPERIMENT_MIN} minutos: comece pelo botão abaixo.`}</p>
+            )}
+          </fieldset>
+        )}
+      </div>
 
       <p className="checkin__experiment">{`Experimento: só ${EXPERIMENT_MIN} minutos para ${step}`}</p>
 

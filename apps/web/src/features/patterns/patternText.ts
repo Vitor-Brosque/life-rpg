@@ -159,6 +159,9 @@ export function postponeTotalsText(o: PostponeObserved): string {
     + `começou ${o.started}, encolheu ${o.shrunk} e soltou ${o.dropped}.`;
 }
 
+export const reasonsText = (o: PostponeObserved): string =>
+  `Motivos marcados ao adiar: ${o.reasons.map((r) => `${r.label} ${r.count}`).join(' · ')}.`;
+
 export const atypicalWeeksText = (n: number): string => `${n} ${n === 1 ? 'semana atípica fora' : 'semanas atípicas fora'} da conta.`;
 
 export const bucketLine = (b: Bucket): string => `${b.label}: adiou ${b.postponed} · começou ${b.started}`;

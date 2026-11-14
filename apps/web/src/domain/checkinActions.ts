@@ -1,10 +1,10 @@
-import type { Checkin, ID } from '@life/shared';
+import type { Blocker, Checkin, ID } from '@life/shared';
 import { CHECKIN_XP } from '@life/shared';
 import { db } from '../db/db';
 import { newRecord, patch, put } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, withLock } from './common';
 
-interface CheckinInput { feelings: string[]; thought?: string; experimentMin?: number; missionId?: ID; blockId?: ID }
+interface CheckinInput { feelings: string[]; thought?: string; experimentMin?: number; missionId?: ID; blockId?: ID; blocker?: Blocker }
 
 /** Start card answered: stores the check-in; +2 XP once per mission per day (none without a mission). */
 export const saveCheckin = (c: CheckinInput): Promise<{ id: ID; xp: number }> =>
@@ -18,6 +18,7 @@ async function saveCheckinLocked(c: CheckinInput): Promise<{ id: ID; xp: number 
     ...(c.experimentMin !== undefined ? { experimentMin: c.experimentMin } : {}),
     ...(c.missionId ? { missionId: c.missionId } : {}),
     ...(c.blockId ? { blockId: c.blockId } : {}),
+    ...(c.blocker ? { blocker: c.blocker } : {}),
   }));
   if (!c.missionId) return { id: saved.id, xp: 0 };
   const today = await getToday();
