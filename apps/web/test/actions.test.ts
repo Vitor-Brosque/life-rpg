@@ -21,6 +21,15 @@ afterEach(() => { vi.useRealTimers(); });
 const xpTotal = async () => (await db.xpEvents.toArray()).filter((x) => !x.deleted).reduce((s, x) => s + x.amount, 0);
 
 describe('captureLines', () => {
+  it('aplica a recorrência da linha: missão mensal/semanal e compromisso com os dias', async () => {
+    vi.setSystemTime(new Date(2026, 10, 11, 10, 0));
+    const [a, b, c, d] = (await captureLines('contador todo dia 5\nlavar roupa toda seg\nacademia 19h toda ter e qui\nremédio todo dia 8h')) as [Mission, Mission, Commitment, Commitment];
+    expect(a.recurrence).toEqual({ kind: 'monthly', day: 5 });
+    expect(b.recurrence).toEqual({ kind: 'weekly', weekdays: [1] });
+    expect(c.weekdays).toEqual([2, 4]);
+    expect(d.weekdays).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
   it('creates a mission and a commitment', async () => {
     const out = await captureLines('ler 20min @estudo\ndentista amanhã 15h');
     expect(out).toHaveLength(2);

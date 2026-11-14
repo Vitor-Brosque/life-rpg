@@ -71,12 +71,15 @@ export async function captureLines(
       out.push(await createCommitment({
         title: p.title, date: p.date ?? today, start: p.time,
         ...(p.durationMin ? { end: formatHHmm(Math.min(parseHHmm(p.time) + p.durationMin, MAX_MINUTE)) } : {}),
+        ...(p.recurrence?.kind === 'weekly' ? { weekdays: p.recurrence.weekdays } : {}),
+        ...(p.recurrence?.kind === 'daily' ? { weekdays: [0, 1, 2, 3, 4, 5, 6] } : {}),
       }));
       continue;
     }
     const journey = p.journeyName ? await resolveJourney(p.journeyName) : undefined;
     out.push(await createMission({
       ...extra,
+      ...(p.recurrence ? { recurrence: p.recurrence } : {}),
       title: p.title,
       important: p.important || (extra.important ?? false),
       ...(p.durationMin !== undefined ? { durationMin: p.durationMin } : {}),

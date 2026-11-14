@@ -52,6 +52,22 @@ describe('Onboarding', () => {
     expect(useCompanion.getState().message).toBe('Oi, Vitor! Eu sou Faísca. Vou te mostrar um passo de cada vez.');
   });
 
+  it('a repetição escrita nas ideias é salva na missão', async () => {
+    const user = userEvent.setup();
+    render(<Onboarding />);
+    await user.click(await screen.findByRole('button', { name: 'Começar do zero' }));
+    await user.type(await screen.findByLabelText('Como devo te chamar?'), 'Vitor');
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    const box = await screen.findByLabelText('O que está ocupando sua cabeça agora? Uma ideia por linha.');
+    await user.type(box, 'Lavar roupa toda seg');
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
+    await waitFor(async () => {
+      const ms = (await db.missions.toArray()).filter((x) => !x.deleted);
+      expect(ms).toHaveLength(1);
+      expect(ms[0]!.recurrence).toEqual({ kind: 'weekly', weekdays: [1] });
+    });
+  });
+
   it('every step can be skipped and it still finishes offline', async () => {
     const user = userEvent.setup();
     const f = vi.fn(); vi.stubGlobal('fetch', f);
