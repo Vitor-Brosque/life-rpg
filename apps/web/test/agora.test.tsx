@@ -32,7 +32,7 @@ beforeEach(async () => {
   useCompanion.getState().clear();
   useToast.getState().dismiss();
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 const setup = () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
 const renderAgora = () => render(<><AgoraScreen /><ToastHost /></>);
@@ -40,24 +40,32 @@ const mainCard = () => screen.findByRole('region', { name: 'Missão agora' });
 const xpBy = async (reason: string) => (await db.xpEvents.toArray())
   .filter((x) => !x.deleted && x.reason === reason).reduce((s, x) => s + x.amount, 0);
 
+// The companion's "empty" line is picked at random and one of the four repeats the card's own text,
+// so the card text is queried by its exact wording (never by the shared "Nada pendente" prefix).
+const EMPTY_TEXT = /Nada pendente\. Capture algo com \+, ou descanse — descanso também conta\./;
+
 describe('AgoraScreen', () => {
-  it('shows the single mission, completes it with a toast and undo brings it back', async () => {
-    const user = setup();
-    await createMission({ title: 'Ler um capítulo' });
-    renderAgora();
-    const card = await mainCard();
-    expect(within(card).getByText('Ler um capítulo')).toBeInTheDocument();
+  it.each(PHRASES.empty.map((p, i) => [i, p] as const))(
+    'shows the single mission, completes it with a toast and undo brings it back (companion phrase %i: %s)',
+    async (i) => {
+      vi.spyOn(Math, 'random').mockReturnValue(i / PHRASES.empty.length + 0.01);
+      const user = setup();
+      await createMission({ title: 'Ler um capítulo' });
+      renderAgora();
+      const card = await mainCard();
+      expect(within(card).getByText('Ler um capítulo')).toBeInTheDocument();
 
-    await user.click(within(card).getByRole('button', { name: 'Concluir' }));
-    expect(await screen.findByText(/\+8 XP/)).toBeInTheDocument();
-    expect(await screen.findByText(/Nada pendente/)).toBeInTheDocument();
+      await user.click(within(card).getByRole('button', { name: 'Concluir' }));
+      expect(await screen.findByText(/\+8 XP/)).toBeInTheDocument();
+      expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
-    // Query the region afresh: the empty card is a different element than the mission card.
-    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Missão agora' }))
-      .getByText('Ler um capítulo')).toBeInTheDocument());
-    expect(await xpBy('complete')).toBe(0);
-  });
+      await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+      // Query the region afresh: the empty card is a different element than the mission card.
+      await waitFor(() => expect(within(screen.getByRole('region', { name: 'Missão agora' }))
+        .getByText('Ler um capítulo')).toBeInTheDocument());
+      expect(await xpBy('complete')).toBe(0);
+    },
+  );
 
   it('highlights the first step as the main text', async () => {
     await createMission({ title: 'Escrever relatório', firstStep: 'Abrir o documento' });
@@ -239,13 +247,13 @@ describe('day boundaries of the Agora moments', () => {
 
   it('an empty Agora makes the companion speak its "empty" line once per day', async () => {
     const first = renderAgora();
-    expect(await screen.findByText(/Nada pendente/)).toBeInTheDocument();
+    expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
     await waitFor(() => expect(PHRASES.empty).toContain(useCompanion.getState().message));
     act(() => useCompanion.getState().clear());
     first.unmount();
 
     renderAgora();
-    expect(await screen.findByText(/Nada pendente/)).toBeInTheDocument();
+    expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
     await act(() => new Promise((r) => setTimeout(r, 50)));
     expect(useCompanion.getState().message).toBeUndefined();
   });
