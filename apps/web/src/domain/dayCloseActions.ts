@@ -3,6 +3,7 @@ import { CLOSE_NOTE_MAX, FOCUS_ISSUE_TEXT, TIME_ISSUE_TEXT, correctedFocus, defa
 import { db } from '../db/db';
 import { patch, putAll, upsert } from '../db/repo';
 import { getToday, upsertDayState, withLock } from './common';
+import { ensureDayPlan } from './dayPlanActions';
 
 // Encerramento do dia (Acompanhamento C): close, dismiss and the corrections of today. Nothing here gives XP;
 // deleting a focus session removes its own award (undoing the record) and Desfazer brings both back.
@@ -57,6 +58,7 @@ export const retroBlock = (blockId: ID, start: HHmm, end: HHmm): Promise<void> =
   await upsert<BlockSession>('blockSessions', sessionId(blockId, day), {
     ...w, retro: true, skipped: undefined, version: mode === 'low' || mode === 'recovery' ? 'minimum' : 'normal',
   }, { blockId, day, version: 'normal' });
+  await ensureDayPlan(day, mode);
 });
 
 /** Minutes of a focus session corrected (pauses kept). The XP awarded stays as it was. */

@@ -65,6 +65,9 @@ const HOW: string[] = [
   'Hipóteses só aparecem a partir de 8 adiamentos em 4 semanas. Um grupo precisa de 5 adiamentos e de uma taxa de adiamento 25 pontos acima do resto.',
   'Semanas 5–8 comparam as 4 primeiras semanas de um bloco com as mais recentes. O aviso só aparece com queda de pelo menos 30% e de 15 pontos, e com pelo menos 8 blocos planejados nas primeiras semanas.',
   'Associações usam os últimos 90 dias e precisam de 14 pares, divididos pela mediana.',
+  'Planejado × executado só usa dias com plano registrado: a foto do plano tirada quando você escolhe o tipo do dia ou começa, pula ou registra depois o primeiro bloco, e de novo se o tipo do dia mudar.',
+  'Planejado: a duração de cada bloco do dia na versão do tipo do dia (mínima em Baixa energia e Recuperação). Blocos de rotina e os que não couberam ficam de fora. Executado: o tempo entre começar e encerrar cada bloco (um bloco esquecido aberto conta até o fim previsto) mais as sessões de foco que não se sobrepõem a um bloco. Tempo com o app aberto nunca conta.',
+  'Dias com foto do plano usam a foto para os blocos planejados e iniciados; dias sem foto usam a rotina atual.',
   'Nada aqui usa IA. São contagens simples, e você pode discordar de qualquer leitura.',
 ];
 

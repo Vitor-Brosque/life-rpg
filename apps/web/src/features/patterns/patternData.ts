@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type {
   AreaShare, CheckinBreakdown, DayKey, Hypothesis, MethodAssociation, PatternData, PeriodKind, PostponeObserved,
-  DayIndex, Settings, SleepBlocksAssociation, SleepModeAssociation, TrendPoint, WatchNotice,
+  DayIndex, PlanVsDonePoint, Settings, SleepBlocksAssociation, SleepModeAssociation, TrendPoint, WatchNotice,
 } from '@life/shared';
 import {
-  addDays, checkinBreakdown, completedMonths, completedWeeks, dayIndex, effortByArea, patternSettingsOf, periodsSince,
+  addDays, checkinBreakdown, completedMonths, completedWeeks, dayIndex, effortByArea, patternSettingsOf, periodsSince, planVsDone,
   postponeHypotheses, postponeObserved, reviewMethods, sleepVsBlocks, sleepVsDayMode, timestampAt, trendPoints,
   watchNotices,
 } from '@life/shared';
@@ -25,7 +25,7 @@ export async function readPatternData(today: DayKey, settings: Settings): Promis
   const fromTs = timestampAt(from, '00:00');
   const [
     dayStates, blocks, commitments, sessions, xpEvents, events, missions, areas, checkins, reviews, practice,
-    sleepLogs, workouts, weeks,
+    sleepLogs, workouts, weeks, dayPlans, focusSessions, journeys,
   ] = await Promise.all([
     db.dayState.toArray(),
     db.blocks.toArray(),
@@ -41,6 +41,9 @@ export async function readPatternData(today: DayKey, settings: Settings): Promis
     db.sleepLogs.where('night').aboveOrEqual(from).toArray(),
     db.workouts.where('day').aboveOrEqual(from).toArray(),
     db.weeks.toArray(),
+    db.dayPlans.toArray(),
+    db.focusSessions.where('startedAt').aboveOrEqual(fromTs).toArray(),
+    db.journeys.toArray(),
   ]);
   return {
     today,
@@ -60,6 +63,9 @@ export async function readPatternData(today: DayKey, settings: Settings): Promis
     sleepLogs: live(sleepLogs),
     workouts: live(workouts),
     weeks: live(weeks),
+    dayPlans: live(dayPlans).filter((p) => p.day >= from),
+    focusSessions: live(focusSessions),
+    journeys: live(journeys),
     watchDismissed: patternSettingsOf(settings).watchDismissed,
   };
 }
@@ -87,6 +93,7 @@ export interface PatternsView {
   hasData: boolean;
   kind: PeriodKind;
   points: TrendPoint[];
+  planVsDone: PlanVsDonePoint[];
   balance: AreaShare[];
   breakdown: CheckinBreakdown;
   postpone: PostponeObserved;
@@ -118,6 +125,7 @@ export function buildPatternsView(data: PatternData, kind: PeriodKind, idx: DayI
     hasData: firstDay !== undefined,
     kind,
     points,
+    planVsDone: planVsDone(data, periods, idx),
     balance: from && to ? effortByArea(data, from, to) : [],
     breakdown: from && to ? checkinBreakdown(data, from, to) : NO_BREAKDOWN,
     postpone,

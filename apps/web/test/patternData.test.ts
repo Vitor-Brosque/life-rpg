@@ -83,6 +83,29 @@ describe('readPatternData and buildPatternsView', () => {
   });
 });
 
+describe('planned × executed in the view', () => {
+  it('reads plans, focus sessions and journeys, and counts only days with a plan', async () => {
+    await db.blocks.put(block);
+    await db.blockSessions.bulkPut([session('2026-11-02'), session('2026-11-03')]);
+    await db.xpEvents.put(xp('2026-10-26'));
+    await db.dayPlans.bulkPut([
+      { ...base, id: '2026-11-03', day: '2026-11-03', mode: 'normal', takenAt: 1, commitments: [], blocks: [{
+        blockId: 'b1', name: 'Tech', kind: 'focus', targetStart: '09:00', durationMin: 120, minimumMin: 30,
+        protected: false, order: 0, createdAt: 1,
+      }] },
+      { ...base, id: '2026-11-04', day: '2026-11-04', mode: 'normal', takenAt: 1, commitments: [], blocks: [], deleted: true },
+    ]);
+    await db.focusSessions.put({ ...base, id: 'f1', startedAt: timestampAt('2026-11-03', '14:00'), endedAt: timestampAt('2026-11-03', '14:30'),
+      activeMs: 30 * 60_000, mode: 'free', outcome: 'finished' } as never);
+    const data = await readPatternData(TODAY, await settings());
+    expect(data.dayPlans).toHaveLength(1);
+    expect(data.focusSessions).toHaveLength(1);
+    expect(data.journeys!.length).toBeGreaterThanOrEqual(0);
+    const v = buildPatternsView(data, 'week');
+    expect(v.planVsDone.map((p) => [p.period.key, p.daysWithPlan])).toEqual([['2026-10-26', 0], ['2026-11-02', 1]]);
+  });
+});
+
 describe('week experiment', () => {
   const WEEK = '2026-11-09';
   it('setWeekExperiment creates the week, replaces the text and ignores blanks', async () => {

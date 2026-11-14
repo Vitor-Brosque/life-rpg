@@ -6,6 +6,7 @@ import { BLOCK_XP, RESUMPTION_XP, dayKeyOf, defaultDayMode, isResumption, normal
 import { db } from '../db/db';
 import { newRecord, patch, patchMany, put, upsert } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, upsertDayState, withLock } from './common';
+import { ensureDayPlan } from './dayPlanActions';
 import { createCommitment } from './missionActions';
 import { findTechJourney, hasClassCommitment, type RoutinePreview } from './routineDefaults';
 
@@ -136,6 +137,7 @@ export async function setDayMode(mode: DayMode): Promise<void> {
   const existing = await db.dayState.get(today);
   const startedAt = (existing && !existing.deleted ? existing.startedAt : undefined) ?? Date.now();
   await upsertDayState(today, { mode, startedAt, hardDay: mode === 'low' || mode === 'recovery' });
+  await ensureDayPlan(today, mode);
 
   // Two quick taps must not both see "no log yet" and write the same level twice.
   await withLock('energy', async () => {
@@ -166,6 +168,7 @@ async function startBlockLocked(blockId: ID): Promise<{ xp: number; resumption: 
     ...(state?.mode === undefined ? { mode: implied === 'free' ? 'normal' : implied, hardDay: implied === 'low' } : {}),
   };
   if (Object.keys(dayChanges).length > 0) await upsertDayState(today, dayChanges);
+  await ensureDayPlan(today, dayChanges.mode ?? implied);
 
   const session = await db.blockSessions.get(sessionId(blockId, today));
   if (!session || session.deleted || session.startedAt === undefined) {
@@ -229,6 +232,7 @@ export async function skipBlock(blockId: ID, nextAction?: string): Promise<void>
   if (await isStartedToday(blockId, today)) return endBlock(blockId, nextAction);
   const text = nextAction?.trim();
   await upsertSession(blockId, today, { endedAt: Date.now(), skipped: true, ...(text ? { nextAction: text } : {}) });
+  await ensureDayPlan(today, await todayMode(today));
 }
 
 export async function setBlockVersion(blockId: ID, version: 'normal' | 'minimum'): Promise<void> {

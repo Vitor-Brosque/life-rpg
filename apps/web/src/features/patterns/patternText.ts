@@ -1,5 +1,5 @@
 import type {
-  Bucket, MethodAssociation, MonthKey, MonthObserved, PeriodKind, PostponeObserved, SleepBlocksAssociation,
+  Bucket, MethodAssociation, MonthKey, MonthObserved, PeriodKind, PlanVsDonePoint, PostponeObserved, SleepBlocksAssociation,
   SleepModeAssociation, TrendPoint, WatchNotice,
 } from '@life/shared';
 import { ACCURACY_MIN, METHOD_LABEL, monthName } from '@life/shared';
@@ -188,4 +188,25 @@ export function monthObservedRows(o: MonthObserved): Array<{ label: string; valu
     ...(o.sleepAvgMin !== undefined ? [{ label: 'Sono médio', value: formatDuration(o.sleepAvgMin) }] : []),
     { label: 'Escapei', value: `${o.escapes}×` },
   ];
+}
+
+// ------------------------------------------------------------------ planned × executed
+
+const sumPlan = (points: readonly PlanVsDonePoint[], f: (p: PlanVsDonePoint) => number): number => points.reduce((s, p) => s + f(p), 0);
+
+export function planVsDoneText(points: readonly PlanVsDonePoint[], kind: PeriodKind): string {
+  const days = sumPlan(points, (p) => p.daysWithPlan);
+  if (days === 0) {
+    return 'Aparece com os dias que têm plano registrado: o plano do dia é guardado quando você escolhe o tipo do dia ou começa (ou pula) o primeiro bloco.';
+  }
+  const window = span(kind, points.length).window;
+  return `${window.charAt(0).toUpperCase()}${window.slice(1)}: ${formatDuration(sumPlan(points, (p) => p.executedMin))} executados de `
+    + `${formatDuration(sumPlan(points, (p) => p.plannedMin))} planejados, em ${plural(days, 'dia', 'dias')} com plano registrado.`;
+}
+
+export function planVsDoneSeries(points: readonly PlanVsDonePoint[], kind: PeriodKind): string {
+  const odd = kind === 'week' ? ' (semana atípica)' : ' (mês com semana atípica)';
+  return `${span(kind, points.length).each}, da mais antiga para a mais recente: `
+    + `${points.map((p) => `${p.period.label}: ${formatDuration(p.executedMin)} de ${formatDuration(p.plannedMin)} `
+      + `(${plural(p.daysWithPlan, 'dia', 'dias')} com plano)${p.atypical ? odd : ''}`).join('; ')}.`;
 }

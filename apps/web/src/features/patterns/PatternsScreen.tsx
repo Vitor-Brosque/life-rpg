@@ -8,6 +8,7 @@ import '../settings/settings.css';
 import { AssociationSection, HowCalculated } from './AssociationCards';
 import { buildPatternsView, usePatternData } from './patternData';
 import { MonthReflections } from './MonthReflections';
+import { PlanVsDoneSection } from './PlanVsDoneSection';
 import { PostponeSection } from './PostponeSection';
 import { TrendSection } from './TrendCards';
 import { WeekExperimentContext } from './UseAsExperiment';
@@ -48,6 +49,7 @@ export function PatternsScreen() {
         <>
           {view.watch.map((n) => <WatchNotice key={n.key} notice={n} />)}
           <TrendSection view={view} kind={kind} onKind={choose} />
+          <PlanVsDoneSection view={view} kind={kind} />
           <PostponeSection view={view} />
           <AssociationSection view={view} />
           <MonthReflections data={data!} />
