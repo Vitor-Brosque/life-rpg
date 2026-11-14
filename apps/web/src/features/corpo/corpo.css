@@ -6,6 +6,9 @@
 .care-row__text { flex: 1; min-width: 0; }
 .care-row__meta { color: var(--text-dim); }
 .care-row__actions { display: flex; gap: 6px; flex: none; }
+.care-row--quality { flex-wrap: wrap; }
+.care-row--quality .care-row__actions { flex-wrap: wrap; }
+.care-row__hint { flex-basis: 100%; font-size: 0.8125rem; }
 .sleep-form__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .sleep-form__error { font-weight: 600; }
 

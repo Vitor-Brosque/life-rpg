@@ -22,6 +22,7 @@ import {
   useBlocksNow, useCompanionMoments, useDayReview, useDayType, useTodayData,
 } from '../agora/useAgoraData';
 import { CaptureForm } from '../capture/CaptureBar';
+import { DayCloseCard, DayCloseLink } from '../dayClose/DayCloseCard';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { useMonthCycle } from '../patterns/monthCycle';
 import { activeAtypical, useWeekCycle } from '../week/weekCycle';
@@ -129,6 +130,7 @@ export function PainelScreen() {
             <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
             <WeekLine experiment={cycle.week?.experiment} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? cycle.open : undefined} />
             <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
+            <DayCloseCard today={today} mode={dayType.mode} now={now} />
             {/* "Onde você parou" and the review status belong to the Apoio column here. */}
             <AgoraNow agora={agora} areas={areas} missions={missions} today={today} now={now} mode={dayType.mode}
               current={current} next={next} showNote={false} showReview={false} showPractice={false} compact onCapture={focusCapture} onPickMode={pickDayMode} />
@@ -159,6 +161,7 @@ export function PainelScreen() {
                 onOpen={(m) => useMissionSheet.getState().open(m.id)}
                 onReorder={(ids) => safeRun(reorderDay(ids, today))}
               />
+              <DayCloseLink />
             </div>
           </>
         )}

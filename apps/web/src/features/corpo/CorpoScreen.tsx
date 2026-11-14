@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { WORKOUT_LABEL, addDays, lastSleepNight, sleepWindow, weekKey, workoutWeek } from '@life/shared';
+import { WORKOUT_LABEL, addDays, lastSleepNight, sleepQualityOf, sleepWindow, weekKey, workoutWeek } from '@life/shared';
 import { useSleepLogs, useSleepSettings, useWorkouts } from '../../db/corpoData';
 import { useNow, useToday } from '../../db/hooks';
 import { logWorkout, removeWorkout } from '../../domain/workoutActions';
@@ -27,6 +27,8 @@ export function CorpoScreen() {
   const logs = useSleepLogs();
   const settings = useSleepSettings();
   const workouts = useWorkouts();
+  const quality = logs ? sleepQualityOf(logs, lastSleepNight(now)) : undefined;
+  const qualityText = quality ? `${String(quality.avg).replace('.', ',')} de 5 · ${plural(quality.nights, 'noite', 'noites')}` : undefined;
   const sleep = logs ? sleepWindow(logs, lastSleepNight(now)) : undefined;
   const week = workouts && today ? workoutWeek(workouts, weekKey(today)) : undefined;
   const since = today ? addDays(today, -13) : undefined;
@@ -67,6 +69,7 @@ export function CorpoScreen() {
               <div><dt>Deitar</dt><dd>{spreadText(sleep.bed!)}<span className="corpo__range">{rangeText(sleep.bed!)}</span></dd></div>
               <div><dt>Acordar</dt><dd>{spreadText(sleep.wake!)}<span className="corpo__range">{rangeText(sleep.wake!)}</span></dd></div>
               <div><dt>Noites completas</dt><dd>{`${sleep.complete} de 14`}</dd></div>
+              {qualityText && <div><dt>Qualidade percebida</dt><dd>{qualityText}</dd></div>}
             </dl>
           </div>
         ) : (
@@ -74,6 +77,9 @@ export function CorpoScreen() {
             {`Com 3 noites completas (Deitei e Acordei), aparecem aqui os horários médios e quanto eles variam. Até agora: ${sleep.complete}.`}
           </p>
         ))}
+        {sleep && !sleep.enough && qualityText && (
+          <dl className="corpo__stats"><div><dt>Qualidade percebida</dt><dd>{qualityText}</dd></div></dl>
+        )}
         <h3 className="corpo__subtitle">Últimas 14 noites</h3>
         {sleep && <SleepNights nights={sleep.nights} />}
         <div><Button onClick={() => useSleepSheet.getState().open()}>Registrar uma noite</Button></div>

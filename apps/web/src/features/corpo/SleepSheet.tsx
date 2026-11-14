@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { create } from 'zustand';
-import type { DayKey } from '@life/shared';
-import { isValidDayKey, lastSleepNight, sleepLogId } from '@life/shared';
+import type { DayKey, SleepQuality } from '@life/shared';
+import { SLEEP_QUALITIES, SLEEP_QUALITY_LABEL, isSleepQuality, isValidDayKey, lastSleepNight, sleepLogId } from '@life/shared';
 import { db } from '../../db/db';
 import { useNow } from '../../db/hooks';
-import { SleepValidationError, deleteSleepLog, restoreSleepLog, saveSleepTimes } from '../../domain/sleepActions';
+import { SleepValidationError, deleteSleepLog, restoreSleepLog, saveSleepTimes, setSleepQuality } from '../../domain/sleepActions';
 import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
 import { formatClock } from '../../ui/format';
@@ -54,6 +54,7 @@ function SleepForm({ fixedNight, onClose }: { fixedNight?: DayKey; onClose(): vo
   const live = log && !log.deleted ? log : undefined;
   const [bed, setBed] = useState('');
   const [wake, setWake] = useState('');
+  const [quality, setQuality] = useState('');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const loadedFor = useRef<DayKey | undefined>(undefined);
@@ -64,6 +65,7 @@ function SleepForm({ fixedNight, onClose }: { fixedNight?: DayKey; onClose(): vo
     loadedFor.current = night;
     setBed(live?.bedAt !== undefined ? formatClock(live.bedAt) : '');
     setWake(live?.wakeAt !== undefined ? formatClock(live.wakeAt) : '');
+    setQuality(isSleepQuality(live?.quality) ? String(live!.quality) : '');
     setError(undefined);
   }, [log, live, night]);
 
@@ -72,6 +74,7 @@ function SleepForm({ fixedNight, onClose }: { fixedNight?: DayKey; onClose(): vo
     setBusy(true);
     try {
       await saveSleepTimes(night, bed || null, wake || null);
+      await setSleepQuality(night, quality ? (Number(quality) as SleepQuality) : null);
       toast('Noite salva.');
       onClose();
     } catch (err) {
@@ -106,6 +109,13 @@ function SleepForm({ fixedNight, onClose }: { fixedNight?: DayKey; onClose(): vo
           <input type="time" value={wake} onChange={(e) => { setWake(e.target.value); setError(undefined); }} />
         </label>
       </div>
+      <label className="field">
+        <span className="field__label">Qualidade (opcional)</span>
+        <select value={quality} onChange={(e) => setQuality(e.target.value)}>
+          <option value="">—</option>
+          {SLEEP_QUALITIES.map((q) => <option key={q} value={q}>{`${q} · ${SLEEP_QUALITY_LABEL[q]}`}</option>)}
+        </select>
+      </label>
       <p className="muted">A noite vai do meio-dia ao meio-dia: deitar à 01:30 conta na noite anterior.</p>
       {error && <p role="alert" className="sleep-form__error">{error}</p>}
       <div className="sleep-form__actions">

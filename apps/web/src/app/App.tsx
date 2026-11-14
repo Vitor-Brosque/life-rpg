@@ -19,6 +19,7 @@ import { CorpoScreen } from '../features/corpo/CorpoScreen';
 import { TrainingPlanScreen } from '../features/corpo/TrainingPlanScreen';
 import { TrainingScreen } from '../features/corpo/TrainingScreen';
 import { PatternsScreen } from '../features/patterns/PatternsScreen';
+import { DayCloseSheetHost } from '../features/dayClose/DayCloseSheet';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
 import { WorkoutSheetHost } from '../features/corpo/WorkoutSheet';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
@@ -106,6 +107,7 @@ export function App() {
       <MissionSheetHost />
       <PartialSheetHost />
       <SleepSheetHost />
+      <DayCloseSheetHost />
       <WorkoutSheetHost />
       <TimerHost />
       <ResumePromptHost />

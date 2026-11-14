@@ -1,0 +1,26 @@
+.day-close-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.day-close-card__title { margin: 0; color: var(--gold); font-size: 1.0625rem; }
+.day-close-card__text { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.day-close-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.day-close-link { display: flex; justify-content: flex-start; }
+
+.day-close { display: flex; flex-direction: column; gap: var(--space-3); }
+.day-close h3 { margin: var(--space-2) 0 0; font-size: 1rem; color: var(--gold); }
+.day-close__list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0 0 0 18px; }
+.day-close__line { margin: 0; overflow-wrap: anywhere; }
+.day-close__hint { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.day-close__pending { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.day-close__item { display: flex; flex-direction: column; gap: 8px; }
+.day-close__item-title { font-weight: 600; overflow-wrap: anywhere; }
+.day-close__row-actions, .day-close__extra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.day-close__extra-label { flex-basis: 100%; color: var(--text-dim); font-size: 0.8125rem; }
+.day-close__tiredness { display: flex; flex-wrap: wrap; gap: 8px; border: 0; margin: 0; padding: 0; }
+.day-close__tiredness legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+.day-close textarea { width: 100%; min-height: 72px; }
+.day-close__fixes { display: flex; flex-direction: column; gap: var(--space-3); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.day-close__fix { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.day-close__fix-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.day-close__fix-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.day-close__fix-form label { display: flex; flex-direction: column; gap: 4px; }
+.day-close__error { margin: 0; color: var(--text); font-weight: 600; }
+.day-close__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

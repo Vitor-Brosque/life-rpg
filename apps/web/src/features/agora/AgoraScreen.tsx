@@ -4,6 +4,7 @@ import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
+import { DayCloseCard, DayCloseLink } from '../dayClose/DayCloseCard';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
 import { useMonthCycle } from '../patterns/monthCycle';
@@ -63,6 +64,7 @@ function AgoraView() {
       <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
       <WeekLine experiment={cycle.week?.experiment} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? cycle.open : undefined} />
       <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
+      <DayCloseCard today={today} mode={dayType.mode} now={now} />
 
       <AgoraNow
         agora={agora}
@@ -87,6 +89,7 @@ function AgoraView() {
         onOpen={openSheet}
         onReorder={(ids) => safeRun(reorderDay(ids, today))}
       />
+      <DayCloseLink />
 
       <ShrinkDialog mission={dialog?.kind === 'shrink' ? dialog.mission : undefined} onClose={closeDialog} />
       <SnoozeDialog mission={dialog?.kind === 'snooze' ? dialog.mission : undefined} today={today} onClose={closeDialog} />

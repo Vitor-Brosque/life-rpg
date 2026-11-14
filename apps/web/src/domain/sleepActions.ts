@@ -1,4 +1,4 @@
-import type { BaseRecord, DayKey, HHmm, Settings, SleepLog, SleepSettings, SyncTable } from '@life/shared';
+import type { BaseRecord, DayKey, HHmm, Settings, SleepLog, SleepQuality, SleepSettings, SyncTable } from '@life/shared';
 import {
   SLEEP_ISSUE_TEXT, sleepIssue, sleepLogId, sleepMinutes, sleepSettingsOf, sleepTimes, sleepXpId,
 } from '@life/shared';
@@ -87,6 +87,13 @@ export const deleteSleepLog = (night: DayKey): Promise<SleepLog | undefined> => 
 /** Desfazer of "Apagar noite": the same times come back (no XP: old awards are removed, never restored). */
 export const restoreSleepLog = (log: SleepLog): Promise<{ log: SleepLog; xp: number }> =>
   withLock('sleep', () => writeNight(log.night, { bedAt: log.bedAt, wakeAt: log.wakeAt }));
+
+/** "Como foi o sono?": the perceived quality of an existing night (null removes it). No night, nothing is written. */
+export const setSleepQuality = (night: DayKey, quality: SleepQuality | null): Promise<SleepLog | undefined> =>
+  withLock('sleep', async () => {
+    if (!(await liveLog(night))) return undefined;
+    return patch<SleepLog>('sleepLogs', sleepLogId(night), { quality: quality ?? undefined });
+  });
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
