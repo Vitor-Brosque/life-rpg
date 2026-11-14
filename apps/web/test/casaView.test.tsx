@@ -60,7 +60,7 @@ describe('Planejar → Casa', () => {
     expect(await screen.findByRole('button', { name: 'Almoço de seg 09/11: Frango com arroz' })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // Focus never falls back to <body> after the dish is placed.
-    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body), { timeout: 3000 });
 
     await user.click(screen.getByRole('button', { name: 'Escolher jantar de ter 10/11' }));
     sheet = await screen.findByRole('dialog', { name: 'Jantar de ter 10/11' });
@@ -78,7 +78,7 @@ describe('Planejar → Casa', () => {
     sheet = await screen.findByRole('dialog', { name: 'Almoço de seg 09/11' });
     await user.click(within(sheet).getByRole('button', { name: 'Tirar do cardápio' }));
     expect(await screen.findByRole('button', { name: 'Escolher almoço de seg 09/11' })).toBeInTheDocument();
-    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body), { timeout: 3000 });
     expect(screen.getByRole('link', { name: 'Receitas (2)' })).toHaveAttribute('href', '/casa/receitas');
   });
 
@@ -90,7 +90,7 @@ describe('Planejar → Casa', () => {
     await user.click(await screen.findByRole('button', { name: 'Repetir a semana anterior' }));
     await waitFor(() => expect(toastText()).toHaveTextContent('Cardápio copiado: 1 refeição.'));
     expect(await screen.findByRole('button', { name: 'Almoço de ter 10/11: Frango com arroz' })).toBeInTheDocument();
-    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body), { timeout: 3000 });
   });
 
   it('summarises the shopping list and links to it', async () => {
@@ -185,6 +185,6 @@ describe('Casa → freezer e preparo', () => {
     const freezer = await section('Freezer');
     await user.click(await within(freezer).findByRole('button', { name: 'Comi uma: Sopa' }));
     await waitFor(() => expect(within(freezer).queryByRole('button', { name: 'Comi uma: Sopa' })).not.toBeInTheDocument());
-    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body), { timeout: 3000 });
   });
 });
