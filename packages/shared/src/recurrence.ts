@@ -46,7 +46,9 @@ export function describeRecurrence(rec: Recurrence): string {
     case 'daily':
       return 'todo dia';
     case 'weekly': {
-      const days = [...new Set(rec.weekdays)].sort((a, b) => a - b).map((d) => WEEKDAY_ABBR[d]);
+      const set = [...new Set(rec.weekdays)].sort((a, b) => a - b);
+      if (set.length === 7) return 'todo dia';
+      const days = set.map((d) => WEEKDAY_ABBR[d]);
       return `toda ${days.join(', ')}`;
     }
     case 'monthly':

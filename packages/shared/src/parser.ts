@@ -82,7 +82,7 @@ function dateTokenAt(n: string, index: number): boolean {
   return DATE_AT_RE.test(n);
 }
 
-const WD_NAME = String.raw`(?:domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)(?:-feira)?s?`;
+const WD_NAME = String.raw`(?:domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)s?(?:-feiras?)?`;
 const WD_LIST = String.raw`${WD_NAME}(?:(?:\s*,\s*(?:e\s+)?|\s+e\s+)${WD_NAME})*`;
 const RECUR_WEEKLY_RE = new RegExp(
   B_BEFORE + String.raw`(?:toda|todas|todo|todos)\s+(?:(?:as|os)\s+)?(${WD_LIST})` + B_AFTER, 'u',
@@ -91,8 +91,9 @@ const RECUR_MONTHLY_RE = new RegExp(
   B_BEFORE + String.raw`todo\s+(?:mes\s+)?dia\s+(\d{1,2})(?![\p{L}\p{N}:/-])`, 'u',
 );
 const RECUR_DAILY_RE = new RegExp(
-  B_BEFORE + String.raw`(?:todos\s+os\s+dias|todo\s+dia(?!\s+\d)|diariamente)` + B_AFTER, 'u',
+  B_BEFORE + String.raw`(?:todos\s+os\s+dias|todo\s+dia(?!\s+\d{1,2}(?![\p{L}\p{N}:/-]))|diariamente)` + B_AFTER, 'u',
 );
+const RECUR_WORKDAYS_RE = new RegExp(B_BEFORE + String.raw`(?:todos\s+os\s+)?dias\s+uteis` + B_AFTER, 'u');
 const RECUR_SAME_WEEKDAY_RE = new RegExp(B_BEFORE + String.raw`toda\s+semana` + B_AFTER, 'u');
 
 function weekdayIndex(word: string): number | undefined {
@@ -212,6 +213,7 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
     const monthly = RECUR_MONTHLY_RE.exec(n);
     const daily = RECUR_DAILY_RE.exec(n);
     const same = RECUR_SAME_WEEKDAY_RE.exec(n);
+    const workdays = RECUR_WORKDAYS_RE.exec(n);
     const monthDay = monthly ? Number(monthly[1]) : 0;
     const hit = [
       weekly && { m: weekly, rec: (): Recurrence => ({
@@ -220,6 +222,7 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
           .sort((a, b) => a - b),
       }) },
       monthly && monthDay >= 1 && monthDay <= 31 && { m: monthly, rec: (): Recurrence => ({ kind: 'monthly', day: monthDay }) },
+      workdays && { m: workdays, rec: (): Recurrence => ({ kind: 'weekly', weekdays: [1, 2, 3, 4, 5] }) },
       daily && { m: daily, rec: (): Recurrence => ({ kind: 'daily' }) },
       same && { m: same, rec: (): Recurrence => { sameWeekday = true; return { kind: 'weekly', weekdays: [] }; } },
     ].find((h) => h && free({ start: h.m.index, end: h.m.index + h.m[0].length }));
@@ -318,7 +321,10 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
     result.date ??= today;
     if (recurrence?.kind === 'daily') result.recurrence = { kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] };
     // Monthly does not apply to commitments: only the date stays.
-    else if (recurrence?.kind === 'monthly') delete result.recurrence;
+    else if (recurrence?.kind === 'monthly') {
+      delete result.recurrence;
+      for (const t of tokens) if (t.type === 'recurrence') t.type = 'date';
+    }
   }
 
   tokens.sort((a, b) => a.start - b.start);

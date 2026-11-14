@@ -30,6 +30,7 @@ describe('describeRecurrence', () => {
   it('describes in PT-BR', () => {
     expect(describeRecurrence({ kind: 'daily' })).toBe('todo dia');
     expect(describeRecurrence({ kind: 'weekly', weekdays: [3, 1] })).toBe('toda seg, qua');
+    expect(describeRecurrence({ kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] })).toBe('todo dia');
     expect(describeRecurrence({ kind: 'monthly', day: 10 })).toBe('todo dia 10');
     expect(describeRecurrence({ kind: 'afterDays', days: 3 })).toBe('a cada 3 dias após concluir');
     expect(describeRecurrence({ kind: 'afterDays', days: 1 })).toBe('a cada 1 dia após concluir');

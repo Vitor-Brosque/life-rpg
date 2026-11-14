@@ -193,6 +193,50 @@ describe('recorrência na captura', () => {
     expect(m.title).toBe('contador');
   });
 
+  it('"todo dia" seguido de horário ou duração continua diário', () => {
+    const all = [0, 1, 2, 3, 4, 5, 6];
+    const a = rec('remédio todo dia 8h');
+    expect(a.title).toBe('remédio');
+    expect(a.kind).toBe('commitment');
+    expect(a.time).toBe('08:00');
+    expect(a.recurrence).toEqual({ kind: 'weekly', weekdays: all });
+    const b = rec('academia todo dia 19:00');
+    expect(b.title).toBe('academia');
+    expect(b.recurrence).toEqual({ kind: 'weekly', weekdays: all });
+    const c = rec('estudar todo dia 30min');
+    expect(c.title).toBe('estudar');
+    expect(c.kind).toBe('mission');
+    expect(c.durationMin).toBe(30);
+    expect(c.recurrence).toEqual({ kind: 'daily' });
+  });
+
+  it('"todo dia 5" continua mensal, inclusive com horário depois', () => {
+    expect(rec('pagar aluguel todo dia 5').recurrence).toEqual({ kind: 'monthly', day: 5 });
+    const p = rec('pagar aluguel todo dia 5 às 10h');
+    expect(p.kind).toBe('commitment');
+    expect(p.recurrence).toBeUndefined();
+    expect(p.title).toBe('pagar aluguel');
+    expect(p.date).toBe('2026-12-05');
+  });
+
+  it('compromisso mensal descartado: o chip mostra a data, não uma repetição', () => {
+    const p = rec('contador 10h todo dia 5');
+    expect(p.tokens.some((t) => t.type === 'recurrence')).toBe(false);
+    expect(p.tokens.some((t) => t.type === 'date' && /todo/i.test(t.text))).toBe(true);
+  });
+
+  it('"segundas-feiras" e "dias úteis"', () => {
+    const a = rec('ioga todas as segundas-feiras');
+    expect(a.title).toBe('ioga');
+    expect(a.recurrence).toEqual({ kind: 'weekly', weekdays: [1] });
+    expect(rec('todas as segundas-feiras ioga').title).toBe('ioga');
+    for (const text of ['alongar todos os dias úteis', 'alongar dias úteis']) {
+      const p = rec(text);
+      expect(p.title, text).toBe('alongar');
+      expect(p.recurrence, text).toEqual({ kind: 'weekly', weekdays: [1, 2, 3, 4, 5] });
+    }
+  });
+
   it('"toda quarta" sozinho não quebra', () => {
     const p = rec('toda quarta');
     expect(p.recurrence).toEqual({ kind: 'weekly', weekdays: [3] });
