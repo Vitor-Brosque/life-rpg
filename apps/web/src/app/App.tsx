@@ -31,6 +31,8 @@ import { DeckScreen } from '../features/study/DeckScreen';
 import { NoteEditor } from '../features/study/NoteEditor';
 import { ReviewSession } from '../features/study/ReviewSession';
 import { StudyScreen } from '../features/study/StudyScreen';
+import { ProblemSetSheetHost } from '../features/faculty/ProblemSetSheet';
+import { SubjectDetailScreen } from '../features/faculty/SubjectDetailScreen';
 import { SubjectsScreen } from '../features/study/SubjectsScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { WorldWatcher } from '../features/world/WorldWatcher';
@@ -84,6 +86,7 @@ export function App() {
           <Route path="/estudo/baralho/:id">{(params) => <DeckScreen id={params.id} />}</Route>
           <Route path="/estudo/revisar"><ReviewSession /></Route>
           <Route path="/estudo/materias"><SubjectsScreen /></Route>
+          <Route path="/estudo/materias/:id">{(p) => <SubjectDetailScreen key={p.id} id={p.id} />}</Route>
           <Route path="/estudo/lousas"><SketchListScreen /></Route>
           <Route path="/estudo/praticas"><PracticeListScreen /></Route>
           <Route path="/lousa/:id">{(params) => <SketchScreen key={params.id} id={params.id} />}</Route>
@@ -109,6 +112,7 @@ export function App() {
       <SleepSheetHost />
       <DayCloseSheetHost />
       <WorkoutSheetHost />
+      <ProblemSetSheetHost />
       <TimerHost />
       <ResumePromptHost />
       <CheckinCardHost />

@@ -1,0 +1,39 @@
+/* Faculdade (Acompanhamento E): grade, disciplinas, avaliações, exercícios e assuntos. No red anywhere. */
+
+.faculty-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.semester { display: flex; flex-direction: column; gap: var(--space-3); }
+.semester__title { margin: 0; font-size: 1.125rem; }
+.semester__list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.semester__list li { padding: 6px 10px; background: var(--bg-2); }
+.semester__note { margin: 0; }
+.semester__actions, .faculty-form__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.semester__rows { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.semester__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); padding: var(--space-2); background: var(--bg-2); }
+.semester__row .field { flex: 1 1 8rem; }
+.semester__error, .faculty-form__error { margin: 0; font-weight: 600; }
+
+.faculty-form__days { display: flex; flex-wrap: wrap; gap: 8px; }
+.faculty-form__kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.faculty-form__kind { display: flex; align-items: center; gap: 6px; min-height: 44px; padding-inline: 6px; }
+.faculty-form__times { display: flex; gap: var(--space-2); }
+.faculty-form__times .field { flex: 1; }
+.faculty-form__hint { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+.faculty-form__context { margin: 0; font-weight: 700; }
+
+.faculty-lines__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.sdetail__list { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.sdetail__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: 6px 10px; background: var(--bg-2); }
+.sdetail__row-text { flex: 1 1 10rem; }
+.sdetail__quiet { color: var(--text-dim); }
+.sdetail__open { min-height: 36px; padding: 0 12px; background: var(--bg-2); color: var(--text); border: 0; text-align: left; cursor: pointer; font: inherit; }
+.sdetail__open:hover { background: var(--stone-light); }
+.sdetail__add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
+.sdetail__add .field { flex: 1 1 10rem; }
+.topic { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2); background: var(--bg-2); }
+.topic legend { font-weight: 700; }
+.topic__levels { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.topic__level { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+.topic__history { color: var(--text-dim); font-size: 0.875rem; }
+.topic__history ul { margin: 4px 0 0; padding-left: 1.25rem; }

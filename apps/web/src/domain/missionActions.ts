@@ -2,7 +2,7 @@ import type {
   Area, Commitment, DayKey, HHmm, ID, Journey, LifeEvent, Mission, MissionStatus, SnoozeReason,
 } from '@life/shared';
 import {
-  addDays, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, oneLine, parseHHmm,
+  addDays, assessmentKindOf, assessmentTitle, completionXp, defaultDayMode, formatHHmm, levelFromXp, nextOccurrence, normalize, oneLine, parseHHmm,
   parseLines, startXp, strategyXp, ulid,
 } from '@life/shared';
 import { db } from '../db/db';
@@ -77,14 +77,19 @@ export async function captureLines(
       continue;
     }
     const journey = p.journeyName ? await resolveJourney(p.journeyName) : undefined;
+    // "prova #calculo dia 3/12": a dated line of a subject that starts with prova/trabalho is an avaliação.
+    const kind = journey?.subject === true && journey.status === 'active' && p.date && !p.recurrence
+      ? assessmentKindOf(p.title) : undefined;
     out.push(await createMission({
       ...extra,
       ...(p.recurrence ? { recurrence: p.recurrence } : {}),
-      title: p.title,
+      // The parser leaves the connective of "dia 3/12" in the title.
+      title: kind ? assessmentTitle(kind, p.title.replace(/\s+(?:no\s+)?dia$/i, ''), journey!.title) : p.title,
+      ...(kind ? { assessment: kind, deadline: p.date } : {}),
       important: p.important || (extra.important ?? false),
       ...(p.durationMin !== undefined ? { durationMin: p.durationMin } : {}),
       ...(p.date ? { date: p.date } : {}),
-      ...(area ? { areaId: area.id } : {}),
+      ...(area ? { areaId: area.id } : kind && journey?.areaId ? { areaId: journey.areaId } : {}),
       ...(journey ? { journeyId: journey.id } : {}),
     }));
   }
