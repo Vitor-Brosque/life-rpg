@@ -216,6 +216,7 @@ export function useEngine(skipIds?: string[]): EngineOutput | undefined {
     return {
       settings, missions, journeys, commitments, energy,
       hardDay: dayState && !dayState.deleted ? dayState.hardDay : false,
+      picks: dayState && !dayState.deleted ? dayState.subjectPicks : undefined,
       lastCompletionByArea,
     };
   }, [now]);
@@ -233,7 +234,7 @@ export function useEngine(skipIds?: string[]): EngineOutput | undefined {
       hardDay: data.hardDay,
       mode,
       block: blockId !== undefined && blockEnd !== undefined
-        ? { id: blockId, areaId: blockAreaId, journeyId: blockJourneyId, endTs: blockEnd }
+        ? { id: blockId, areaId: blockAreaId, journeyId: blockJourneyId ?? data.picks?.[blockId], endTs: blockEnd }
         : undefined,
       lastCompletionByArea: data.lastCompletionByArea,
       skipIds: skipKey ? skipKey.split(',') : undefined,

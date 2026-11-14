@@ -37,3 +37,10 @@
 .topic__level { display: flex; align-items: center; gap: 6px; min-height: 36px; }
 .topic__history { color: var(--text-dim); font-size: 0.875rem; }
 .topic__history ul { margin: 4px 0 0; padding-left: 1.25rem; }
+
+/* Sugestão no bloco Faculdade (Agora e Painel). */
+.subject-suggestion { display: flex; flex-direction: column; gap: var(--space-2); }
+.subject-suggestion__label { margin: 0; color: var(--text-dim); font-size: 0.8125rem; }
+.subject-suggestion__title { margin: 0; font-size: 1.0625rem; }
+.subject-suggestion__line { margin: 0; }
+.subject-suggestion__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

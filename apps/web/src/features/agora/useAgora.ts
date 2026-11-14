@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { DayKey, EngineOutput, Mission, Suggestion } from '@life/shared';
 import { useEngine } from '../../db/hooks';
 import { skipMission } from '../../domain/actions';
+import { useSubjectFocusId } from '../faculty/subjectFocus';
 import { safeRun } from '../../ui/safeRun';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { completeWithFeedback, dropWithFeedback, splitWithFeedback } from '../mission/missionFeedback';
@@ -62,7 +63,11 @@ export function useAgora() {
   const [pinnedId, setPinnedId] = useState<string>();
   const [dialog, setDialog] = useState<AgoraDialog>();
   const engine = useEngine(skipIds);
-  const { primary, alternatives } = useMemo(() => arrangeSuggestions(engine, pinnedId), [engine, pinnedId]);
+  const focusId = useSubjectFocusId();
+  const { primary, alternatives } = useMemo(
+    () => arrangeSuggestions(engine, pinnedId ?? (focusId && !skipIds.includes(focusId) ? focusId : undefined)),
+    [engine, pinnedId, focusId, skipIds],
+  );
 
   const actions = useMemo<AgoraActions>(() => {
     const openSheet = (m: Mission) => useMissionSheet.getState().open(m.id);

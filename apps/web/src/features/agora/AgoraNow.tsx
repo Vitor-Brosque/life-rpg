@@ -12,6 +12,7 @@ import { BetweenBlocks, fitsIn } from './BetweenBlocks';
 import { BlockBanner } from './BlockBanner';
 import { FreeDay, lightMissions } from './FreeDay';
 import { MainCard, MainCardEmpty } from './MainCard';
+import { SubjectSuggestion } from '../faculty/SubjectSuggestion';
 import { useResumeNote } from './ResumeNote';
 import type { AgoraState } from './useAgora';
 import './blocks.css';
@@ -108,6 +109,7 @@ export function AgoraNow({
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
+        <SubjectSuggestion current={current} today={today} />
         {showReview || showPractice ? (
           <BlockNudges mode={mode} current={current} focus={focus} showReview={showReview} showPractice={showPractice}>
             {current.block.kind !== 'routine' && main}
