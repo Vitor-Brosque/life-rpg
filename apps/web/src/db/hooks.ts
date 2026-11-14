@@ -5,7 +5,7 @@ import type {
   Journey, LevelInfo, Mission, Profile, Settings, Week, XpEvent,
 } from '@life/shared';
 import {
-  activeDays, activeWorkdays, dayKeyOf, defaultDayMode, levelFromXp, suggest, weekKey,
+  activeDays, activeWorkdays, dayKeyOf, defaultDayMode, levelFromXp, subjectJourneys, suggest, weekKey,
 } from '@life/shared';
 import { isFreeDayFor } from '../domain/blockActions';
 import { planFromData, readDayPlanData } from './dayPlan';
@@ -187,6 +187,11 @@ export function useCurrentEnergy(): EnergyLevel | undefined {
   }, [startHour, now]);
 }
 
+/** A stored subject pick, only when it is still an active subject (deleted, paused or unflagged picks are ignored). */
+export function validPick(pick: string | undefined, journeys: readonly Journey[]): string | undefined {
+  return pick !== undefined && subjectJourneys(journeys).some((j) => j.id === pick) ? pick : undefined;
+}
+
 export function useEngine(skipIds?: string[]): EngineOutput | undefined {
   const now = useNow();
   const mode = useDayMode();
@@ -223,6 +228,8 @@ export function useEngine(skipIds?: string[]): EngineOutput | undefined {
   const skipKey = skipIds?.join(',') ?? '';
   return useMemo(() => {
     if (!data) return undefined;
+    // The subject chosen with "Usar" wins over the block's journey, but only while it is an active subject.
+    const pick = blockId !== undefined ? validPick(data.picks?.[blockId], data.journeys) : undefined;
     return suggest({
       now,
       dayStartHour: data.settings.dayStartHour,
@@ -234,7 +241,7 @@ export function useEngine(skipIds?: string[]): EngineOutput | undefined {
       hardDay: data.hardDay,
       mode,
       block: blockId !== undefined && blockEnd !== undefined
-        ? { id: blockId, areaId: blockAreaId, journeyId: blockJourneyId ?? data.picks?.[blockId], endTs: blockEnd }
+        ? { id: blockId, areaId: blockAreaId, journeyId: pick ?? blockJourneyId, endTs: blockEnd }
         : undefined,
       lastCompletionByArea: data.lastCompletionByArea,
       skipIds: skipKey ? skipKey.split(',') : undefined,

@@ -11,7 +11,8 @@ import { WorkoutValidationError, logWorkout, removeWorkout, replaceWorkoutMinute
 
 // Treino do dia (Acompanhamento A). The plan is one record ('plan'); the day log is one editable record per
 // logical day, created only by the first explicit action. Sets give no XP: the only XP is the Marco 4 workout
-// XP, through "Terminei o treino" and the log's cardio.
+// XP, through "Terminei o treino" and the log's cardio — and only for today: a past day's log is a retro record
+// (spec decision 2), so its workouts are created without XP (they still count in Corpo).
 
 export class TrainingValidationError extends Error {}
 
@@ -66,10 +67,10 @@ export function setTrainingFeel(day: DayKey, field: 'effort' | 'recovery', value
   return edit(day, () => ({ [field]: value }));
 }
 
-/** A past day's workout lands at noon of that day; today's at the moment of the tap. */
-async function workoutAt(day: DayKey): Promise<number | undefined> {
-  if (day === (await getToday())) return undefined;
-  return logicalTimestamp(day, '12:00', (await db.settings.get('settings'))?.dayStartHour ?? 4);
+/** Today's workout: at the moment of the tap, with XP. A past day's: at noon of that day, without XP (retro). */
+async function workoutTime(day: DayKey): Promise<{ at?: number; noXp?: true }> {
+  if (day === (await getToday())) return {};
+  return { at: logicalTimestamp(day, '12:00', (await db.settings.get('settings'))?.dayStartHour ?? 4), noXp: true };
 }
 
 /** The log's cardio: one linked 'cardio' Workout, replaced (never duplicated) when its minutes change. */
@@ -85,8 +86,7 @@ export function saveCardio(day: DayKey, cardio: TrainingCardio): Promise<{ log: 
     if (linked && !linked.deleted) {
       workoutId = linked.minutes === cardio.minutes ? linked.id : (await replaceWorkoutMinutes(linked.id, cardio.minutes)).id;
     } else {
-      const at = await workoutAt(day);
-      const r = await logWorkout({ kind: 'cardio', minutes: cardio.minutes, ...(at !== undefined ? { at } : {}) });
+      const r = await logWorkout({ kind: 'cardio', minutes: cardio.minutes, ...(await workoutTime(day)) });
       workoutId = r.workout.id;
       xp = r.xp;
       created = true;
@@ -125,8 +125,7 @@ export function finishTraining(day: DayKey, minutes: number, blockId?: ID): Prom
     let created = false;
     if (adopt) workoutId = adopt.id;
     else {
-      const at = await workoutAt(day);
-      const r = await logWorkout({ kind: 'musculacao', minutes: m, ...(blockId ? { blockId } : {}), ...(at !== undefined ? { at } : {}) });
+      const r = await logWorkout({ kind: 'musculacao', minutes: m, ...(blockId ? { blockId } : {}), ...(await workoutTime(day)) });
       workoutId = r.workout.id;
       xp = r.xp;
       created = true;

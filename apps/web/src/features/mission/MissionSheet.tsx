@@ -129,7 +129,8 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
             <Button variant="primary" icon="play" onClick={run(() => startWithCheckin(mission.id))}>Começar</Button>
           )}
           <Button icon="check" onClick={run(() => completeWithFeedback(mission.id), true)}>Concluir</Button>
-          {mission.status === 'doing' && (
+          {/* An avaliação is an event with a date: no postpone offer (its day is the deadline). */}
+          {mission.status === 'doing' && !mission.assessment && (
             <Button icon="pause" onClick={() => { onClose(); usePartialSheet.getState().open(mission.id); }}>Parcial</Button>
           )}
           {startTimer && (

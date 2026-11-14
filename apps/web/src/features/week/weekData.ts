@@ -95,7 +95,7 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
     if (!settings) return undefined;
     const lastId = addDays(weekId, -7);
     const weekStartTs = timestampAt(weekId, formatHHmm(settings.dayStartHour * 60));
-    const [blocks, commitments, dayStates, sessions, checkins, xpEvents, last, current] = await Promise.all([
+    const [blocks, commitments, dayStates, sessions, checkins, xpEvents, last, current, dayPlans] = await Promise.all([
       db.blocks.filter((b) => !b.deleted).toArray(),
       db.commitments.filter((c) => !c.deleted).toArray(),
       db.dayState.toArray(),
@@ -104,9 +104,10 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
       db.xpEvents.where('dayKey').between(lastId, weekId).toArray(),
       db.weeks.get(lastId),
       db.weeks.get(weekId),
+      db.dayPlans.where('id').between(lastId, weekId).toArray(),
     ]);
     const stats = weekStats({
-      weekStart: lastId, today, dayStates, sessions, checkins, xpEvents, commitments,
+      weekStart: lastId, today, dayStates, sessions, checkins, xpEvents, commitments, dayPlans,
       // A block created after last week was not part of its plan.
       blocks: blocks.filter((b) => b.createdAt < weekStartTs),
       dayStartHour: settings.dayStartHour, dayEndHour: settings.dayEndHour,

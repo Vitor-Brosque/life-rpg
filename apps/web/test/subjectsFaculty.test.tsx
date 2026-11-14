@@ -7,9 +7,11 @@ import { ensureSeed } from '../src/db/seed';
 import {
   addTopic, createAssessment, saveProblemSet, setTopicLevel, setupSemester,
 } from '../src/domain/facultyActions';
+import { rescheduleMission, updateMission } from '../src/domain/missionActions';
 import { ProblemSetSheetHost } from '../src/features/faculty/ProblemSetSheet';
 import { useSemesterCard } from '../src/features/faculty/SemesterCard';
 import { SubjectDetailScreen } from '../src/features/faculty/SubjectDetailScreen';
+import { MissionSheetHost } from '../src/features/mission/MissionSheet';
 import { SubjectsScreen } from '../src/features/study/SubjectsScreen';
 import { ToastHost } from '../src/ui/Toast';
 
@@ -156,6 +158,22 @@ describe('SubjectDetailScreen', () => {
     expect(await screen.findByRole('button', { name: 'Editar Lista 4 de 13/11' })).toBeInTheDocument();
   });
 
+  it('setas no grupo de níveis gravam uma marca só (mudanças em menos de 2 minutos se juntam)', async () => {
+    await setupSemester([...SEMESTER_GRADE]);
+    const calc = await subjectId('Matemática Discreta');
+    const t = await addTopic(calc, 'Integrais');
+    render(<SubjectDetailScreen id={calc} />);
+    const group = await screen.findByRole('radiogroup', { name: 'Integrais' });
+    const user = userEvent.setup();
+    await user.click(within(group).getByRole('radio', { name: 'Vi na aula' }));
+    await waitFor(async () => expect((await db.subjectTopics.get(t.id))?.marks).toHaveLength(1));
+    await user.keyboard('{ArrowRight}');
+    await waitFor(() => expect(within(group).getByRole('radio', { name: 'Entendi' })).toBeChecked());
+    await user.keyboard('{ArrowRight}');
+    await waitFor(async () => expect((await db.subjectTopics.get(t.id))?.marks.map((m) => m.level)).toEqual(['resolvo']));
+    await waitFor(() => expect(within(group).getByRole('radio', { name: 'Resolvo sem ajuda' })).toHaveFocus());
+  });
+
   it('abrir a tela não grava nada; id que não é disciplina mostra o aviso', async () => {
     await setupSemester([...SEMESTER_GRADE]);
     const calc = await subjectId('Matemática Discreta');
@@ -169,5 +187,26 @@ describe('SubjectDetailScreen', () => {
     render(<SubjectDetailScreen id="nada" />);
     expect(await screen.findByText('Disciplina não encontrada.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '← Matérias' })).toHaveAttribute('href', '/estudo/materias');
+  });
+});
+
+describe('avaliações são eventos com data', () => {
+  it('Matérias e a disciplina mostram o dia original mesmo depois de um reagendamento antigo; a ficha não oferece Parcial', async () => {
+    await setupSemester([...SEMESTER_GRADE]);
+    const calc = await subjectId('Matemática Discreta');
+    const prova = await createAssessment({ kind: 'prova', journeyId: calc, date: '2026-12-03' });
+    await rescheduleMission(prova.id, '2026-12-20');
+    await updateMission(prova.id, { status: 'doing' });
+
+    const { unmount } = render(<SubjectsScreen />);
+    const card = await screen.findByRole('article', { name: 'Matemática Discreta' });
+    expect(within(card).getByText('Próxima avaliação: Prova de Matemática Discreta · 03/12 · em 20 dias')).toBeInTheDocument();
+    unmount();
+
+    render(<><SubjectDetailScreen id={calc} /><MissionSheetHost /></>);
+    const open = await screen.findByRole('button', { name: 'Prova de Matemática Discreta · 03/12 · em 20 dias' });
+    await userEvent.click(open);
+    expect(await screen.findByRole('button', { name: 'Concluir' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Parcial' })).toBeNull();
   });
 });

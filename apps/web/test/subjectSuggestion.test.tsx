@@ -1,11 +1,14 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EngineOutput, Journey } from '@life/shared';
 import { SEMESTER_GRADE } from '@life/shared';
 import { db } from '../src/db/db';
+import { useEngine } from '../src/db/hooks';
+import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, setDayMode } from '../src/domain/actions';
-import { createAssessment, setupSemester } from '../src/domain/facultyActions';
+import { createAssessment, pickSubject, setupSemester } from '../src/domain/facultyActions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
 import { useCompanion } from '../src/features/companion/store';
@@ -108,5 +111,35 @@ describe('sugestão no bloco Faculdade', () => {
     renderAgora();
     await screen.findByRole('region', { name: 'Dia livre' });
     expect(screen.queryByRole('region', { name: 'Sugestão para este bloco' })).toBeNull();
+  });
+});
+
+describe('escolha da disciplina no motor', () => {
+  const reasonsOf = (out: EngineOutput | undefined, title: string) =>
+    out?.ranked.find((x) => x.mission.title === title)?.reasons.map((r) => r.code);
+
+  it('a disciplina escolhida vale mais que a jornada ligada ao bloco', async () => {
+    const calc = await idOf('Matemática Discreta');
+    await db.blocks.update('b3', { journeyId: calc });
+    await createMission({ title: 'Lista C', journeyId: calc, journeyOrder: 0 });
+    // Without an area, "Lista 3" is of the block only through the chosen subject.
+    await db.missions.toCollection().filter((m) => m.title === 'Lista 3').modify((m) => { delete m.areaId; });
+    await pickSubject('b3', await idOf(PROB));
+    const { result } = renderHook(() => useEngine());
+    await waitFor(() => expect(reasonsOf(result.current, 'Lista 3')).toContain('block'));
+    expect(reasonsOf(result.current, 'Lista C') ?? []).not.toContain('block');
+  });
+
+  it('uma escolha que não é (mais) disciplina ativa é ignorada pelo motor e pelo cartão principal', async () => {
+    const tech = await put('journeys', newRecord<Journey>({ title: 'Tech News', status: 'active', order: 9 }));
+    await createMission({ title: 'Dedupe', journeyId: tech.id, journeyOrder: 0 });
+    await pickSubject('b3', tech.id);
+    const { result } = renderHook(() => useEngine());
+    await waitFor(() => expect(reasonsOf(result.current, 'Dedupe')).toBeDefined());
+    expect(reasonsOf(result.current, 'Dedupe')).not.toContain('block');
+    renderAgora();
+    const main = await screen.findByRole('region', { name: 'Missão agora' });
+    expect(within(main).getByText('Lista 3')).toBeInTheDocument();
+    expect(await suggestion()).toBeInTheDocument();
   });
 });

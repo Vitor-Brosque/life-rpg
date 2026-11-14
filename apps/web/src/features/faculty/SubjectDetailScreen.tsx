@@ -2,9 +2,9 @@ import { useId, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import type { FacultyData } from '../../db/facultyData';
 import { useFacultyData } from '../../db/facultyData';
-import type { Mission, SubjectTopic, TopicLevel } from '@life/shared';
+import type { DayKey, Mission, SubjectTopic, TopicLevel } from '@life/shared';
 import {
-  TOPIC_LEVELS, TOPIC_LEVEL_LABEL, dayKeyOf, diffDays, problemSetText, subjectJourneys, topicLevelOf,
+  TOPIC_LEVELS, TOPIC_LEVEL_LABEL, assessmentDay, dayKeyOf, diffDays, problemSetText, subjectJourneys, topicLevelOf,
 } from '@life/shared';
 import {
   FacultyValidationError, addTopic, deleteProblemSet, deleteTopic, restoreProblemSet, setTopicLevel,
@@ -44,10 +44,12 @@ function Detail({ data, id, title }: { data: FacultyData; id: string; title: str
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const toast = useToast.getState();
 
+  // An avaliação's day is its deadline (reschedules never move it), else `date` for older records.
   const assessments = data.missions
-    .filter((m) => m.journeyId === id && m.assessment !== undefined && m.date !== undefined && m.status !== 'dropped')
-    .sort((a, b) => a.date!.localeCompare(b.date!));
-  const upcoming = (m: Mission): boolean => (m.status === 'open' || m.status === 'doing') && m.date! >= today;
+    .filter((m) => m.journeyId === id && m.assessment !== undefined && m.status !== 'dropped')
+    .flatMap((m) => { const day = assessmentDay(m); return day ? [{ m, day }] : []; })
+    .sort((a, b) => a.day.localeCompare(b.day));
+  const upcoming = (m: Mission, day: DayKey): boolean => (m.status === 'open' || m.status === 'doing') && day >= today;
   const sets = data.contact.problemSets
     .filter((p) => p.journeyId === id)
     .sort((a, b) => b.day.localeCompare(a.day) || b.createdAt - a.createdAt);
@@ -74,13 +76,13 @@ function Detail({ data, id, title }: { data: FacultyData; id: string; title: str
         <h2 className="study__subtitle">Avaliações</h2>
         {assessments.length === 0 ? <p className="muted">Nenhuma prova ou trabalho cadastrado.</p> : (
           <ul className="sdetail__list">
-            {assessments.map((m) => {
-              const text = `${m.title} · ${ddmm(m.date!)}`;
+            {assessments.map(({ m, day }) => {
+              const text = `${m.title} · ${ddmm(day)}`;
               return (
                 <li key={m.id}>
-                  {upcoming(m) ? (
+                  {upcoming(m, day) ? (
                     <button type="button" className="sdetail__open"
-                      onClick={() => useMissionSheet.getState().open(m.id)}>{`${text} · ${inDaysText(diffDays(today, m.date!))}`}</button>
+                      onClick={() => useMissionSheet.getState().open(m.id)}>{`${text} · ${inDaysText(diffDays(today, day))}`}</button>
                   ) : <span className="sdetail__row sdetail__quiet">{text}</span>}
                 </li>
               );

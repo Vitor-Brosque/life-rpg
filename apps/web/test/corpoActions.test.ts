@@ -3,7 +3,7 @@ import { DEFAULT_SLEEP } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import {
-  clearSleepTime, deleteSleepLog, logBedtime, logWake, restoreSleepLog, saveSleepSettings, saveSleepTimes,
+  clearSleepTime, deleteSleepLog, logBedtime, logWake, restoreSleepLog, saveSleepSettings, saveSleepTimes, setSleepQuality,
 } from '../src/domain/sleepActions';
 import { logWorkout, removeWorkout } from '../src/domain/workoutActions';
 
@@ -78,6 +78,14 @@ describe('sleep actions', () => {
     expect(restored.xp).toBe(0);
     expect(await db.sleepLogs.get('sleep-2026-11-13')).toMatchObject({ deleted: false, bedAt: removed!.bedAt, wakeAt: removed!.wakeAt });
     expect((await db.xpEvents.get('xp-sleep-2026-11-13'))!.deleted).toBe(true);
+  });
+
+  it('Desfazer of "Apagar noite" brings the quality back too', async () => {
+    await saveSleepTimes(NIGHT, '23:40', '07:10');
+    await setSleepQuality(NIGHT, 4);
+    const removed = await deleteSleepLog(NIGHT);
+    await restoreSleepLog(removed!);
+    expect(await db.sleepLogs.get('sleep-2026-11-13')).toMatchObject({ deleted: false, quality: 4, bedAt: removed!.bedAt });
   });
 
   it('saveSleepSettings merges with the defaults and refuses an invalid time', async () => {

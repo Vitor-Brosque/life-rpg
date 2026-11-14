@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BlockSession, Checkin, DayState, Week, XpEvent } from '@life/shared';
-import { addDays, timestampAt, weekdayOf } from '@life/shared';
+import type { BlockSession, Checkin, DayPlan, DayState, Week, XpEvent } from '@life/shared';
+import { addDays, takeDayPlan, timestampAt, weekdayOf } from '@life/shared';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, saveWeekReview, setDayMode, setObjectives } from '../src/domain/actions';
@@ -13,7 +13,7 @@ import { useCompanion } from '../src/features/companion/store';
 import { PainelScreen } from '../src/features/painel/PainelScreen';
 import { useWeekSession } from '../src/features/week/weekCycle';
 import { ToastHost } from '../src/ui/Toast';
-import { at, block, seedBlocks } from './blockFixture';
+import { AULA, FIXTURE, at, block, seedBlocks } from './blockFixture';
 
 // §8 "Nova semana": Monday 2026-11-16 (week '2026-11-16'); last week is 2026-11-09 … 15.
 
@@ -107,6 +107,23 @@ describe('Nova semana card', () => {
     // The card stays for step 2, and the experiment shows on the Agora.
     expect(await within(await weekCard()).findByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
     expect(await screen.findByText('Experimento da semana: Celular em outro cômodo')).toBeInTheDocument();
+  }, 15_000);
+
+  it('a day of last week with a plan (foto do plano) is counted from it, as in Padrões', async () => {
+    const user = userEvent.setup();
+    await seedLastWeek();
+    // Monday's plan had only "Tech": "Facul" was started off-plan (it still counts, like in Padrões).
+    const plan: DayPlan = {
+      ...base, id: LAST,
+      ...takeDayPlan({ day: LAST, mode: 'normal', takenAt: at(9, 8), blocks: FIXTURE.filter((b) => b.id === 'b1'), commitments: [AULA], dayStartHour: 4 }),
+    };
+    await db.dayPlans.put(plan);
+    renderAgora();
+    const dayCard = await screen.findByRole('region', { name: 'Como está hoje?' });
+    await user.click(within(dayCard).getByRole('button', { name: /Normal/ }));
+    const card = await weekCard();
+    await user.click(within(card).getByRole('button', { name: 'Começar' }));
+    expect(observed(card, 'Blocos iniciados')).toBe('4 de 17');
   }, 15_000);
 
   it('every reflection field is optional', async () => {

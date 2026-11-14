@@ -91,10 +91,18 @@ describe('assuntos', () => {
     expect(t.name).toBe('Integrais');
     await expect(addTopic('j1', '   ')).rejects.toThrow('Dê um nome ao assunto.');
     await setTopicLevel(t.id, 'vi');
+    vi.setSystemTime(new Date(2026, 10, 13, 10, 5)); // more than 2 minutes later: a new mark
     await setTopicLevel(t.id, 'entendi');
     await setTopicLevel(t.id, 'entendi');
     const stored = await db.subjectTopics.get(t.id);
     expect(stored?.marks.map((m) => m.level)).toEqual(['vi', 'entendi']);
+  });
+  it('uma mudança em menos de 2 minutos substitui a última marca', async () => {
+    const t = await addTopic('j1', 'Limites');
+    await setTopicLevel(t.id, 'vi');
+    vi.setSystemTime(new Date(2026, 10, 13, 10, 1));
+    await setTopicLevel(t.id, 'entendi');
+    expect((await db.subjectTopics.get(t.id))?.marks).toEqual([{ at: new Date(2026, 10, 13, 10, 1).getTime(), level: 'entendi' }]);
   });
 });
 

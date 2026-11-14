@@ -27,10 +27,11 @@ function withTimes(base: SleepLog, times: Times): SleepLog {
   return out;
 }
 
-/** Writes the night (created, or revived, when missing) and its XP in one transaction. */
-async function writeNight(night: DayKey, times: Times): Promise<{ log: SleepLog; xp: number }> {
+/** Writes the night (created, or revived, when missing) and its XP in one transaction; `quality` is kept when given. */
+async function writeNight(night: DayKey, times: Times, quality?: SleepQuality): Promise<{ log: SleepLog; xp: number }> {
   const prev = await liveLog(night);
   const next = withTimes(prev ?? newRecord<SleepLog>({ id: sleepLogId(night), night }), times);
+  if (quality !== undefined) next.quality = quality;
   const xpId = sleepXpId(night);
   const current = await db.xpEvents.get(xpId);
   const had = !!current && !current.deleted;
@@ -84,9 +85,9 @@ export const deleteSleepLog = (night: DayKey): Promise<SleepLog | undefined> => 
   return log;
 });
 
-/** Desfazer of "Apagar noite": the same times come back (no XP: old awards are removed, never restored). */
+/** Desfazer of "Apagar noite": the same times and quality come back (no XP: old awards are removed, never restored). */
 export const restoreSleepLog = (log: SleepLog): Promise<{ log: SleepLog; xp: number }> =>
-  withLock('sleep', () => writeNight(log.night, { bedAt: log.bedAt, wakeAt: log.wakeAt }));
+  withLock('sleep', () => writeNight(log.night, { bedAt: log.bedAt, wakeAt: log.wakeAt }, log.quality));
 
 /** "Como foi o sono?": the perceived quality of an existing night (null removes it). No night, nothing is written. */
 export const setSleepQuality = (night: DayKey, quality: SleepQuality | null): Promise<SleepLog | undefined> =>

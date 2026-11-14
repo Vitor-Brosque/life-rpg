@@ -2,7 +2,7 @@ import { Link } from 'wouter';
 import { WORKOUT_LABEL, addDays, lastSleepNight, sleepQualityOf, sleepWindow, weekKey, workoutWeek } from '@life/shared';
 import { useSleepLogs, useSleepSettings, useWorkouts } from '../../db/corpoData';
 import { useNow, useToday } from '../../db/hooks';
-import { logWorkout, removeWorkout } from '../../domain/workoutActions';
+import { removeWorkout, restoreWorkout } from '../../domain/workoutActions';
 import { saveSleepSettings } from '../../domain/sleepActions';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE, focusWhenGone } from '../../ui/focusAfter';
@@ -37,13 +37,7 @@ export function CorpoScreen() {
   const remove = (id: string, control: Element) => { focusWhenGone(control, undefined, { preventScroll: true }); safeRun(async () => {
     const gone = await removeWorkout(id);
     if (!gone) return;
-    useToast.getState().show('Treino apagado.', {
-      label: 'Desfazer',
-      run: () => safeRun(logWorkout({
-        kind: gone.kind, minutes: gone.minutes, at: gone.at,
-        ...(gone.minimum ? { minimum: true } : {}), ...(gone.blockId ? { blockId: gone.blockId } : {}),
-      })),
-    });
+    useToast.getState().show('Treino apagado.', { label: 'Desfazer', run: () => safeRun(restoreWorkout(gone)) });
   }); };
 
   return (

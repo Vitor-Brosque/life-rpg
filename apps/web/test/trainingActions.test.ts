@@ -5,7 +5,7 @@ import {
   TrainingValidationError, addSet, applyFiveDaySplit, finishTraining, removeCardio, reopenTraining, saveCardio,
   saveTrainingPlan, undoFinishTraining,
 } from '../src/domain/trainingActions';
-import { logWorkout, replaceWorkoutMinutes } from '../src/domain/workoutActions';
+import { logWorkout, removeWorkout, replaceWorkoutMinutes, restoreWorkout } from '../src/domain/workoutActions';
 import { at } from './blockFixture';
 
 const DAY = '2026-11-11';
@@ -110,5 +110,64 @@ describe('treino do dia — ações', () => {
     await expect(saveCardio(DAY, { modality: 'bicicleta', minutes: 0 })).rejects.toThrow('Informe quantos minutos durou (de 1 a 300).');
     const { workout } = await logWorkout({ kind: 'cardio', minutes: 10 });
     await expect(replaceWorkoutMinutes(workout.id, 301)).rejects.toThrow('Até 300 minutos por registro.');
+  });
+});
+
+describe('treino de um dia passado — sem XP (spec decisão 2)', () => {
+  const PAST = '2026-11-04';
+  it('"Terminei" and the cardio of a past day create the workouts at noon of that day, with no XP', async () => {
+    await applyFiveDaySplit();
+    await addSet(PAST, 'p0', { reps: 10 });
+    const fin = await finishTraining(PAST, 60);
+    expect(fin).toMatchObject({ created: true, xp: 0 });
+    const card = await saveCardio(PAST, { modality: 'esteira', minutes: 25 });
+    expect(card).toMatchObject({ created: true, xp: 0 });
+    const live = await liveWorkouts();
+    expect(live.map((w) => [w.kind, w.day, w.minutes]).sort()).toEqual([['cardio', PAST, 25], ['musculacao', PAST, 60]]);
+    expect(live.every((w) => w.at === at(4, 12, 0))).toBe(true);
+    expect(await liveXp()).toEqual([]);
+    // Correcting the past cardio still gives nothing; today's training still gives its XP.
+    await saveCardio(PAST, { modality: 'esteira', minutes: 30 });
+    expect(await liveXp()).toEqual([]);
+    expect(await finishTraining(DAY, 45)).toMatchObject({ created: true, xp: 5 });
+  });
+});
+
+describe('apagar no Corpo um treino ligado ao registro do dia', () => {
+  it('the log cardio workout: the log forgets the cardio and the link', async () => {
+    const r = await saveCardio(DAY, { modality: 'bicicleta', minutes: 20, intensity: 6 });
+    await removeWorkout(r.log.cardioWorkoutId!);
+    const log = (await db.trainingLogs.get('training-2026-11-11'))!;
+    expect(log.cardio).toBeUndefined();
+    expect(log.cardioWorkoutId).toBeUndefined();
+    expect(await liveWorkouts('cardio')).toHaveLength(0);
+  });
+
+  it('the log strength workout: the link and "Terminei" go; the sets stay', async () => {
+    await applyFiveDaySplit();
+    await addSet(DAY, 'p0', { reps: 10 });
+    const r = await finishTraining(DAY, 60);
+    await removeWorkout(r.workoutId);
+    const log = (await db.trainingLogs.get('training-2026-11-11'))!;
+    expect(log.strengthWorkoutId).toBeUndefined();
+    expect(log.finishedAt).toBeUndefined();
+    expect(log.exercises[0]!.sets).toEqual([{ reps: 10 }]);
+  });
+
+  it('another workout of the day leaves the log as it is', async () => {
+    const r = await saveCardio(DAY, { modality: 'bicicleta', minutes: 20 });
+    const other = await logWorkout({ kind: 'cardio', minutes: 10, minimum: true });
+    await removeWorkout(other.workout.id);
+    expect((await db.trainingLogs.get('training-2026-11-11'))).toMatchObject({ cardioWorkoutId: r.log.cardioWorkoutId, cardio: { minutes: 20 } });
+  });
+
+  it('Desfazer of a removal gives the XP back only when the day had it (a retro log of a past day never had it)', async () => {
+    const past = await saveCardio('2026-11-04', { modality: 'esteira', minutes: 25 });
+    const gone = await removeWorkout(past.log.cardioWorkoutId!);
+    expect((await restoreWorkout(gone!)).xp).toBe(0);
+    expect(await liveXp()).toEqual([]);
+    const today = await logWorkout({ kind: 'cardio', minutes: 30 });
+    const goneToday = await removeWorkout(today.workout.id);
+    expect((await restoreWorkout(goneToday!)).xp).toBe(8);
   });
 });
