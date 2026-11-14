@@ -273,6 +273,16 @@ describe('"dia 3/12" é uma data só', () => {
     const p = parseCapture('aula 19h dia 3/12', today);
     expect(p).toMatchObject({ title: 'aula', kind: 'commitment', date: '2026-12-03', time: '19:00' });
   });
+  it('"no", "na" e "até" antes de "dia <data>" saem do título junto', () => {
+    expect(parseCapture('prova #calculo no dia 3/12', today)).toMatchObject({ title: 'prova', journeyName: 'calculo', date: '2026-12-03' });
+    expect(parseCapture('entregar até dia 3/12', today)).toMatchObject({ title: 'entregar', date: '2026-12-03' });
+    expect(parseCapture('pagar boleto no dia 15', today)).toMatchObject({ title: 'pagar boleto', date: '2026-11-15' });
+    expect(parseCapture('festa na dia 3/12', today)).toMatchObject({ title: 'festa', date: '2026-12-03' });
+    expect(parseCapture('reunião no dia 3/12 às 15h', today)).toMatchObject({ title: 'reunião', kind: 'commitment', date: '2026-12-03', time: '15:00' });
+  });
+  it('sem "dia", "no"/"na" ficam no título (podem ser parte dele)', () => {
+    expect(parseCapture('ler no 3/12', today)).toMatchObject({ title: 'ler no', date: '2026-12-03' });
+  });
   it('"dia 5" e "todo dia" continuam como antes', () => {
     expect(parseCapture('pagar aluguel todo dia 5', today).recurrence).toEqual({ kind: 'monthly', day: 5 });
     expect(parseCapture('remédio todo dia 8h', today).recurrence).toEqual({ kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] });

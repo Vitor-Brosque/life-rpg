@@ -31,6 +31,12 @@ export interface EngineOutput {
 const MINUTE = 60000;
 
 /**
+ * The day of an avaliação (prova/trabalho, Acompanhamento E): its `deadline`, which reschedule, snooze and
+ * partial never touch; `date` only for records without one. An avaliação is an event with a date, not a task.
+ */
+export const assessmentDay = (m: Pick<Mission, 'date' | 'deadline'>): DayKey | undefined => m.deadline ?? m.date;
+
+/**
  * Mission belongs to the block: the if-then plan's cue (`cueBlockId`), else explicit blockId, else
  * (when unassigned) shared journey/area.
  */
@@ -177,6 +183,8 @@ export function suggest(input: EngineInput): EngineOutput {
 
   const hard = input.mode !== undefined ? input.mode === 'low' || input.mode === 'recovery' : input.hardDay;
   const candidates = live.filter((m) => {
+    // An avaliação is never the main card or an alternative: it is shown in "Hoje" on its day.
+    if (m.assessment) return false;
     if (m.notBefore !== undefined && m.notBefore > today) return false;
     if (m.snoozedUntil !== undefined && m.snoozedUntil > now) return false;
     if (m.date !== undefined && m.date > today) return false;
@@ -235,11 +243,12 @@ export function suggest(input: EngineInput): EngineOutput {
   };
 }
 
-/** Open/doing, not deleted, planned up to today (or doing). Manual order first. */
+/** Open/doing, not deleted, planned up to today (or doing); an avaliação only on its day. Manual order first. */
 export function todayList(missions: Mission[], today: DayKey, _now: number): Mission[] {
   return missions
     .filter((m) => !m.deleted && (m.status === 'open' || m.status === 'doing')
-      && (m.status === 'doing' || (m.date !== undefined && m.date <= today)))
+      && (m.assessment ? assessmentDay(m) === today
+        : m.status === 'doing' || (m.date !== undefined && m.date <= today)))
     .sort((a, b) => {
       const ao = a.dayOrder ?? Infinity;
       const bo = b.dayOrder ?? Infinity;
@@ -254,11 +263,11 @@ export function todayList(missions: Mission[], today: DayKey, _now: number): Mis
     });
 }
 
-/** Open (not doing) missions whose planned date or deadline is already past. */
+/** Open (not doing) missions whose planned date or deadline is already past; never an avaliação (an event). */
 export function needsReview(missions: Mission[], today: DayKey): Mission[] {
   const key = (m: Mission): string => m.date ?? m.deadline ?? '9999-99-99';
   return missions
-    .filter((m) => !m.deleted && m.status === 'open'
+    .filter((m) => !m.deleted && m.status === 'open' && !m.assessment
       && ((m.date !== undefined && m.date < today) || (m.deadline !== undefined && m.deadline < today)))
     .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.createdAt - b.createdAt));
 }

@@ -56,10 +56,22 @@ export function blocksFromPlan(plan: Pick<DayPlan, 'day' | 'blocks'>, current: r
   ];
 }
 
-/** The plan's commitments as one-off commitments of its day. */
-export function commitmentsFromPlan(plan: Pick<DayPlan, 'day' | 'commitments'>): Commitment[] {
-  return plan.commitments.map((c) => ({
-    id: c.commitmentId, createdAt: 0, updatedAt: 0, deleted: false,
-    title: c.title, date: plan.day, start: c.start, end: c.end, remind: false,
-  }));
+/**
+ * The plan's commitments as one-off commitments of its day, plus the live commitments of that day created
+ * after the plan was taken (`current`): a "dentista 15:00" added at 10:00 counts as it would on a day without
+ * plan. The plan itself is never rewritten.
+ */
+export function commitmentsFromPlan(
+  plan: Pick<DayPlan, 'day' | 'commitments' | 'takenAt'>, current: readonly Commitment[] = [], dayStartHour = 0,
+): Commitment[] {
+  const planned = new Set(plan.commitments.map((c) => c.commitmentId));
+  const later = occurrencesOn(current.filter((c) => !c.deleted && c.createdAt > plan.takenAt && !planned.has(c.id)), plan.day, dayStartHour)
+    .map((o) => o.commitment);
+  return [
+    ...plan.commitments.map((c) => ({
+      id: c.commitmentId, createdAt: 0, updatedAt: 0, deleted: false,
+      title: c.title, date: plan.day, start: c.start, end: c.end, remind: false,
+    })),
+    ...later,
+  ];
 }

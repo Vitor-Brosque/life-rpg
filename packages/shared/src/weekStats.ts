@@ -1,5 +1,6 @@
-import type { Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayState, XpEvent } from './types';
+import type { Block, BlockSession, Checkin, Commitment, DayKey, DayMode, DayPlan, DayState, XpEvent } from './types';
 import { addDays, dayEndTimestamp, dayKeyOf, weekdayOf } from './dates';
+import { blocksFromPlan, commitmentsFromPlan } from './daySnapshot';
 import { blocksForDay, defaultDayMode, planDay } from './planDay';
 
 export interface WeekStatsInput {
@@ -13,6 +14,8 @@ export interface WeekStatsInput {
   commitments: Commitment[];
   dayStartHour: number;
   dayEndHour: number;
+  /** Acompanhamento D: a day with a plan is read from it, exactly as Padrões' `dayIndex` does. */
+  dayPlans?: DayPlan[];
 }
 export interface WeekStats {
   planned: number;
@@ -97,13 +100,17 @@ export function weekStats(input: WeekStatsInput): WeekStats {
     .filter((x) => x.mode !== 'free');
   const countedDays = new Set(counted.map((x) => x.day));
 
+  const plans = new Map((input.dayPlans ?? []).filter((p) => !p.deleted).map((p) => [p.day, p]));
   let planned = 0;
   let started = 0;
   let minimumUsed = 0;
   for (const { day, mode } of counted) {
+    const plan = plans.get(day);
     for (const c of countedBlocksOn({
       day, mode, dayStartedAt: stateOf(day)?.startedAt, dayStartHour, dayEndHour,
-      blocks: input.blocks, commitments: input.commitments, sessions: input.sessions,
+      blocks: plan ? blocksFromPlan(plan, input.blocks) : input.blocks,
+      commitments: plan ? commitmentsFromPlan(plan, input.commitments, dayStartHour) : input.commitments,
+      sessions: input.sessions,
     })) {
       planned += 1;
       if (c.started) {

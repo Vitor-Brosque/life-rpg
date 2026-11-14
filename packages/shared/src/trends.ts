@@ -74,7 +74,7 @@ export function dayIndex(data: PatternData): DayIndex {
         counted = countedBlocksOn({
           day, mode: mode(day), dayStartedAt: states.get(day)?.startedAt,
           blocks: plan ? blocksFromPlan(plan, blocks) : blocks,
-          commitments: plan ? commitmentsFromPlan(plan) : commitments,
+          commitments: plan ? commitmentsFromPlan(plan, commitments, data.dayStartHour) : commitments,
           sessions: sessionsByDay.get(day) ?? [], dayStartHour: data.dayStartHour, dayEndHour: data.dayEndHour,
         });
         cache.set(day, counted);

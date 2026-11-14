@@ -67,7 +67,7 @@ export interface DayCloseSummary {
   practiceClosed: number;
   training?: string;                                      // trainingSummaryText of today's log
   workouts: Workout[];                                    // today's live workouts, by time
-  pending: Mission[];                                     // open, planned up to today (todayList order)
+  pending: Mission[];                                     // open, planned up to today (todayList order); no avaliação
 }
 
 export interface DayCloseInput {
@@ -124,7 +124,7 @@ export function dayCloseSummary(input: DayCloseInput): DayCloseSummary {
     practiceClosed: input.practice.filter((p) => !p.deleted && p.status === 'done' && onDay(p.endedAt)).length,
     ...(log ? { training: trainingSummaryText(log) } : {}),
     workouts: input.workouts.filter((w) => !w.deleted && w.day === day).sort((a, b) => a.at - b.at),
-    pending: todayList([...missions], day, 0).filter((m) => m.status === 'open'),
+    pending: todayList([...missions], day, 0).filter((m) => m.status === 'open' && !m.assessment),
   };
 }
 

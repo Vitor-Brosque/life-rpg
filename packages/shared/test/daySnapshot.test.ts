@@ -5,7 +5,7 @@ import { completedWeeks } from '../src/periods';
 import { blocksFromPlan, commitmentsFromPlan, dayPlanNeeded, takeDayPlan } from '../src/daySnapshot';
 import { dayIndex, trendPoints } from '../src/trends';
 import { planVsDone } from '../src/planVsDone';
-import { countedBlocksOn } from '../src/weekStats';
+import { countedBlocksOn, weekStats } from '../src/weekStats';
 import { base, block, emptyData } from './patternFixture';
 
 const MON = '2026-11-02';
@@ -95,6 +95,21 @@ describe('dayIndex with plans', () => {
     const [none] = trendPoints({ ...data, dayPlans: undefined }, completedWeeks('2026-11-13', 2).slice(0, 1).map((p) => ({ ...p, start: MON, end: '2026-11-08', key: MON })));
     expect(none).toEqual(old);
   });
+  it('the weekly review (weekStats) reads the same plans, so it agrees with Padrões', () => {
+    const input = {
+      weekStart: MON, today: '2026-11-13', dayStates: data.dayStates, sessions, checkins: [], xpEvents: [],
+      blocks: data.blocks, commitments: data.commitments, dayStartHour: 4, dayEndHour: 0,
+    };
+    expect(weekStats({ ...input, dayPlans: data.dayPlans })).toMatchObject({ planned: 15, started: 3, minimumUsed: 1 });
+    expect(weekStats(input)).toMatchObject({ planned: 14, started: 2, minimumUsed: 1 });
+    // A commitment created after the plan of Monday counts on both screens alike.
+    const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '15:00', end: '17:00', remind: true };
+    const withDent = { ...data, commitments: [aula, dent] };
+    const [t] = trendPoints(withDent, [{ kind: 'week', key: MON, start: MON, end: '2026-11-08', label: '02/11' }]);
+    expect(weekStats({ ...input, commitments: withDent.commitments, dayPlans: data.dayPlans })).toMatchObject({
+      planned: t!.blocksPlanned, started: t!.blocksStarted, minimumUsed: t!.minimumUsed,
+    });
+  });
   it('planVsDone: days with a plan only; planned by mode; executed = lived blocks + focus outside them', () => {
     const [p] = planVsDone(data, [completedWeeks('2026-11-13', 2)[0]!].map((x) => ({ ...x, start: MON, end: '2026-11-08', key: MON })));
     expect(p).toMatchObject({ daysWithPlan: 2, plannedMin: 425, executedMin: 265 });
@@ -117,5 +132,31 @@ describe('dayIndex with plans', () => {
       { key: 'journey:j-tech', name: 'Tech News', plannedMin: 60, executedMin: 50 },
       { key: '', name: 'Sem área', plannedMin: 0, executedMin: 20 },
     ]);
+  });
+});
+
+describe('a day with a plan and commitments created later that day', () => {
+  // The plan was taken at 08:00; "Dentista 15:00–17:00" was created at 10:00 for the same day.
+  const blocks = [A, B, D];
+  const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '15:00', end: '17:00', remind: true };
+  const p = plan(MON, 'normal', blocks);
+  const ids = (d: ReturnType<typeof emptyData>) => dayIndex(d).blocks(MON).map((c) => c.block.id);
+
+  it('the later commitment counts as on a day without plan (the 15:00 block is left out); the plan is not rewritten', () => {
+    const without = ids(emptyData({ blocks, commitments: [aula, dent] }));
+    expect(without).toEqual(['A', 'D']);
+    expect(ids(emptyData({ blocks, commitments: [aula, dent], dayPlans: [p] }))).toEqual(without);
+    expect(p.commitments.map((c) => c.commitmentId)).toEqual(['aula']);
+    expect(commitmentsFromPlan(p, [aula, dent], 4).map((c) => c.id)).toEqual(['aula', 'dent']);
+  });
+
+  it('only live commitments of that day created after the plan: older, deleted or other-day ones stay out', () => {
+    const older = { ...dent, createdAt: at(MON, '07:00') };
+    const gone = { ...dent, deleted: true };
+    const otherDay = { ...dent, date: TUE };
+    for (const c of [older, gone, otherDay]) {
+      expect(ids(emptyData({ blocks, commitments: [aula, c], dayPlans: [p] }))).toEqual(['A', 'B', 'D']);
+    }
+    expect(commitmentsFromPlan(p)).toHaveLength(1);
   });
 });

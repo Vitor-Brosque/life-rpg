@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { Area, Commitment, Journey, ProblemSet, SubjectTopic } from '../src/types';
+import type { Area, Commitment, Journey, Mission, ProblemSet, SubjectTopic } from '../src/types';
 import { timestampAt } from '../src/dates';
-import { suggest } from '../src/engine';
+import { needsReview, suggest, todayList, type EngineInput } from '../src/engine';
+import { dayCloseSummary } from '../src/dayClose';
 import { subjectsOf } from '../src/subjects';
 import {
   SEMESTER_GRADE, assessmentKindOf, assessmentTitle, assessmentWhen, classOf, daysWithoutContact, facultyAreaOf, genericClass,
   isFacultyBlock, journeyByTitle, lastContactDay, nextAssessment, semesterSetup, studyDaysBetween, subjectHead,
   subjectSuggestions, problemSetIssue, problemSetText, topicLevelOf, topicsByLevel, topicsSummary, withTopicLevel, type ContactData,
+  TOPIC_MERGE_MS,
 } from '../src/faculty';
 import { base, mission, practice, review } from './patternFixture';
 
@@ -164,10 +166,12 @@ describe('exercícios e assuntos', () => {
   it('topic levels: history only appended; same level is a no-op; grouped and summarised', () => {
     const t: SubjectTopic = { ...base, id: 't1', journeyId: 'j2', name: 'Integrais', marks: [] };
     expect(topicLevelOf(t)).toBe('nenhum');
+    // Marks at least 2 minutes apart (closer changes merge, see below).
+    const T2 = 10 + TOPIC_MERGE_MS;
     const a = withTopicLevel(t, 'vi', 10)!;
-    const b = withTopicLevel({ marks: a.marks }, 'entendi', 20)!;
-    expect(b.marks).toEqual([{ at: 10, level: 'vi' }, { at: 20, level: 'entendi' }]);
-    expect(withTopicLevel({ marks: b.marks }, 'entendi', 30)).toBeUndefined();
+    const b = withTopicLevel({ marks: a.marks }, 'entendi', T2)!;
+    expect(b.marks).toEqual([{ at: 10, level: 'vi' }, { at: T2, level: 'entendi' }]);
+    expect(withTopicLevel({ marks: b.marks }, 'entendi', T2 + 1)).toBeUndefined();
     const groups = topicsByLevel([
       { ...t, marks: b.marks }, { ...t, id: 't2', name: 'Derivadas', marks: [{ at: 1, level: 'resolvo' }] },
       { ...t, id: 't3', name: 'Séries', marks: [] }, { ...t, id: 't4', name: 'Apagado', deleted: true, marks: [] },
@@ -176,5 +180,83 @@ describe('exercícios e assuntos', () => {
     expect(Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, v.map((x) => x.name)])))
       .toEqual({ nenhum: ['Séries'], vi: [], entendi: ['Integrais'], resolvo: ['Derivadas'] });
     expect(topicsSummary(groups)).toBe('1 resolvo sem ajuda · 1 entendi · 1 ainda não');
+  });
+});
+
+describe('topic marks: a change within 2 minutes merges into the last mark', () => {
+  const M = 60_000;
+  it('arrow keys walking the levels write one mark; a change after 2 minutes appends', () => {
+    let t: Pick<SubjectTopic, 'marks'> = { marks: [{ at: 0, level: 'vi' }] };
+    t = withTopicLevel(t, 'entendi', 10 * M)!;           // 10 min later: appended
+    t = withTopicLevel(t, 'resolvo', 10 * M + 1000)!;    // arrow, 1 s later: merged (level and `at`)
+    expect(t.marks).toEqual([{ at: 0, level: 'vi' }, { at: 10 * M + 1000, level: 'resolvo' }]);
+    t = withTopicLevel(t, 'nenhum', 11 * M)!;            // within 2 min of the last: merged again
+    expect(t.marks).toEqual([{ at: 0, level: 'vi' }, { at: 11 * M, level: 'nenhum' }]);
+    t = withTopicLevel(t, 'entendi', 13 * M + 1)!;        // over 2 min after: appended
+    expect(t.marks.map((m) => m.level)).toEqual(['vi', 'nenhum', 'entendi']);
+  });
+  it('walking back to the level before the last mark removes the last mark (no repeated level)', () => {
+    const t = withTopicLevel({ marks: [{ at: 0, level: 'vi' }, { at: 5 * M, level: 'entendi' }] }, 'vi', 6 * M)!;
+    expect(t.marks).toEqual([{ at: 0, level: 'vi' }]);
+    const first = withTopicLevel({ marks: [{ at: 5 * M, level: 'vi' }] }, 'nenhum', 6 * M)!;
+    expect(first.marks).toEqual([]);
+    expect(topicLevelOf(first)).toBe('nenhum');
+  });
+});
+
+describe('avaliações are events with a date, not tasks', () => {
+  const run = (missions: Mission[], now: number, block?: EngineInput['block']) => suggest({
+    now, dayStartHour: 4, dayEndHour: 23, missions, journeys: [subjects[1]!], commitments: [], hardDay: false,
+    lastCompletionByArea: {}, ...(block ? { block } : {}),
+  });
+  const prova = (p: Partial<Mission> = {}): Mission =>
+    mission({ id: 'p', title: 'Prova de Matemática Discreta', journeyId: 'j2', assessment: 'prova', date: '2026-11-09', deadline: '2026-11-09', ...p });
+
+  it('a past open prova: not in Pendências, not in the quick review, not the main card, not in Hoje', () => {
+    const past = prova();
+    const summary = dayCloseSummary({
+      day: WED, dayStartHour: 4, occurrences: [], missions: [past], events: [], focus: [], reviews: [], practice: [], workouts: [],
+    });
+    expect(summary.pending).toEqual([]);
+    expect(needsReview([past], WED)).toEqual([]);
+    const out = run([past], timestampAt(WED, '15:30'));
+    expect(out.primary).toBeUndefined();
+    expect(out.ranked).toEqual([]);
+    expect(todayList([past], WED, timestampAt(WED, '15:30'))).toEqual([]);
+  });
+
+  it('on its day it is in Hoje, but never the main card, an alternative or a Pendência — even inside a Faculdade block', () => {
+    const due = prova({ date: WED, deadline: WED });
+    const step = mission({ id: 's', title: 'Lista 4', journeyId: 'j2', createdAt: 5 });
+    const block = { id: 'b', areaId: 'area-facul', endTs: timestampAt(WED, '17:00') };
+    const out = run([due, step], timestampAt(WED, '15:30'), block);
+    expect(out.ranked.map((x) => x.mission.id)).toEqual(['s']);
+    expect(out.alternatives).toEqual([]);
+    expect(todayList([due, step], WED, timestampAt(WED, '15:30')).map((m) => m.id)).toEqual(['p']);
+    const summary = dayCloseSummary({
+      day: WED, dayStartHour: 4, occurrences: [], missions: [due], events: [], focus: [], reviews: [], practice: [], workouts: [],
+    });
+    expect(summary.pending).toEqual([]);
+  });
+
+  it('before and after its day nothing ranks it (the day is read from `deadline`)', () => {
+    for (const day of ['2026-11-05', WED, '2026-11-20']) {
+      expect(run([prova({ date: day, deadline: '2026-11-20' })], timestampAt(WED, '15:30')).ranked).toEqual([]);
+    }
+    // An old reschedule moved `date` to today: Hoje still shows it only on its real day.
+    expect(todayList([prova({ date: WED, deadline: '2026-11-20' })], WED, 0)).toEqual([]);
+    expect(todayList([prova({ date: '2026-11-25', deadline: '2026-11-20' })], '2026-11-20', 0).map((m) => m.id)).toEqual(['p']);
+  });
+
+  it('Matérias and the Faculdade suggestion read the original day even when `date` was changed', () => {
+    const moved = prova({ date: '2026-11-25', deadline: '2026-11-16' });
+    expect(nextAssessment([moved], 'j2', WED)).toEqual({ missionId: 'p', kind: 'prova', title: 'Prova de Matemática Discreta', day: '2026-11-16', inDays: 5 });
+    const pulledBack = prova({ date: '2026-11-09', deadline: '2026-11-16' });
+    expect(nextAssessment([pulledBack], 'j2', WED)?.day).toBe('2026-11-16');
+    const input = { today: WED, journeys: subjects, commitments: [], contact: { ...empty, problemSets: subjects.map((s) => ps(s.id, '2026-11-10')) }, restDays: [0, 6] };
+    expect(subjectSuggestions({ ...input, missions: [moved] }).map((s) => [s.journey.id, s.text])).toEqual([['j2', 'Prova em 5 dias']]);
+    expect(subjectSuggestions({ ...input, missions: [pulledBack] }).map((s) => [s.journey.id, s.text])).toEqual([['j2', 'Prova em 5 dias']]);
+    // Without a deadline (older records), `date` is the day.
+    expect(nextAssessment([prova({ date: '2026-11-16', deadline: undefined })], 'j2', WED)?.day).toBe('2026-11-16');
   });
 });

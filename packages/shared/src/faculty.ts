@@ -3,7 +3,7 @@ import type {
   ProblemSet, Review, SubjectTopic, TopicLevel,
 } from './types';
 import { addDays, dayKeyOf, diffDays, weekdayOf } from './dates';
-import { occurrencesOn } from './engine';
+import { assessmentDay, occurrencesOn } from './engine';
 import { compactTitle, normalize } from './parser';
 import { WEEKDAY_NAMES } from './periods';
 
@@ -113,13 +113,14 @@ export function assessmentTitle(kind: AssessmentKind, typed: string, subjectTitl
 
 export interface NextAssessment { missionId: ID; kind: AssessmentKind; title: string; day: DayKey; inDays: number }
 
-/** The subject's nearest open avaliação from today on. */
+/** The subject's nearest open avaliação from today on (its day is `assessmentDay`: the deadline). */
 export function nextAssessment(missions: readonly Mission[], journeyId: ID, today: DayKey): NextAssessment | undefined {
   const m = missions
-    .filter((x) => !x.deleted && x.journeyId === journeyId && x.assessment && (x.status === 'open' || x.status === 'doing')
-      && x.date !== undefined && x.date >= today)
-    .sort((a, b) => a.date!.localeCompare(b.date!) || a.createdAt - b.createdAt)[0];
-  return m ? { missionId: m.id, kind: m.assessment!, title: m.title, day: m.date!, inDays: diffDays(today, m.date!) } : undefined;
+    .filter((x) => !x.deleted && x.journeyId === journeyId && x.assessment && (x.status === 'open' || x.status === 'doing'))
+    .map((x) => ({ x, day: assessmentDay(x) }))
+    .filter((e): e is { x: Mission; day: DayKey } => e.day !== undefined && e.day >= today)
+    .sort((a, b) => a.day.localeCompare(b.day) || a.x.createdAt - b.x.createdAt)[0];
+  return m ? { missionId: m.x.id, kind: m.x.assessment!, title: m.x.title, day: m.day, inDays: diffDays(today, m.day) } : undefined;
 }
 
 /** "Prova hoje" · "Prova amanhã" · "Trabalho em 5 dias". */
@@ -254,10 +255,11 @@ export function subjectSuggestions(input: SuggestionInput): SubjectSuggestion[] 
 
   const soon = input.missions
     .filter((m) => !m.deleted && m.assessment && m.journeyId !== undefined && byId.has(m.journeyId)
-      && (m.status === 'open' || m.status === 'doing') && m.date !== undefined
-      && m.date >= today && diffDays(today, m.date) <= ASSESSMENT_WINDOW_DAYS)
-    .sort((a, b) => a.date!.localeCompare(b.date!) || a.createdAt - b.createdAt);
-  for (const m of soon) push(byId.get(m.journeyId!)!, { code: 'assessment', kind: m.assessment!, inDays: diffDays(today, m.date!) });
+      && (m.status === 'open' || m.status === 'doing'))
+    .map((m) => ({ m, day: assessmentDay(m) }))
+    .filter((e): e is { m: Mission; day: DayKey } => e.day !== undefined && e.day >= today && diffDays(today, e.day) <= ASSESSMENT_WINDOW_DAYS)
+    .sort((a, b) => a.day.localeCompare(b.day) || a.m.createdAt - b.m.createdAt);
+  for (const { m, day } of soon) push(byId.get(m.journeyId!)!, { code: 'assessment', kind: m.assessment!, inDays: diffDays(today, day) });
 
   subjects
     .map((j) => ({ j, days: daysWithoutContact(j, input.contact, today, input.restDays) }))
@@ -314,9 +316,19 @@ export function problemSetText(p: Pick<ProblemSet, 'title' | 'done' | 'total' | 
 /** The topic's current level: its last mark ('nenhum' without one). */
 export const topicLevelOf = (t: Pick<SubjectTopic, 'marks'>): TopicLevel => t.marks[t.marks.length - 1]?.level ?? 'nenhum';
 
-/** Marks with `level` appended (history is never rewritten); the same level again changes nothing. */
+/** A level change this close to the last mark replaces it (arrow keys in the radio group write one mark per step). */
+export const TOPIC_MERGE_MS = 2 * 60_000;
+
+/**
+ * Marks with `level` appended; the same level again changes nothing. A change under TOPIC_MERGE_MS after the last
+ * mark merges into it (its level and `at` are replaced), and drops it when that brings back the level before it.
+ */
 export function withTopicLevel(t: Pick<SubjectTopic, 'marks'>, level: TopicLevel, at: number): Pick<SubjectTopic, 'marks'> | undefined {
-  return topicLevelOf(t) === level ? undefined : { marks: [...t.marks, { at, level }] };
+  if (topicLevelOf(t) === level) return undefined;
+  const last = t.marks[t.marks.length - 1];
+  if (last === undefined || at - last.at >= TOPIC_MERGE_MS) return { marks: [...t.marks, { at, level }] };
+  const before = t.marks.slice(0, -1);
+  return { marks: topicLevelOf({ marks: before }) === level ? before : [...before, { at, level }] };
 }
 
 /** Live topics of a subject grouped by current level (each group by name). */

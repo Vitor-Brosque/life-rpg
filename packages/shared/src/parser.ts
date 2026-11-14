@@ -72,6 +72,8 @@ const AMBIGUOUS_WEEKDAYS = new Set(['segunda', 'quarta', 'quinta', 'sexta']);
 const WEEKDAY_CONTEXT = new Set(['na', 'no', 'nesta', 'nessa', 'esta', 'essa', 'ate', 'proxima', 'de', 'toda']);
 /** Previous words that only glue the weekday to the sentence: removed from the title with it. */
 const WEEKDAY_GLUE = new Set(['na', 'no', 'nesta', 'nessa', 'esta', 'essa', 'ate', 'proxima']);
+/** Previous words glued to "dia <data>" ("no dia 3/12", "até dia 3/12"): removed from the title with it. */
+const DAY_GLUE = new Set(['no', 'na', 'ate']);
 /** Nothing left but "!", #tags and @areas. */
 const ONLY_MARKERS_RE = /^(?:\s*(?:!+|[#@]\S*))*\s*$/u;
 const QUE_VEM_RE = /^\s+que\s+vem(?![\p{L}\p{N}-])/u;
@@ -302,6 +304,10 @@ export function parseCapture(input: string, today: DayKey): ParsedCapture {
         end: sp.end + (queVem?.[0].length ?? 0),
       };
       if (free(wide)) sp = wide;
+    } else if (/^dia\s/u.test(m[0])) {
+      const prev = PREV_WORD_RE.exec(n.slice(0, sp.start));
+      const wide = { start: prev?.index ?? sp.start, end: sp.end };
+      if (prev !== null && DAY_GLUE.has(prev[1]!) && free(wide)) sp = wide;
     }
     if (!free(sp)) continue;
     claim('date', sp.start, sp.end);
