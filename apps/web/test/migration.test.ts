@@ -67,7 +67,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -149,7 +149,7 @@ describe('Dexie v2 → v3 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -185,7 +185,7 @@ describe('Dexie v3 → v4 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.decks.get('d1')).toMatchObject({ name: 'SQL' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -214,7 +214,7 @@ describe('Dexie v4 → v5 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'conta' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     // v5 alone keeps the cursor (no synced table), but a v4 database also goes through v6, which restarts it.
@@ -240,7 +240,7 @@ describe('Dexie v4 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista 3' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -274,7 +274,7 @@ describe('Dexie v5 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.mediaInfo.get(hash)).toMatchObject({ mime: 'image/png', size: 3 });
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual({ hash, addedAt: 7 });
@@ -302,7 +302,7 @@ describe('Dexie v4 → v7 migration (Marco 4)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -325,7 +325,7 @@ describe('Dexie v8 (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
     expect(await db.table('monthReviews').count()).toBe(0);
     await db.table('monthReviews').put({ ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 });
@@ -369,7 +369,7 @@ describe('Dexie v7 → v8 migration (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(8);
+    expect(db.verno).toBe(9);
     expect(await db.mediaInfo.get(hash)).toEqual(rows.mediaInfo);
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual(rows.mediaQueue);
@@ -383,5 +383,54 @@ describe('Dexie v7 → v8 migration (Marco 5)', () => {
     expect(await db.table('monthReviews').count()).toBe(0);
     await db.table('monthReviews').put({ ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 });
     expect(await db.table('monthReviews').count()).toBe(1);
+  });
+});
+
+describe('Dexie v8 → v9 (acompanhamento diário)', () => {
+  it('keeps every v8 row, restarts the cursor and adds the five acompanhamento tables', async () => {
+    const v8 = new Dexie(NAME);
+    v8.version(1).stores(V1);
+    v8.version(2).stores(V2_ADDED);
+    v8.version(3).stores(V3_ADDED);
+    v8.version(4).stores(V4_ADDED);
+    v8.version(5).stores(V5_ADDED);
+    v8.version(6).stores({ practiceSessions: 'id,status,journeyId,updatedAt' });
+    v8.version(7).stores({
+      sleepLogs: 'id,night',
+      recipes: 'id',
+      menus: 'id',
+      shoppingLists: 'id',
+      freezerMoves: 'id,at,recipeId',
+      workouts: 'id,day,at',
+    });
+    v8.version(8).stores({ monthReviews: 'id' });
+    await v8.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v8.table(table).bulkPut(rows);
+    const rows = {
+      monthReviews: { ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 },
+      workouts: { ...base, id: 'w1', at: 5, day: '2026-11-13', kind: 'cardio', minutes: 10 },
+    };
+    for (const [table, row] of Object.entries(rows)) await v8.table(table).put(row);
+    await v8.table('meta').put({ key: 'cursor', value: 42 });
+    v8.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(9);
+    expect(await db.table('monthReviews').get('month-2026-10')).toEqual(rows.monthReviews);
+    expect(await db.workouts.get('w1')).toEqual(rows.workouts);
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    for (const t of [db.trainingPlans, db.trainingLogs, db.dayPlans, db.problemSets, db.subjectTopics]) {
+      expect(await t.count()).toBe(0);
+    }
+    await db.trainingLogs.put({ ...base, id: 'training-2026-11-13', day: '2026-11-13', exercises: [] });
+    expect(await db.trainingLogs.where('day').equals('2026-11-13').count()).toBe(1);
+    await db.problemSets.put({ ...base, id: 'ps1', journeyId: 'j1', day: '2026-11-13', title: 'Lista 1', done: 3 });
+    expect(await db.problemSets.where('journeyId').equals('j1').count()).toBe(1);
+    await db.subjectTopics.put({ ...base, id: 'st1', journeyId: 'j1', name: 'Limites', marks: [] });
+    expect(await db.subjectTopics.where('journeyId').equals('j1').count()).toBe(1);
   });
 });

@@ -333,4 +333,31 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 'month-2026-10')).toMatchObject({ table: 'monthReviews', record: { month: '2026-10', observed } });
     expect(changes.find((c) => c.record.id === 'month-2026-09')!.record.deleted).toBe(true);
   });
+  it('syncs the acompanhamento tables', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false };
+    const sets = [{ reps: 8, kg: 40 }];
+    const blocks = [{ blockId: 'b1', name: 'Estudo', kind: 'study', targetStart: '08:00', durationMin: 60, minimumMin: 10, protected: false, order: 0, createdAt: 1 }];
+    const marks = [{ at: 5, level: 'vi' }];
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'trainingPlans', record: { ...r, id: 'plan', days: [{ weekday: 1, name: 'Peito', exercises: ['Supino'] }] } },
+        { table: 'trainingLogs', record: { ...r, id: 'training-2026-11-14', day: '2026-11-14', exercises: [{ id: 'p0', name: 'Supino', status: 'feito', sets }] } },
+        { table: 'dayPlans', record: { ...r, id: '2026-11-14', day: '2026-11-14', mode: 'normal', takenAt: 9, blocks, commitments: [] } },
+        { table: 'problemSets', record: { ...r, id: 'ps1', journeyId: 'j1', day: '2026-11-14', title: 'Lista 1', done: 3 } },
+        { table: 'problemSets', record: { ...r, id: 'ps2', deleted: true, journeyId: 'j1', day: '2026-11-14', title: 'Lista 2', done: 1 } },
+        { table: 'subjectTopics', record: { ...r, id: 'st1', journeyId: 'j1', name: 'Limites', marks } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'plan')).toMatchObject({ table: 'trainingPlans', record: { days: [{ weekday: 1, name: 'Peito' }] } });
+    expect(changes.find((c) => c.record.id === 'training-2026-11-14')).toMatchObject({ table: 'trainingLogs', record: { exercises: [{ sets }] } });
+    expect(changes.find((c) => c.record.id === '2026-11-14')).toMatchObject({ table: 'dayPlans', record: { blocks: [{ blockId: 'b1' }] } });
+    expect(changes.find((c) => c.record.id === 'ps1')).toMatchObject({ table: 'problemSets', record: { done: 3 } });
+    expect(changes.find((c) => c.record.id === 'ps2')!.record.deleted).toBe(true);
+    expect(changes.find((c) => c.record.id === 'st1')).toMatchObject({ table: 'subjectTopics', record: { marks } });
+  });
 });

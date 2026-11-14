@@ -1,8 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  Area, Block, BlockSession, Card, Checkin, Commitment, DayState, Deck, EnergyLog, FocusSession, FreezerMove, Journey,
-  LifeEvent, MediaType, Menu, Mission, MonthReview, Note, PracticeSession, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
-  SleepLog, SyncTable, Week, Workout, XpEvent,
+  Area, Block, BlockSession, Card, Checkin, Commitment, DayPlan, DayState, Deck, EnergyLog, FocusSession, FreezerMove, Journey,
+  LifeEvent, MediaType, Menu, Mission, MonthReview, Note, PracticeSession, ProblemSet, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
+  SleepLog, SubjectTopic, SyncTable, TrainingLog, TrainingPlan, Week, Workout, XpEvent,
 } from '@life/shared';
 import { weekdayOf } from '@life/shared';
 
@@ -44,6 +44,11 @@ export class LifeDB extends Dexie {
   freezerMoves!: Table<FreezerMove, string>;
   workouts!: Table<Workout, string>;
   monthReviews!: Table<MonthReview, string>;
+  trainingPlans!: Table<TrainingPlan, string>;
+  trainingLogs!: Table<TrainingLog, string>;
+  dayPlans!: Table<DayPlan, string>;
+  problemSets!: Table<ProblemSet, string>;
+  subjectTopics!: Table<SubjectTopic, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -137,6 +142,18 @@ export class LifeDB extends Dexie {
     // v2–v4, v6 and v7, so reflections a v7 client skipped (unknown table) are pulled again.
     this.version(8).stores({
       monthReviews: 'id',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v9 (Acompanhamento diário): training plan and day logs, day plans (snapshots), exercise logs and
+    // subject topics. Same cursor restart as v2–v4 and v6–v8, so records a v8 client skipped are pulled again.
+    this.version(9).stores({
+      trainingPlans: 'id',
+      trainingLogs: 'id,day',
+      dayPlans: 'id',
+      problemSets: 'id,journeyId,day',
+      subjectTopics: 'id,journeyId',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });

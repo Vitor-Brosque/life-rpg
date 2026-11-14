@@ -48,6 +48,7 @@ export interface Mission extends BaseRecord {
   completedAt?: number;
   dropReason?: string;
   blockId?: ID;           // explicit block assignment (wins over area/journey link)
+  assessment?: AssessmentKind; // Acompanhamento E: a prova or trabalho of a subject; `date` = `deadline` = its day
 }
 
 export type JourneyStatus = 'active' | 'done' | 'archived';
@@ -57,6 +58,7 @@ export interface Journey extends BaseRecord {
   areaId?: ID;
   status: JourneyStatus;
   order: number;
+  subject?: boolean;      // Acompanhamento E: a college subject ("disciplina"), only when true
 }
 
 export interface Commitment extends BaseRecord {
@@ -89,13 +91,15 @@ export interface FocusSession extends BaseRecord {
   outcome: 'finished' | 'interrupted';
   interruptReason?: string;
   notes?: string;
+  correctedAt?: number;   // Acompanhamento C: minutes corrected afterwards
 }
 
 export interface EnergyLog extends BaseRecord { at: number; level: EnergyLevel }
 
 export type EventType =
   | 'created' | 'started' | 'completed' | 'uncompleted' | 'skipped' | 'shrunk'
-  | 'snoozed' | 'dropped' | 'rescheduled' | 'split' | 'focus' | 'review' | 'hardDay';
+  | 'snoozed' | 'dropped' | 'rescheduled' | 'split' | 'focus' | 'review' | 'hardDay'
+  | 'partial' | 'result';   // Acompanhamento B: "Parcial" and "O que saiu?" of a concluded mission
 export interface LifeEvent extends BaseRecord {
   at: number;
   type: EventType;
@@ -139,6 +143,11 @@ export interface DayState extends BaseRecord {  // id = DayKey
   reviewDone: boolean;
   mode?: DayMode;
   startedAt?: number;   // when the day actually started
+  closedAt?: number;          // Acompanhamento C: "Fechar o dia"
+  tiredness?: Tiredness;      // "Cansaço durante o dia" (optional)
+  closeNote?: string;         // the day's free-text note (optional)
+  closeDismissed?: boolean;   // "Agora não" on the evening card (only when true)
+  subjectPicks?: Record<ID, ID>;  // Acompanhamento E: block id → subject journey id chosen with "Usar"
 }
 
 export type DayMode = 'normal' | 'low' | 'recovery' | 'free';
@@ -167,6 +176,10 @@ export interface BlockSession extends BaseRecord {  // id = `bs-${blockId}-${day
   version: 'normal' | 'minimum';
   nextAction?: string;
   skipped?: boolean;           // "Pular hoje": ended (endedAt) without being started
+  outcome?: BlockOutcome;      // Acompanhamento B: "Como foi?" when ending (optional)
+  result?: string;             // "O que saiu?" (optional, one line)
+  retro?: boolean;             // Acompanhamento C: "Fiz, mas não registrei" (only when true; never XP)
+  correctedAt?: number;        // start/end corrected afterwards
 }
 export interface WeekObjective { id: ID; blockId: ID; text: string; done: boolean }
 export interface WeekReview { worked: string; obstacle: string; adjustment: string; answeredAt: number }
@@ -188,6 +201,7 @@ export interface Checkin extends BaseRecord {
   escapedTo?: string;
   missionId?: ID;
   blockId?: ID;
+  blocker?: Blocker;   // Acompanhamento B: "O que trava?" (optional)
 }
 
 // ------------------------------------------------------------------ study (Marco 3)
@@ -363,6 +377,7 @@ export interface SleepLog extends BaseRecord {  // id = `sleep-${night}`
   night: DayKey;
   bedAt?: number;       // "Deitei"
   wakeAt?: number;      // "Acordei"
+  quality?: SleepQuality;  // Acompanhamento C: "Como foi o sono?" 1–5 (optional)
 }
 
 export interface SleepSettings {
@@ -474,6 +489,80 @@ export type HintLevel = 1 | 2 | 3;
 /** Ajudas de IA ligadas em Ajustes; ausente = tudo desligado (aiSettingsOf). */
 export interface AiSettings { hints: boolean; cards: boolean; weekly: boolean }
 
+// ------------------------------------------------------------------ acompanhamento diário (2026-11-14)
+
+// A — treino do dia
+/** One weekday of the training plan (0 = Sunday). A weekday without an entry is a rest day. */
+export interface TrainingDay { weekday: number; name: string; exercises: string[] }
+export interface TrainingPlan extends BaseRecord {   // id = 'plan' (TRAINING_PLAN_ID): a single record
+  days: TrainingDay[];                                // sorted by weekday, at most one per weekday
+}
+export type ExerciseStatus = 'feito' | 'pulado' | 'trocado';
+export interface ExerciseSet { reps: number; kg?: number }
+export interface TrainingExercise {
+  id: ID;                  // `p${index}` for the plan's exercises, `x-${ulid}` for extras
+  name: string;            // as in the plan when the log was created (or typed, for an extra)
+  status?: ExerciseStatus; // absent = not done yet
+  replacedBy?: string;     // 'trocado': what was done instead (the sets are of the replacement)
+  sets: ExerciseSet[];
+  extra?: boolean;         // added that day (only when true)
+}
+export type CardioModality = 'bicicleta' | 'esteira' | 'caminhada' | 'outro';
+export interface TrainingCardio { modality: CardioModality; minutes: number; intensity?: number }  // intensity 1–10
+export interface TrainingLog extends BaseRecord {    // id = `training-${day}`: one editable record per logical day
+  day: DayKey;
+  planName?: string;       // the day's plan name, copied when the log was created (absent on a rest day)
+  exercises: TrainingExercise[];
+  cardio?: TrainingCardio;
+  effort?: number;         // 1–5 (optional)
+  recovery?: number;       // 1–5 (optional)
+  finishedAt?: number;     // "Terminei o treino"
+  strengthWorkoutId?: ID;  // the 'musculacao' Workout it produced or adopted
+  cardioWorkoutId?: ID;    // the 'cardio' Workout made from `cardio`
+}
+
+// B — fechar a atividade
+export type BlockOutcome = 'feito' | 'parcial' | 'nao-deu';
+export type SnoozeReason = 'sem-tempo' | 'sem-energia' | 'nao-sei-comecar' | 'falta-algo' | 'outra-prioridade';
+export type Blocker = 'nao-sei-comecar' | 'falta-informacao' | 'grande-demais' | 'medo-de-errar' | 'chato';
+
+// C — encerramento do dia
+export type Tiredness = 'pouco' | 'medio' | 'muito';
+export type SleepQuality = 1 | 2 | 3 | 4 | 5;
+
+// D — foto do plano
+export interface PlannedBlock {
+  blockId: ID; name: string; kind: BlockKind; areaId?: ID; journeyId?: ID;
+  targetStart: HHmm; durationMin: number; minimumMin: number; protected: boolean;
+  order: number; createdAt: number;
+}
+export interface PlannedCommitment { commitmentId: ID; title: string; start: HHmm; end: HHmm }
+export interface DayPlan extends BaseRecord {   // id = DayKey
+  day: DayKey;
+  mode: DayMode;
+  takenAt: number;
+  blocks: PlannedBlock[];           // the weekday's live, unarchived blocks when taken (any kind, any mode)
+  commitments: PlannedCommitment[]; // the day's commitment occurrences when taken
+}
+
+// E — faculdade
+export type AssessmentKind = 'prova' | 'trabalho';
+export interface ProblemSet extends BaseRecord {  // "Lista / exercícios": editable (LWW), soft delete
+  journeyId: ID;
+  day: DayKey;
+  title: string;
+  done: number;
+  total?: number;
+  unaided?: number;      // "sem ajuda", ≤ done
+}
+export type TopicLevel = 'nenhum' | 'vi' | 'entendi' | 'resolvo';
+export interface TopicMark { at: number; level: TopicLevel }
+export interface SubjectTopic extends BaseRecord {
+  journeyId: ID;
+  name: string;
+  marks: TopicMark[];    // level history, oldest first: only appended (current level = last mark)
+}
+
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
   'events', 'xpEvents', 'profile', 'settings', 'dayState',
@@ -482,7 +571,7 @@ export const SYNC_TABLES = [
   'sketches',
   'practiceSessions',
   'sleepLogs', 'recipes', 'menus', 'shoppingLists', 'freezerMoves', 'workouts',
-  'monthReviews',
+  'monthReviews', 'trainingPlans', 'trainingLogs', 'dayPlans', 'problemSets', 'subjectTopics',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews', 'freezerMoves', 'workouts'];
