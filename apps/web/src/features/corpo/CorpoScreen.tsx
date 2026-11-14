@@ -12,6 +12,8 @@ import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { kindsText, rangeText, shortDay, spreadText } from './corpoFormat';
 import { SleepNights } from './SleepNights';
+import { TrainingEvolution } from './TrainingEvolution';
+import { TrainingToday } from './TrainingToday';
 import { useSleepSheet } from './SleepSheet';
 import { logMinimumCardio, useWorkoutSheet } from './WorkoutSheet';
 import './corpo.css';
@@ -87,6 +89,7 @@ export function CorpoScreen() {
 
       <section className="stack" aria-labelledby="treino-title">
         <h2 id="treino-title" className="section-title">Treino</h2>
+        <TrainingToday />
         {week && (week.total > 0 ? (
           <p className="corpo__week">
             {`${plural(week.total, 'treino', 'treinos')} · ${formatDuration(week.minutes)}`}
@@ -118,6 +121,7 @@ export function CorpoScreen() {
             })}
           </ul>
         )}
+        <TrainingEvolution />
       </section>
     </section>
   );
