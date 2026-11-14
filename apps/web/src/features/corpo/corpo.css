@@ -33,3 +33,30 @@
 .body-card__link { color: var(--sky); display: inline-flex; align-items: center; min-height: 44px; }
 .corpo__why summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .corpo__note { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+
+/* Treino de hoje (Acompanhamento A). */
+.body-block__plan { margin: 4px 0; }
+.training__plan { margin: 0; color: var(--text-dim); font-weight: 600; }
+.training__error { font-weight: 600; margin: 4px 0; }
+.training-ex { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--stone); }
+.training-ex__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.training-ex__name { margin: 0; font-size: 1.05rem; flex: 1; min-width: 12ch; }
+.training-ex__tag { color: var(--text-dim); font-size: 0.9em; }
+.training-ex__ref { margin: 0; color: var(--text-dim); font-size: 0.9em; }
+.training-ex__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.training-sets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.training-set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 44px; }
+.training-set__text { flex: 1; min-width: 12ch; }
+.training-set__edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.training-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.training-form .field { flex: 1; min-width: 9ch; }
+.training-form input, .training-form select, .training-set__edit input, .training-footer input { min-height: 44px; }
+.training-form .btn, .training-set__edit .btn, .training-ex__actions .btn { min-height: 44px; }
+.training-cardio__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; }
+.training-cardio__row span { flex: 1; min-width: 16ch; }
+.training-how summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.training-feel { display: flex; flex-direction: column; gap: 4px; margin-block: 8px; }
+.training-feel__chips { display: flex; gap: 6px; }
+.training-feel .chip__main { min-height: 44px; min-width: 44px; }
+.training-footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.training-footer p { margin: 0; flex: 1; }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { SleepLog, SleepSettings, Workout } from '@life/shared';
-import { sleepSettingsOf } from '@life/shared';
+import type { DayKey, SleepLog, SleepSettings, TrainingLog, TrainingPlan, Workout } from '@life/shared';
+import { TRAINING_PLAN_ID, sleepSettingsOf, trainingLogId } from '@life/shared';
 import { db } from './db';
 import { useSettings } from './hooks';
 
@@ -22,4 +22,26 @@ export function useSleepSettings(): SleepSettings | undefined {
 /** Live workouts, newest first; undefined while loading. */
 export function useWorkouts(): Workout[] | undefined {
   return useLiveQuery(async () => (await db.workouts.orderBy('at').reverse().toArray()).filter((w) => !w.deleted));
+}
+
+/** The training plan: undefined while loading, null when there is none. */
+export function useTrainingPlan(): TrainingPlan | null | undefined {
+  return useLiveQuery(async () => {
+    const p = await db.trainingPlans.get(TRAINING_PLAN_ID);
+    return p && !p.deleted ? p : null;
+  });
+}
+
+/** The day's training log: undefined while loading, null when there is none (or no day). */
+export function useTrainingLog(day?: DayKey): TrainingLog | null | undefined {
+  return useLiveQuery(async () => {
+    if (!day) return null;
+    const l = await db.trainingLogs.get(trainingLogId(day));
+    return l && !l.deleted ? l : null;
+  }, [day]);
+}
+
+/** Every live training log; undefined while loading. */
+export function useTrainingLogs(): TrainingLog[] | undefined {
+  return useLiveQuery(async () => (await db.trainingLogs.toArray()).filter((l) => !l.deleted));
 }

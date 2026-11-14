@@ -1,6 +1,9 @@
+import { Link } from 'wouter';
 import type { BlockOccurrence } from '@life/shared';
-import { CARDIO_MINIMUM_MIN, CARDIO_MINIMUM_TEXT, WORKOUT_LABEL, WORKOUT_MAX_MIN } from '@life/shared';
-import { useWorkouts } from '../../db/corpoData';
+import {
+  CARDIO_MINIMUM_MIN, CARDIO_MINIMUM_TEXT, WORKOUT_LABEL, WORKOUT_MAX_MIN, trainingCounts, trainingDayOf,
+} from '@life/shared';
+import { useTrainingLog, useTrainingPlan, useWorkouts } from '../../db/corpoData';
 import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
@@ -13,15 +16,29 @@ import './corpo.css';
  */
 export function BodyBlockPanel({ occurrence, now }: { occurrence: BlockOccurrence; now: number }) {
   const workouts = useWorkouts();
+  const plan = useTrainingPlan();
+  const trainingLog = useTrainingLog(occurrence.day);
   const today = (workouts ?? []).filter((w) => w.day === occurrence.day).reverse();
   const hadCardio = today.some((w) => w.kind === 'cardio');
   const startedAt = occurrence.session?.startedAt;
   const elapsed = startedAt !== undefined
     ? Math.min(WORKOUT_MAX_MIN, Math.max(1, Math.round((now - startedAt) / 60_000))) : undefined;
   const blockId = occurrence.block.id;
+  const entry = trainingDayOf(plan ?? undefined, occurrence.day);
+  const counts = trainingLog ? trainingCounts(trainingLog) : undefined;
+  const planned = trainingLog?.planName ?? entry?.name;
+  const openHref = `/corpo/treino?bloco=${blockId}${elapsed !== undefined ? `&min=${elapsed}` : ''}`;
 
   return (
     <div className="block-banner__group body-block" role="group" aria-label="Treino de hoje">
+      {plan && (
+        <p className="body-block__plan">
+          {planned
+            ? `Treino de hoje: ${planned}${counts ? ` · ${counts.done + counts.swapped} de ${trainingLog!.exercises.length} exercícios` : ''}`
+            : 'Descanso da musculação.'}
+          {' '}<Link href={openHref} className="body-card__link">Abrir treino</Link>
+        </p>
+      )}
       {today.length > 0 && (
         <p className="body-block__done">{`Hoje: ${today.map((w) => `${WORKOUT_LABEL[w.kind]} ${w.minutes} min`).join(' · ')}`}</p>
       )}

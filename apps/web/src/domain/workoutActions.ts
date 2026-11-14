@@ -62,3 +62,19 @@ export const removeWorkout = (id: ID): Promise<Workout | undefined> => withLock(
   await putAll(entries);
   return w;
 });
+
+/**
+ * A log's cardio corrected (Acompanhamento A): workouts are append-only, so the old record is soft-deleted and an
+ * identical one with the new minutes takes its place, in one transaction. The day's XP is untouched.
+ */
+export const replaceWorkoutMinutes = (id: ID, minutes: number): Promise<Workout> => withLock('workout', async () => {
+  const m = Math.round(minutes);
+  if (!Number.isFinite(m) || m < 1) throw new WorkoutValidationError('Informe quantos minutos durou.');
+  if (m > WORKOUT_MAX_MIN) throw new WorkoutValidationError('Até 300 minutos por registro.');
+  const old = await db.workouts.get(id);
+  if (!old || old.deleted) throw new Error(`workout ${id} not found`);
+  const { id: _i, createdAt: _c, updatedAt: _u, deleted: _d, ...fields } = old;
+  const next = newRecord<Workout>({ ...fields, minutes: m });
+  await putAll([{ table: 'workouts', record: { ...old, deleted: true } }, { table: 'workouts', record: next }]);
+  return (await db.workouts.get(next.id))!;
+});
