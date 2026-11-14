@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Commitment, DayKey, Mission } from '@life/shared';
 import { addDays, describeRecurrence, nextOccurrence } from '@life/shared';
 import { useCommitments, useMissions } from '../../db/hooks';
 import { WEEKDAY_ABBR, formatDay } from '../../ui/format';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { CommitmentSheet } from '../plan/CommitmentSheet';
 import { useMissionSheet } from '../mission/MissionSheet';
@@ -28,6 +29,19 @@ export function RecurringSection({ today }: { today: DayKey }) {
   const missions = useMissions();
   const commitments = useCommitments();
   const [commitment, setCommitment] = useState<Commitment>();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  // If the row is gone once its sheet closes (deleted, done), focus goes to this heading, not <body>.
+  const keepFocus = (opener: Element | null) =>
+    focusWhenGone(opener, () => headingRef.current, { preventScroll: true });
+  const openMission = (id: string, opener: HTMLElement) => {
+    useMissionSheet.getState().open(id);
+    const off = useMissionSheet.subscribe((st) => {
+      if (st.openId !== undefined) return;
+      off();
+      keepFocus(opener);
+    });
+  };
 
   const recurring = missions
     .filter((m) => m.recurrence !== undefined && m.status !== 'done' && m.status !== 'dropped')
@@ -38,7 +52,7 @@ export function RecurringSection({ today }: { today: DayKey }) {
 
   return (
     <section className="recurring stack" aria-labelledby="recurring-title">
-      <h3 id="recurring-title" className="recurring__title">Recorrentes</h3>
+      <h3 id="recurring-title" className="recurring__title" ref={headingRef} tabIndex={-1}>Recorrentes</h3>
       {recurring.length === 0 && weekly.length === 0 && <p className="day-box__empty">{EMPTY_TEXT}</p>}
 
       {recurring.length > 0 && (
@@ -52,7 +66,7 @@ export function RecurringSection({ today }: { today: DayKey }) {
               return (
                 <li key={m.id} className="row-card row-card--plain">
                   <button type="button" className="row-card__main recurring__item" aria-label={`${m.title}, ${rule}, ${when}`}
-                    onClick={() => safeRun(() => useMissionSheet.getState().open(m.id))}>
+                    onClick={(e) => { const opener = e.currentTarget; safeRun(() => openMission(m.id, opener)); }}>
                     <span className="row-card__body">
                       <span className="row-card__title">{m.title}</span>
                       <span className="row-card__sub">{rule} · {when}</span>
@@ -74,7 +88,7 @@ export function RecurringSection({ today }: { today: DayKey }) {
               return (
                 <li key={c.id} className="row-card row-card--plain">
                   <button type="button" className="row-card__main recurring__item" aria-label={`${c.title}, ${detail}`}
-                    onClick={() => setCommitment(c)}>
+                    onClick={(e) => { openerRef.current = e.currentTarget; setCommitment(c); }}>
                     <span className="row-card__body">
                       <span className="row-card__title">{c.title}</span>
                       <span className="row-card__sub">{detail}</span>
@@ -88,7 +102,7 @@ export function RecurringSection({ today }: { today: DayKey }) {
       )}
 
       <CommitmentSheet open={commitment !== undefined} commitment={commitment} defaultDate={today}
-        onClose={() => setCommitment(undefined)} />
+        onClose={() => { setCommitment(undefined); keepFocus(openerRef.current); }} />
     </section>
   );
 }

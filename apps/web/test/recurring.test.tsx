@@ -91,4 +91,28 @@ describe('Recorrentes', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(open).toHaveFocus());
   });
+
+  it('excluir o compromisso pela folha deixa o foco no título Recorrentes, não no body', async () => {
+    const user = userEvent.setup();
+    await seedBlocks();
+    await createCommitment({ title: 'Academia', date: '2026-11-02', start: '07:00', end: '08:00', weekdays: [1, 3, 5] });
+    render(<RoutineScreen />);
+    await user.click(await screen.findByRole('button', { name: /^Academia, seg, qua, sex/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Excluir compromisso' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Sim, excluir' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Recorrentes' })).toHaveFocus());
+  });
+
+  it('concluir a missão recorrente pela ficha também deixa o foco no título', async () => {
+    const user = userEvent.setup();
+    await seedBlocks();
+    const m = await createMission({ title: 'Lavar roupa', recurrence: { kind: 'weekly', weekdays: [1] }, date: '2026-11-16' });
+    render(<RoutineScreen />);
+    await user.click(await screen.findByRole('button', { name: /^Lavar roupa, Repete toda seg/ }));
+    await softDelete('missions', m.id);
+    useMissionSheet.getState().close();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Recorrentes' })).toHaveFocus());
+  });
 });
