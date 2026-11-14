@@ -146,7 +146,7 @@ describe('SubjectDetailScreen', () => {
       expect(t?.marks.map((m) => m.level)).toEqual(['entendi']);
     });
     await waitFor(() => expect(within(group).getByRole('radio', { name: 'Entendi' })).toBeChecked());
-    expect(within(group).getByText('Entendi em 13/11')).toBeInTheDocument();
+    expect(screen.getByText('Entendi em 13/11')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Apagar Lista 4 de 13/11' }));
     expect(await screen.findByText('Registro apagado.')).toBeInTheDocument();

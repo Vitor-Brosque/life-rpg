@@ -83,8 +83,7 @@ export async function captureLines(
     out.push(await createMission({
       ...extra,
       ...(p.recurrence ? { recurrence: p.recurrence } : {}),
-      // The parser leaves the connective of "dia 3/12" in the title.
-      title: kind ? assessmentTitle(kind, p.title.replace(/\s+(?:no\s+)?dia$/i, ''), journey!.title) : p.title,
+      title: kind ? assessmentTitle(kind, p.title, journey!.title) : p.title,
       ...(kind ? { assessment: kind, deadline: p.date } : {}),
       important: p.important || (extra.important ?? false),
       ...(p.durationMin !== undefined ? { durationMin: p.durationMin } : {}),

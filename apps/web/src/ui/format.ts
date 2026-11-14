@@ -5,6 +5,9 @@ import { addDays, dayKeyToDate } from '@life/shared';
 
 export const WEEKDAY_ABBR = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
+/** "2026-12-03" → "03/12". */
+export const ddmm = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /** 20 → "20 min", 60 → "1h", 90 → "1h30", 65 → "1h05". */

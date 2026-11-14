@@ -55,6 +55,6 @@ describe('saveCapture de avaliações', () => {
     await subject(false);
     const [m] = (await saveCapture('prova #calculo dia 3/12', { today: '2026-11-14' })) as Mission[];
     expect(m!.assessment).toBeUndefined();
-    expect(m!.title).toBe('prova dia');
+    expect(m!.title).toBe('prova');
   });
 });

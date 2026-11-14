@@ -58,7 +58,7 @@ const WEEKDAYS: Record<string, number> = {
 
 const DATE_RE = new RegExp(
   B_BEFORE +
-    String.raw`(?:(\d{1,2})/(\d{1,2})(?:/(\d{4}))?|dia\s+(\d{1,2})(?!/)|(depois\s+de\s+amanha)|(amanha)|(hoje)|(proxima\s+semana)|(domingo|dom|segunda-feira|segunda|seg|terca-feira|terca|ter|quarta-feira|quarta|qua|quinta-feira|quinta|qui|sexta-feira|sexta|sex|sabado|sab))` +
+    String.raw`(?:(?:dia\s+)?(\d{1,2})/(\d{1,2})(?:/(\d{4}))?|dia\s+(\d{1,2})(?!/)|(depois\s+de\s+amanha)|(amanha)|(hoje)|(proxima\s+semana)|(domingo|dom|segunda-feira|segunda|seg|terca-feira|terca|ter|quarta-feira|quarta|qua|quinta-feira|quinta|qui|sexta-feira|sexta|sex|sabado|sab))` +
     B_AFTER,
   'gu',
 );

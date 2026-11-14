@@ -12,7 +12,7 @@ import { SubjectSheet } from '../faculty/SubjectSheet';
 import '../faculty/faculty.css';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
-import { plural } from '../../ui/format';
+import { ddmm, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
 import './study.css';
@@ -35,8 +35,6 @@ async function loadData(): Promise<{ data: SubjectsData; decks: Deck[] } | undef
     },
   };
 }
-
-const ddmm = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
 
 /** "/estudo/materias": observed progress per subject (a journey with its decks and practice, or a loose deck). */
 export function SubjectsScreen() {

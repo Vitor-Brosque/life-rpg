@@ -4,11 +4,9 @@ import {
   NO_CONTACT_MIN, classOf, daysWithoutContact, nextAssessment, problemSetText, topicsByLevel, topicsSummary,
 } from '@life/shared';
 import type { FacultyData } from '../../db/facultyData';
-import { WEEKDAY_ABBR } from '../../ui/format';
+import { WEEKDAY_ABBR, ddmm } from '../../ui/format';
 import { useProblemSetSheet } from './ProblemSetSheet';
 import { WEEKDAY_ORDER } from './SubjectSheet';
-
-export const ddmm = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
 
 /** "hoje" · "amanhã" · "em 20 dias". */
 export const inDaysText = (n: number): string => (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : `em ${n} dias`);

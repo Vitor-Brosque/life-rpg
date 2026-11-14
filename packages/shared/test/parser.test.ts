@@ -259,3 +259,23 @@ describe('recorrência na captura', () => {
     expect(p.title).toBe('regar plantas');
   });
 });
+
+describe('"dia 3/12" é uma data só', () => {
+  it('missão: o "dia" sai do título', () => {
+    const p = parseCapture('reunião dia 3/12', today);
+    expect(p).toMatchObject({ title: 'reunião', date: '2026-12-03', kind: 'mission' });
+  });
+  it('com #jornada', () => {
+    const p = parseCapture('prova #calculo dia 3/12', today);
+    expect(p).toMatchObject({ title: 'prova', journeyName: 'calculo', date: '2026-12-03' });
+  });
+  it('compromisso com horário', () => {
+    const p = parseCapture('aula 19h dia 3/12', today);
+    expect(p).toMatchObject({ title: 'aula', kind: 'commitment', date: '2026-12-03', time: '19:00' });
+  });
+  it('"dia 5" e "todo dia" continuam como antes', () => {
+    expect(parseCapture('pagar aluguel todo dia 5', today).recurrence).toEqual({ kind: 'monthly', day: 5 });
+    expect(parseCapture('remédio todo dia 8h', today).recurrence).toEqual({ kind: 'weekly', weekdays: [0, 1, 2, 3, 4, 5, 6] });
+    expect(parseCapture('reunião dia 5', today).title).toBe('reunião');
+  });
+});

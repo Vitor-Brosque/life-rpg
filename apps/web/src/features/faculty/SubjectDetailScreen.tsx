@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import type { FacultyData } from '../../db/facultyData';
 import { useFacultyData } from '../../db/facultyData';
@@ -10,13 +10,14 @@ import {
   FacultyValidationError, addTopic, deleteProblemSet, deleteTopic, restoreProblemSet, setTopicLevel,
 } from '../../domain/facultyActions';
 import { Button } from '../../ui/Button';
+import { ddmm } from '../../ui/format';
 import { FOCUS_PAGE, focusWhenGone } from '../../ui/focusAfter';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { Panel } from '../../ui/Panel';
 import { useToast } from '../../ui/Toast';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { AssessmentSheet } from './AssessmentSheet';
-import { classLine, ddmm, inDaysText } from './FacultyLines';
+import { classLine, inDaysText } from './FacultyLines';
 import { useProblemSetSheet } from './ProblemSetSheet';
 import './faculty.css';
 
@@ -149,11 +150,12 @@ function TopicAdd({ journeyId }: { journeyId: string }) {
 
 function Topic({ topic, dayStartHour }: { topic: SubjectTopic; dayStartHour: number }) {
   const level = topicLevelOf(topic);
+  const legendId = useId();
   const pick = (l: TopicLevel) => safeRun(setTopicLevel(topic.id, l));
   return (
-    <fieldset className="topic" role="radiogroup">
-      <legend>{topic.name}</legend>
-      <div className="topic__levels">
+    <fieldset className="topic">
+      <legend id={legendId}>{topic.name}</legend>
+      <div className="topic__levels" role="radiogroup" aria-labelledby={legendId}>
         {TOPIC_LEVELS.map((l) => (
           <label key={l} className="topic__level">
             <input type="radio" name={`topic-${topic.id}`} value={l} checked={level === l} onChange={() => pick(l)} />
