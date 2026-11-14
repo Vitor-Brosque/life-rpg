@@ -119,7 +119,8 @@ No cartão do bloco atual:
 - **Começar bloco** inicia o bloco.
 - **Versão mínima** troca para a versão curta do bloco. Começar pouco já conta.
 - **Pular hoje** deixa o bloco de hoje de lado, sem registro negativo.
-- **Encerrar bloco** fecha quando você terminar.
+- **Encerrar bloco** fecha quando você terminar. A folha pergunta, se você quiser, **Como foi?** (Feito, Parcial
+  ou Não deu), **O que saiu?** em uma linha e a próxima ação. **Encerrar sem anotar** continua sendo um toque.
 - **Escapei** (ícone da porta) é um registro de um toque para quando você percebe que escapou para
   outra coisa. Notar já é a parte útil. Você escolhe para onde escapou (por exemplo, YouTube, Redes ou
   Outra) e nada mais é cobrado.
@@ -134,10 +135,16 @@ Os botões do cartão principal:
 
 - **Começar** abre a ficha da missão (primeiro passo, checklist, notas). Começar nunca liga o
   cronômetro sozinho.
-- **Concluir** conclui e dá o XP. Há um aviso "Desfazer" por alguns segundos.
+- **Concluir** conclui e dá o XP. Há um aviso "Desfazer" por alguns segundos. Depois, na ficha da missão
+  concluída, o campo **O que saiu?** guarda em uma linha o que ficou pronto (opcional).
+- **Parcial** aparece quando a missão está em andamento: anote, se quiser, **O que saiu?** e a **Próxima ação**
+  (que vira o primeiro passo da próxima vez) e escolha quando ela volta (Mais tarde hoje, Amanhã ou Escolher
+  dia). Parcial é progresso: não conta como adiamento.
 - **Outra** mostra a próxima sugestão.
 - **Encolher** pergunta "Qual é uma versão de 5 minutos?" e guarda como primeiro passo.
-- **Agora não** oferece **Mais tarde hoje**, **Amanhã** ou **Escolher dia**. Se a missão já tinha sido
+- **Agora não** oferece **Mais tarde hoje**, **Amanhã** ou **Escolher dia**, e um **Motivo (opcional)**: Sem tempo,
+  Sem energia, Não sei por onde começar, Falta algo ou Outra prioridade. Os motivos marcados aparecem em
+  Padrões → Adiamentos. Se a missão já tinha sido
   adiada antes, aparece também **Fazer um plano (opcional)**: escolha **Quando?** (um bloco da semana) e
   **Então, o primeiro passo**. **Guardar para o próximo {bloco}** reagenda a missão para o próximo dia em
   que esse bloco acontece (pulando dias livres) e, durante o bloco, ela vira a sugestão de foco. O cartão
@@ -157,6 +164,10 @@ Outro) e o que o pensamento diz. Daí vêm três saídas:
 - **Experimento de 10 minutos:** só começar por 10 minutos e decidir depois.
 - **Só começar.**
 - **Pular.**
+
+Em **O que trava? (opcional)** você aponta a dificuldade concreta (não sei por onde começar, falta informação,
+é grande demais, medo de errar, chato ou sem vontade) e o card sugere uma primeira ação. **Usar como primeiro
+passo** guarda essa ação na missão com um toque; "É grande demais" abre o Encolher ali mesmo.
 
 Dá para desligar em **Ajustes → Foco** ("Card de início ao começar algo adiado"). Os registros ajudam a
 tela de Padrões, nunca são cobrados.
@@ -180,6 +191,7 @@ Logo abaixo da faixa de status, a faixa **Cuidados** mostra só o que vale agora
 
 - **Deitei:** à noite (das 20h às 5h, fora de compromissos), toque para marcar a hora de deitar.
 - **Acordei:** de manhã (das 5h ao meio-dia), ou a qualquer hora depois de "Deitei" nas primeiras 16 horas.
+  Depois do toque aparece **Como foi o sono?** de 1 a 5, com **Pular**: é opcional e some ao responder.
 - **Comi uma:** na janela do almoço (10h às 16h) ou do jantar (a partir das 17h), mostra o prato do
   cardápio. Se há porção dele no freezer, o botão tira uma. Sem prato planejado, nada aparece.
 
@@ -200,6 +212,9 @@ aparece como etiqueta que você pode remover:
   conclui). Com horário, vira compromisso semanal: `aula 19h toda ter e qui`.
 - **Rascunho de card:** começar a linha com `? ` cria um rascunho de card para completar depois em
   Estudo ("Vira rascunho de card. Complete depois na aba Estudo.").
+- **Provas e trabalhos:** uma linha que começa com `prova` ou `trabalho`, com a `#disciplina` e uma data, vira a
+  avaliação da disciplina: `prova #calculo dia 3/12` → "Prova de Cálculo II" em 03/12. Sem data, é uma
+  missão comum.
 - **Várias linhas** viram várias capturas.
 
 Exemplo: `Estudar SQL amanhã · 15h · 20min · #tech-news · @ofício`. Os detalhes rápidos (energia,
@@ -210,6 +225,25 @@ duração, área) também aparecem como chips.
 Na primeira abertura do dia, se há missões para reavaliar, aparece um card dispensável: "Hoje, outro dia ou
 soltar — você escolhe. Nada aqui é atraso." Para cada missão há **Hoje mesmo assim**, **Amanhã**,
 **Escolher dia**, **Encolher** e **Soltar**, com motivos opcionais. Dá para **Dispensar** o card.
+
+### "Como foi hoje?" (encerramento do dia)
+
+Em dia que não é livre, a partir das 20h (ou do fim do último compromisso, como uma aula à noite), o
+Agora e o Painel mostram o card **Como foi hoje?**: "Dois minutos para fechar o dia. Tudo é opcional.".
+O link **Como foi hoje**, no fim do Agora, abre a mesma folha a qualquer hora. Nada disso bloqueia o app, e
+**Agora não** esconde o card naquele dia.
+
+A folha mostra:
+
+- **Observado:** blocos iniciados (e em que versão), pulados e não iniciados, missões concluídas e parciais,
+  minutos de foco, o treino, cards revisados e sessões de prática encerradas.
+- **Pendências de hoje:** Amanhã, Escolher dia ou Soltar para cada uma.
+- **Cansaço durante o dia** (Pouco, Médio, Muito) e uma **Observação**, opcionais.
+- **Correções:** ajustar o início e o fim de um bloco, marcar **Fiz, mas não registrei** num bloco que você
+  fez sem tocar no app (fica "registrado depois" e não dá XP) e corrigir os minutos de uma sessão de foco ou
+  apagá-la (com Desfazer).
+
+**Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar cansaço e nota.
 
 ---
 
@@ -287,11 +321,36 @@ A aba **Estudo** reúne revisão espaçada, lousas, prática técnica e o progre
 
 ### Matérias
 
-**Estudo → Matérias** mostra um cartão por matéria: cada jornada ativa com baralho ou prática ligada, e
-cada baralho sem jornada. Em cada uma: cards aprendidos do total (com uma barra), quanto você lembrou
+**Estudo → Matérias** mostra um cartão por matéria: cada disciplina, cada jornada ativa com baralho ou prática
+ligada, e cada baralho sem jornada. Em cada uma: cards aprendidos do total (com uma barra), quanto você lembrou
 dos cards maduros nos últimos 30 dias (a partir de 20 revisões), minutos de revisão nesta semana,
 tópicos, sessões de prática e quantas com Autônomo, e a próxima entrega. Só números observados, sem nota.
 Dali você abre a jornada, o baralho ou a revisão só daquele baralho.
+
+**Disciplinas da faculdade.** Sem nenhuma disciplina cadastrada, Matérias oferece **Cadastrar a grade do
+semestre?** com uma grade de exemplo (seg Estruturas de Dados, ter Matemática Discreta, qua Banco de Dados, qui
+Redes de Computadores, sex Engenharia de Software, das 19h30 às 22h30). **Confirmar** cria uma jornada por disciplina na área
+Faculdade e a aula semanal de cada uma; o que já existe com o mesmo nome é reaproveitado e nada é duplicado.
+**Editar antes** troca nomes, dias e horários pelos seus. **Nova disciplina** cadastra outra quando a grade mudar.
+O compromisso genérico "Aula" nunca é apagado sozinho: o card diz onde apagá-lo.
+
+No cartão de cada disciplina aparecem a aula (dias e horário), a **próxima avaliação** ("em N dias"), "Sem
+contato há N dias de estudo" (só a partir de 5), os últimos exercícios e os assuntos por nível. **Abrir
+disciplina** leva à tela dela, com:
+
+- **Avaliações:** provas e trabalhos com data (**Nova prova ou trabalho**, ou pela captura). Uma avaliação é
+  um evento com data: ela aparece em Hoje no próprio dia, não vira sugestão do Agora, não entra nas pendências
+  e só muda de data quando você edita.
+- **Exercícios:** "Lista 4 · 8 de 10 · 5 sem ajuda" (feitos, total e sem ajuda são opcionais), com Editar e
+  Apagar.
+- **Assuntos:** cada tema com o nível **Ainda não → Vi na aula → Entendi → Resolvo sem ajuda**. Entender e
+  resolver sozinho são coisas diferentes, por isso ficam separados. O histórico das marcas fica guardado.
+
+**Sugestão no bloco Faculdade.** Durante um bloco da área Faculdade (nunca no fim de semana nem em dia Livre),
+o Agora mostra **Sugestão para este bloco**: uma disciplina e o motivo, nesta ordem: avaliação nos próximos
+14 dias, 5 ou mais dias de estudo sem contato, aula hoje à noite, ou revisar a aula anterior. **Trocar**
+mostra a próxima; **Usar** põe a próxima missão daquela disciplina no cartão principal (sem criar nada) ou,
+sem missão aberta, oferece revisar o baralho dela ou registrar exercícios. **Escolher outra** desfaz.
 
 ### Baralhos e notas
 
@@ -473,7 +532,9 @@ partir de 3 noites completas:
 
 - horário médio de deitar e de acordar;
 - a "variação típica" (quanto esses horários oscilam, em minutos), o mais cedo e o mais tarde;
-- a duração média.
+- a duração média;
+- a qualidade percebida média, quando pelo menos 3 noites têm a nota de "Como foi o sono?" (que também dá
+  para ajustar na folha da noite).
 
 Não há nota nem julgamento. Uma noite vai do meio-dia ao meio-dia, e deitar à 01:30 conta na noite
 anterior. Toque numa noite para ajustar os horários ou **Registrar uma noite** esquecida. Há também uma
@@ -484,7 +545,24 @@ O **lembrete de desaceleração** é uma notificação de segunda a sexta, desli
 
 ### Treino
 
-Em **Corpo**, ou pelo bloco Treino no Agora, use **Registrar treino**: musculação, cardio ou outro,
+**Plano de treino.** Em **Corpo → Treino**, **Usar a divisão de exemplo de 5 dias** cria o plano da semana (segunda
+Peito e tríceps, terça Costas e bíceps, quarta Pernas, quinta Ombros, sexta Corpo inteiro; sábado e domingo,
+descanso da musculação). **Editar plano** (`/corpo/plano`) muda o nome de cada dia e os exercícios, um por linha. Séries e
+cargas nunca são inventadas: só entram quando você registra.
+
+**Treino de hoje.** O Corpo e o bloco Treino do Agora mostram "Treino de hoje: Pernas". **Abrir o treino de
+hoje** (no Agora, **Abrir treino**) leva à tela do registro: em cada exercício, repetições e carga (kg) e
+**Salvar série**, **Pulei** ou **Troquei por…**; a linha "Última: 3 × 10 · 40 kg" lembra a sessão anterior sem
+preencher nada. Também dá para pôr um **Exercício fora do plano**, registrar o **Cardio** (modalidade, minutos e
+intensidade percebida de 1 a 10) e, se quiser, esforço e recuperação. **Terminei o treino** pede os minutos (o
+tempo desde "Começar bloco", quando houver). Um dia passado pode ser corrigido em `/corpo/treino?dia=AAAA-MM-DD`;
+o que você registra para um dia passado não dá XP.
+
+**Evolução por exercício** e **Cardio por semana**, no Corpo, mostram como observado a melhor série e o volume
+das últimas sessões de cada exercício e as sessões e minutos de cardio das últimas 8 semanas completas. Sem
+recorde, meta ou progressão sugerida.
+
+Também dá para usar **Registrar treino** direto: musculação, cardio ou outro,
 mais os minutos. A contagem da semana é observada, sem meta. A **versão mínima do cardio** é 10 minutos de
 caminhada leve ou bicicleta, em ritmo de conversa, e conta como cardio. No bloco, **Fiz o cardio mínimo** registra de
 um toque. "Começar é a parte difícil: a versão mínima vale o mesmo XP."
@@ -540,8 +618,12 @@ Toda leitura aparece com um destes três rótulos:
 - **Tendências:** as últimas 8 semanas ou os 6 últimos meses, com gráficos simples e uma frase que diz o
   mesmo em texto. Só períodos completos entram, para uma semana pela metade não parecer queda.
 - **Adiamentos:** o que você mais adiou nos últimos 28 dias, por esforço, área, parte do dia, dia da
-  semana e tipo do dia, sempre com "adiou" e "começou" lado a lado. **Encolher** e **Soltar** não contam como
-  adiar: são estratégias.
+  semana e tipo do dia, sempre com "adiou" e "começou" lado a lado. **Encolher**, **Soltar** e **Parcial** não contam como
+  adiar: são estratégias. Os motivos marcados em "Agora não" aparecem contados, como observado.
+- **Planejado × executado:** os minutos planejados dos blocos ao lado dos minutos vividos (blocos e sessões de
+  foco fora deles), por área, nas últimas semanas ou meses, com **Ver dias**. O plano de cada dia é guardado
+  quando você escolhe o tipo do dia ou começa (ou pula) o primeiro bloco, então mudar a rotina depois não
+  reescreve o planejado dos dias que já passaram. Tempo com o app aberto nunca conta.
 - **Associações:** sono × blocos iniciados no dia seguinte, sono × tipo do dia escolhido, e jeito de
   responder na revisão × acerto. Os grupos aparecem lado a lado, com a nota **"Associação, não causa"**. Nada
   aparece antes de 14 pares de dias (e 30 revisões por grupo na revisão), e não há coeficientes nem valores-p.
@@ -583,7 +665,8 @@ O XP recompensa **esforço, início e estratégia**, não volume. Alguns exemplo
 - revisar 5 cards no dia e cumprir a meta do dia de estudo;
 - terminar uma sessão de prática, um treino ou um preparo em lote.
 
-Registrar sono não dá XP: o registro é para você observar a regularidade, e recompensar o registro
+Séries, cardio detalhado, resultados, motivos, fechamento do dia, correções, listas e assuntos não dão XP, e
+"Fiz, mas não registrei" também não. Registrar sono não dá XP: o registro é para você observar a regularidade, e recompensar o registro
 tende a virar marcar por pontos.
 
 **XP nunca diminui.** Não há vida, sequência que zera nem penalidade. Cada **área da vida** é um
