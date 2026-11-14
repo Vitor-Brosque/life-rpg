@@ -86,6 +86,10 @@ describe('readPatternData and buildPatternsView', () => {
 describe('planned × executed in the view', () => {
   it('reads plans, focus sessions and journeys, and counts only days with a plan', async () => {
     await db.blocks.put(block);
+    await db.journeys.bulkPut([
+      { ...base, id: 'j1', title: 'Tech', status: 'active', order: 0 },
+      { ...base, id: 'j2', title: 'Velha', status: 'active', order: 1, deleted: true },
+    ]);
     await db.blockSessions.bulkPut([session('2026-11-02'), session('2026-11-03')]);
     await db.xpEvents.put(xp('2026-10-26'));
     await db.dayPlans.bulkPut([
@@ -100,7 +104,7 @@ describe('planned × executed in the view', () => {
     const data = await readPatternData(TODAY, await settings());
     expect(data.dayPlans).toHaveLength(1);
     expect(data.focusSessions).toHaveLength(1);
-    expect(data.journeys!.length).toBeGreaterThanOrEqual(0);
+    expect(data.journeys!.map((j) => j.id)).toEqual(['j1']);
     const v = buildPatternsView(data, 'week');
     expect(v.planVsDone.map((p) => [p.period.key, p.daysWithPlan])).toEqual([['2026-10-26', 0], ['2026-11-02', 1]]);
   });

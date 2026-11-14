@@ -58,6 +58,33 @@ describe('Planejado × executado', () => {
     expect(within(section).getAllByText(/ter 03\/11: 1h de 2h/).length).toBeGreaterThan(0);
   });
 
+  it('follows the Meses toggle (6 months)', async () => {
+    await seedDay(true);
+    const day = '2026-10-06';
+    await db.dayPlans.put({ ...base, id: day, day, mode: 'normal', takenAt: 1, commitments: [], blocks: [{
+      blockId: 'b1', name: 'Tech', kind: 'focus', areaId: 'area-intelecto', targetStart: '09:00', durationMin: 60,
+      minimumMin: 30, protected: false, order: 0, createdAt: 1 }] } satisfies DayPlan);
+    await db.blockSessions.put({ ...base, id: `bs-b1-${day}`, blockId: 'b1', day, version: 'normal',
+      startedAt: timestampAt(day, '09:00'), endedAt: timestampAt(day, '09:30') } satisfies BlockSession);
+    await put('xpEvents', newRecord<XpEvent>({ at: timestampAt('2026-05-05', '10:00'), amount: 5, reason: 'block', dayKey: '2026-05-05' }));
+    renderScreen();
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Planejado × executado' });
+    const section = heading.closest('section')!;
+    expect(within(section).getByText(/Nas últimas \d+ semanas: /)).toBeInTheDocument();
+    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(screen.getByRole('button', { name: 'Meses' }));
+    expect(within(section).getByText(/Nos últimos 6 meses: 30 min executados de 1h planejados, em 1 dia com plano registrado\./)).toBeInTheDocument();
+  });
+
+  it('hides the bars from assistive tech and lists the numbers for the screen reader', async () => {
+    await seedDay(true);
+    renderScreen();
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Planejado × executado' });
+    const section = heading.closest('section')!;
+    expect(section.querySelector('.minibars')).toHaveAttribute('aria-hidden', 'true');
+    const list = [...section.querySelectorAll('.visually-hidden')].find((e) => e.textContent!.includes('da mais antiga'))!;
+    expect(list.textContent).toMatch(/da mais antiga para a mais recente: 02\/11: 1h de 2h \(1 dia com plano\)/);
+  });
+
   it('without plans, explains when it appears', async () => {
     await seedDay(false);
     renderScreen();

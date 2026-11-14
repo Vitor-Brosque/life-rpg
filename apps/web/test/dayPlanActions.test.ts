@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { timestampAt } from '@life/shared';
 import { db } from '../src/db/db';
 import { readPatternData } from '../src/features/patterns/patternData';
 import { planFromData, readDayPlanData } from '../src/db/dayPlan';
@@ -45,11 +44,13 @@ describe('the day plan snapshot', () => {
 
   it('skipping a block and registering one later also take it', async () => {
     await skipBlock('b2');
-    expect(await plans()).toHaveLength(1);
-    await db.dayPlans.clear();
-    await db.blockSessions.clear();
+    const afterSkip = await plans();
+    expect(afterSkip.map((p) => [p.id, p.mode])).toEqual([[DAY, 'normal']]);
+    vi.setSystemTime(at(12, 10, 0));
     await retroBlock('b4', '09:00', '09:30');
-    expect(await plans()).toHaveLength(1);
+    expect((await plans()).map((p) => p.id).sort()).toEqual([DAY, '2026-11-12']);
+    expect(await db.blockSessions.get('bs-b2-2026-11-11')).toMatchObject({ skipped: true });
+    expect(await db.blockSessions.get('bs-b4-2026-11-12')).toMatchObject({ retro: true });
   });
 
   it('reading the plan and the pattern data never creates one', async () => {
@@ -63,6 +64,26 @@ describe('the day plan snapshot', () => {
     vi.setSystemTime(at(14, 10, 0));
     await startBlock('b1');
     expect((await db.dayPlans.get('2026-11-14'))!.mode).toBe('normal');
-    expect(timestampAt('2026-11-14', '00:00')).toBeGreaterThan(0);
+  });
+
+  it('on a Saturday, skipping with no type chosen stores free; a later start retakes it as normal', async () => {
+    vi.setSystemTime(at(14, 10, 0));
+    await skipBlock('b2');
+    expect((await db.dayPlans.get('2026-11-14'))!.mode).toBe('free');
+    await startBlock('b1');
+    expect((await db.dayPlans.get('2026-11-14'))!.mode).toBe('normal');
+  });
+
+  it('a failing snapshot never aborts the action', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const get = vi.spyOn(db.dayPlans, 'get').mockRejectedValue(new Error('boom'));
+    try {
+      await startBlock('b1');
+      await setDayMode('low');
+    } finally { get.mockRestore(); err.mockRestore(); }
+    expect(await db.blockSessions.get(`bs-b1-${DAY}`)).toMatchObject({ startedAt: at(11, 10, 0) });
+    expect(await db.dayState.get(DAY)).toMatchObject({ mode: 'low' });
+    expect((await db.energyLogs.toArray()).filter((l) => l.level === 'low')).toHaveLength(1);
+    expect(await plans()).toHaveLength(0);
   });
 });
