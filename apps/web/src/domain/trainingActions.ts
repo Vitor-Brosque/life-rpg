@@ -1,6 +1,6 @@
 import type { DayKey, ExerciseSet, ID, TrainingCardio, TrainingDay, TrainingLog, TrainingPlan } from '@life/shared';
 import {
-  CARDIO_ISSUE_TEXT, EFFORT_MAX, FIVE_DAY_SPLIT, TRAINING_PLAN_ID, WORKOUT_MAX_MIN, adoptableWorkout, cardioIssue,
+  CARDIO_ISSUE_TEXT, EFFORT_MAX, FIVE_DAY_SPLIT, SETS_MAX, TRAINING_PLAN_ID, WORKOUT_MAX_MIN, adoptableWorkout, cardioIssue,
   logicalTimestamp, normalizePlanDays, startTrainingLog, trainingLogId, ulid, withExtra, withReplaced, withSet, withSetAt,
   withSkipped, withStatusCleared, withoutExtra, withoutSet,
 } from '@life/shared';
@@ -43,7 +43,12 @@ async function ensureLog(day: DayKey): Promise<TrainingLog> {
 const edit = (day: DayKey, fn: (log: TrainingLog) => Partial<TrainingLog>): Promise<TrainingLog> =>
   withLock(LOCK, async () => mutate<TrainingLog>('trainingLogs', (await ensureLog(day)).id, fn));
 
-export const addSet = (day: DayKey, exerciseId: ID, set: ExerciseSet) => edit(day, (l) => withSet(l, exerciseId, set));
+export const addSet = (day: DayKey, exerciseId: ID, set: ExerciseSet) => edit(day, (l) => {
+  if ((l.exercises.find((e) => e.id === exerciseId)?.sets.length ?? 0) >= SETS_MAX) {
+    throw new TrainingValidationError(`No máximo ${SETS_MAX} séries por exercício.`);
+  }
+  return withSet(l, exerciseId, set);
+});
 export const updateSet = (day: DayKey, exerciseId: ID, index: number, set: ExerciseSet) =>
   edit(day, (l) => withSetAt(l, exerciseId, index, set));
 export const removeSet = (day: DayKey, exerciseId: ID, index: number) => edit(day, (l) => withoutSet(l, exerciseId, index));

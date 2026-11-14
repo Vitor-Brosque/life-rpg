@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearch } from 'wouter';
 import type { CardioModality, DayKey, ExerciseSet, ID, TrainingExercise, TrainingLog, Workout } from '@life/shared';
 import {
-  CARDIO_LABEL, CARDIO_MODALITIES, EFFORT_MAX, INTENSITY_MAX, SET_ISSUE_TEXT, WORKOUT_MAX_MIN, cardioText, isValidDayKey,
+  CARDIO_LABEL, CARDIO_MODALITIES, EFFORT_MAX, EXERCISE_NAME_MAX, INTENSITY_MAX, SET_ISSUE_TEXT, WORKOUT_MAX_MIN, cardioText, isValidDayKey,
   lastSession, lastSessionText, parseSet, performedName, startTrainingLog, trainingDayOf,
 } from '@life/shared';
 import { useTrainingLog, useTrainingLogs, useTrainingPlan, useWorkouts } from '../../db/corpoData';
@@ -73,7 +73,6 @@ export function TrainingScreen() {
               Ainda não há plano de treino. <Link href="/corpo" className="body-card__link">Montar o plano</Link>
             </p>
           ))}
-          {exercises.length === 0 && planName && <p className="muted">Descanso da musculação.</p>}
           {exercises.map((e) => (
             <ExerciseCard key={e.id} day={day} exercise={e} reference={(() => {
               const last = lastSession(logs, performedName(e), day);
@@ -108,7 +107,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
     const set = parseSet(reps, kg);
     if (set === 'reps' || set === 'kg') { setError(SET_ISSUE_TEXT[set]); return; }
     setError(undefined);
-    safeRun(addSet(day, e.id, set));
+    void attempt(() => addSet(day, e.id, set), setError);
   };
   const startEdit = (i: number, s: ExerciseSet) => {
     setEditing(i); setEditReps(String(s.reps)); setEditKg(s.kg !== undefined ? kgLabel(s.kg) : ''); setError(undefined);
@@ -118,14 +117,14 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
     if (set === 'reps' || set === 'kg') { setError(SET_ISSUE_TEXT[set]); return; }
     setError(undefined);
     setEditing(undefined);
-    safeRun(updateSet(day, e.id, i, set));
+    void attempt(() => updateSet(day, e.id, i, set), setError);
   };
   const saveSwap = (ev: FormEvent) => {
     ev.preventDefault();
     if (swapName.trim() === '') return;
-    setSwapping(false);
-    setSwapName('');
-    safeRun(replaceExercise(day, e.id, swapName));
+    void attempt(() => replaceExercise(day, e.id, swapName), setError).then((ok) => {
+      if (ok) { setSwapping(false); setSwapName(''); }
+    });
   };
 
   const state = e.status === 'trocado' ? 'trocado' : e.status === 'pulado' ? 'pulado' : undefined;
@@ -152,21 +151,21 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
                 <div className="training-set__edit">
                   <label className="field">
                     <span className="field__label">Repetições</span>
-                    <input aria-label={`Repetições da série ${i + 1}`} inputMode="numeric" value={editReps} onChange={(ev) => setEditReps(ev.target.value)} />
+                    <input aria-label={`Repetições da série ${i + 1} de ${name}`} inputMode="numeric" value={editReps} onChange={(ev) => setEditReps(ev.target.value)} />
                   </label>
                   <label className="field">
                     <span className="field__label">Carga (kg)</span>
-                    <input aria-label={`Carga da série ${i + 1}`} inputMode="decimal" value={editKg} onChange={(ev) => setEditKg(ev.target.value)} />
+                    <input aria-label={`Carga da série ${i + 1} de ${name}`} inputMode="decimal" value={editKg} onChange={(ev) => setEditKg(ev.target.value)} />
                   </label>
-                  <Button size="sm" variant="primary" onClick={() => saveEdit(i)}>Salvar</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setEditing(undefined); setError(undefined); }}>Cancelar</Button>
+                  <Button size="sm" variant="primary" aria-label={`Salvar série ${i + 1} de ${name}`} onClick={() => saveEdit(i)}>Salvar</Button>
+                  <Button size="sm" variant="ghost" aria-label={`Cancelar edição da série ${i + 1} de ${name}`} onClick={() => { setEditing(undefined); setError(undefined); }}>Cancelar</Button>
                 </div>
               ) : (
                 <>
                   <span className="training-set__text">{setLine(i + 1, s)}</span>
                   <Button size="sm" variant="ghost" aria-label={`Editar série ${i + 1} de ${name}`} onClick={() => startEdit(i, s)}>Editar</Button>
                   <Button size="sm" variant="ghost" aria-label={`Apagar série ${i + 1} de ${name}`}
-                    onClick={(ev) => { focusWhenGone(ev.currentTarget, toHeading); safeRun(removeSet(day, e.id, i)); }}>
+                    onClick={(ev) => { focusWhenGone(ev.currentTarget, toHeading); setEditing(undefined); safeRun(removeSet(day, e.id, i)); }}>
                     Apagar
                   </Button>
                 </>
@@ -178,11 +177,11 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
       <form className="training-form" noValidate onSubmit={save}>
         <label className="field">
           <span className="field__label">Repetições</span>
-          <input inputMode="numeric" value={reps} onChange={(ev) => { setReps(ev.target.value); setError(undefined); }} />
+          <input aria-label={`Repetições de ${name}`} inputMode="numeric" value={reps} onChange={(ev) => { setReps(ev.target.value); setError(undefined); }} />
         </label>
         <label className="field">
           <span className="field__label">Carga (kg)</span>
-          <input inputMode="decimal" value={kg} onChange={(ev) => { setKg(ev.target.value); setError(undefined); }} />
+          <input aria-label={`Carga (kg) de ${name}`} inputMode="decimal" value={kg} onChange={(ev) => { setKg(ev.target.value); setError(undefined); }} />
         </label>
         <Button type="submit" size="sm" variant="primary" aria-label={`Salvar série de ${name}`}>Salvar série</Button>
       </form>
@@ -194,7 +193,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
             Pulei
           </Button>
         )}
-        <Button size="sm" aria-expanded={swapping} onClick={() => setSwapping((v) => !v)}>Troquei por…</Button>
+        <Button size="sm" aria-expanded={swapping} aria-label={`Troquei ${name} por outro exercício`} onClick={() => setSwapping((v) => !v)}>Troquei por…</Button>
         {state && e.sets.length === 0 && (
           <Button size="sm" variant="ghost" aria-label={`Desfazer ${state} de ${name}`}
             onClick={(ev) => { focusWhenGone(ev.currentTarget, toHeading); safeRun(clearExerciseStatus(day, e.id)); }}>
@@ -206,9 +205,9 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
         <form className="training-form" noValidate onSubmit={saveSwap}>
           <label className="field">
             <span className="field__label">Troquei por</span>
-            <input value={swapName} onChange={(ev) => setSwapName(ev.target.value)} />
+            <input aria-label={`Troquei ${name} por`} maxLength={EXERCISE_NAME_MAX} value={swapName} onChange={(ev) => { setSwapName(ev.target.value); setError(undefined); }} />
           </label>
-          <Button type="submit" size="sm" variant="primary">Salvar troca</Button>
+          <Button type="submit" size="sm" variant="primary" aria-label={`Salvar troca de ${name}`}>Salvar troca</Button>
         </form>
       )}
     </article>
@@ -217,19 +216,20 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
 
 function AddExtra({ day }: { day: DayKey }) {
   const [name, setName] = useState('');
+  const [error, setError] = useState<string>();
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
     if (name.trim() === '') return;
-    setName('');
-    safeRun(addExtraExercise(day, name));
+    void attempt(() => addExtraExercise(day, name), setError).then((ok) => { if (ok) { setName(''); setError(undefined); } });
   };
   return (
     <form className="training-form" noValidate onSubmit={submit}>
       <label className="field">
         <span className="field__label">Exercício fora do plano</span>
-        <input value={name} onChange={(ev) => setName(ev.target.value)} />
+        <input maxLength={EXERCISE_NAME_MAX} value={name} onChange={(ev) => { setName(ev.target.value); setError(undefined); }} />
       </label>
       <Button type="submit" size="sm">Adicionar</Button>
+      {error && <p role="alert" className="training__error">{error}</p>}
     </form>
   );
 }
