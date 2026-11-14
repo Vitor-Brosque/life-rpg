@@ -134,13 +134,15 @@ describe('CareStrip — refeição', () => {
 });
 
 describe('CareStrip — foco', () => {
-  it('after "Acordei" hides the row, focus goes to the page heading, not to the body', async () => {
+  // Since Acompanhamento C, "Acordei" is followed by "Como foi o sono?" in the row's place: focus goes to that
+  // question (announced, and the answer is one Tab away) instead of the page heading; never to <body>.
+  it('after "Acordei" hides the row, focus goes to "Como foi o sono?", not to the body', async () => {
     const user = userEvent.setup();
     vi.setSystemTime(at(14, 7, 10));
     await db.sleepLogs.put({ id: 'sleep-2026-11-13', createdAt: 1, updatedAt: 1, deleted: false, night: '2026-11-13', bedAt: at(13, 22).getTime() });
     render(<><h1 tabIndex={-1} data-focus-target="page">Agora</h1>{strip()}</>);
     await user.click(await screen.findByRole('button', { name: 'Acordei' }));
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Sono' })).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Agora' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByText('Como foi o sono?')).toHaveFocus());
   });
 });

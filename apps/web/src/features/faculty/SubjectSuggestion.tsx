@@ -25,10 +25,13 @@ function reviewDeck(data: FacultyData, journeyId: string) {
 
 /**
  * "Sugestão para este bloco" in a Faculdade block: a subject and why (Usar / Trocar); after Usar, the
- * subject's next mission (or its deck / "Registrar exercícios") with "Escolher outra". Nothing is saved
- * before Usar, and no mission is ever created. Weekends and free days show nothing.
+ * subject's next mission (unless the main card already shows it: `mainMissionId`), or its deck /
+ * "Registrar exercícios", with "Escolher outra". Nothing is saved before Usar, and no mission is ever
+ * created. Weekends and free days show nothing.
  */
-export function SubjectSuggestion({ current, today }: { current: BlockOccurrence; today: DayKey }) {
+export function SubjectSuggestion({ current, today, mainMissionId }: {
+  current: BlockOccurrence; today: DayKey; mainMissionId?: string;
+}) {
   const data = useFacultyData();
   const state = useDayState();
   const mode = useDayMode();
@@ -60,7 +63,7 @@ export function SubjectSuggestion({ current, today }: { current: BlockOccurrence
         <p id={labelId} className="subject-suggestion__label">Disciplina deste bloco</p>
         <h3 className="subject-suggestion__title" tabIndex={-1} data-subject-heading>{picked.title}</h3>
         {head ? (
-          <p className="subject-suggestion__line">{`Próxima missão: ${head.title}`}</p>
+          head.id !== mainMissionId && <p className="subject-suggestion__line">{`Próxima missão: ${head.title}`}</p>
         ) : (
           <>
             <p className="subject-suggestion__line">{`Sem missão aberta em ${picked.title}.`}</p>
@@ -85,7 +88,8 @@ export function SubjectSuggestion({ current, today }: { current: BlockOccurrence
   return (
     <Panel variant="stone" role="region" aria-labelledby={labelId} className="subject-suggestion">
       <p id={labelId} className="subject-suggestion__label">Sugestão para este bloco</p>
-      <h3 className="subject-suggestion__title" tabIndex={-1} data-subject-heading>{`${s.journey.title} — ${s.text}`}</h3>
+      {/* "Trocar" keeps focus (to keep walking the list); the new suggestion is announced. */}
+      <h3 className="subject-suggestion__title" tabIndex={-1} data-subject-heading aria-live="polite">{`${s.journey.title} — ${s.text}`}</h3>
       <div className="subject-suggestion__actions">
         <Button variant="primary" onClick={(e) => {
           focusWhenGone(e.currentTarget, headingEl);

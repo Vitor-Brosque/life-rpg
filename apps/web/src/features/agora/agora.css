@@ -138,7 +138,8 @@
 .main-card__hint-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 .main-card__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3); }
-.main-card__tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }
+/* 64 px columns: the four tools fit one row at 375 px (each stays a ≥ 36 px target). */
+.main-card__tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: var(--space-2); margin-top: var(--space-3); }
 .btn--stacked.btn { flex-direction: column; gap: 2px; min-height: 60px; padding: 6px 4px; font-size: 0.875rem; }
 .main-card__after { margin: var(--space-3) 0 var(--space-2); color: var(--ink); }
 

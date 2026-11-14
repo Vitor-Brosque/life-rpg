@@ -1,8 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BlockOccurrence, TrainingLog } from '@life/shared';
+import type { BlockOccurrence, BlockSession, TrainingLog } from '@life/shared';
 import { db } from '../src/db/db';
+import { refreshNow } from '../src/db/hooks';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { addSet, applyFiveDaySplit, saveTrainingPlan } from '../src/domain/trainingActions';
@@ -80,6 +81,7 @@ describe('Treino de hoje', () => {
     await user.type(reps, '8');
     await user.click(within(a).getByRole('button', { name: 'Salvar série 1 de Agachamento livre' }));
     expect(await within(a).findByText('Série 1: 8 × 80 kg')).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(within(a).getByRole('heading', { name: 'Agachamento livre' })));
   });
 
   it('an invalid set shows the alert and writes nothing', async () => {
@@ -103,10 +105,11 @@ describe('Treino de hoje', () => {
     await user.click(within(p).getByRole('button', { name: 'Desfazer pulado de Panturrilha em pé' }));
     await waitFor(() => expect(within(p).queryByText('Pulado')).not.toBeInTheDocument());
     const e = await card('Cadeira extensora');
-    await user.click(within(e).getByRole('button', { name: 'Troquei Cadeira extensora por outro exercício' }));
+    await user.click(within(e).getByRole('button', { name: 'Troquei por… Cadeira extensora' }));
     await user.type(within(e).getByLabelText('Troquei Cadeira extensora por'), 'Afundo');
     await user.click(within(e).getByRole('button', { name: 'Salvar troca de Cadeira extensora' }));
     expect(await within(e).findByText('Trocado por Afundo')).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(within(e).getByRole('button', { name: 'Troquei por… Cadeira extensora' })));
   });
 
   it('adds and removes an extra exercise', async () => {
@@ -122,41 +125,69 @@ describe('Treino de hoje', () => {
     await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(6));
   });
 
-  it('cardio: saves with XP and shows the text', async () => {
+  it('cardio: saves with XP and shows the text; focus goes to the Cardio heading', async () => {
     const user = userEvent.setup();
     renderScreen();
-    const section = (await screen.findByRole('heading', { name: 'Cardio' })).closest('section')!;
+    const heading = await screen.findByRole('heading', { name: 'Cardio' });
+    const section = heading.closest('section')!;
     await user.type(within(section).getByLabelText('Minutos'), '20');
     await user.selectOptions(within(section).getByLabelText('Intensidade (1 a 10, opcional)'), '6');
     await user.click(within(section).getByRole('button', { name: 'Salvar cardio' }));
     expect(await within(section).findByText('Bicicleta ergométrica · 20 min · intensidade 6')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Cardio registrado · +8 XP');
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
-  it('"Terminei o treino" logs the workout, toasts and closes', async () => {
+  it('"Terminei o treino" logs the workout, toasts and closes; focus goes to the closed state', async () => {
     const user = userEvent.setup();
     await applyFiveDaySplit();
+    await addSet('2026-11-11', 'p0', { reps: 10 });
     renderScreen();
     const field = await screen.findByLabelText('Minutos de treino');
     await user.clear(field);
     await user.type(field, '75');
     await user.click(screen.getByRole('button', { name: 'Terminei o treino' }));
-    expect(await screen.findByText('Treino encerrado às 12:40.')).toBeInTheDocument();
+    const closed = await screen.findByText('Treino encerrado às 12:40.');
     expect(screen.getByRole('status')).toHaveTextContent('Treino registrado · +5 XP');
+    await waitFor(() => expect(document.activeElement).toBe(closed));
   });
 
-  it('a rest day and a missing plan', async () => {
+  it('"Terminei o treino" only once something was done: a set or an extra exercise (the cardio has its own save)', async () => {
+    const user = userEvent.setup();
+    await applyFiveDaySplit();
+    renderScreen();
+    await screen.findAllByRole('article');
+    expect(screen.queryByRole('button', { name: 'Terminei o treino' })).not.toBeInTheDocument();
+    const p = await card('Panturrilha em pé');
+    await user.click(within(p).getByRole('button', { name: 'Pulei Panturrilha em pé' }));
+    await within(p).findByText('Pulado');
+    expect(screen.queryByRole('button', { name: 'Terminei o treino' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Exercício fora do plano'), 'prancha');
+    await user.click(screen.getByRole('button', { name: 'Adicionar' }));
+    expect(await screen.findByRole('button', { name: 'Terminei o treino' })).toBeInTheDocument();
+  });
+
+  it('a rest day and a missing plan: cardio and "Exercício fora do plano", no "Terminei" yet', async () => {
+    const user = userEvent.setup();
     vi.setSystemTime(at(14, 12, 40));
     await applyFiveDaySplit();
     const view = renderScreen();
     expect(await screen.findByText('Descanso da musculação.')).toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Salvar cardio' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Exercício fora do plano')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Terminei o treino' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Exercício fora do plano'), 'mobilidade');
+    await user.click(screen.getByRole('button', { name: 'Adicionar' }));
+    expect(await card('Mobilidade')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Terminei o treino' })).toBeInTheDocument();
     view.unmount();
     await db.trainingPlans.clear();
+    await db.trainingLogs.clear();
     renderScreen();
     expect(await screen.findByText('Ainda não há plano de treino.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Montar o plano' })).toHaveAttribute('href', '/corpo');
+    expect(screen.getByLabelText('Exercício fora do plano')).toBeInTheDocument();
   });
 
   it('another day by ?dia=', async () => {
@@ -209,7 +240,7 @@ describe('revisão — treino', () => {
     await applyFiveDaySplit();
     renderScreen();
     const e = await card('Cadeira extensora');
-    await user.click(within(e).getByRole('button', { name: 'Troquei Cadeira extensora por outro exercício' }));
+    await user.click(within(e).getByRole('button', { name: 'Troquei por… Cadeira extensora' }));
     expect(within(e).getByLabelText('Troquei Cadeira extensora por')).toHaveAttribute('maxlength', '80');
     expect(screen.getByLabelText('Exercício fora do plano')).toHaveAttribute('maxlength', '80');
   });
@@ -217,6 +248,7 @@ describe('revisão — treino', () => {
   it('"Desfazer" after "Terminei" removes the workout it created', async () => {
     const user = userEvent.setup();
     await applyFiveDaySplit();
+    await addSet('2026-11-11', 'p0', { reps: 10 });
     renderScreen();
     await user.click(await screen.findByRole('button', { name: 'Terminei o treino' }));
     expect(await screen.findByText('Treino encerrado às 12:40.')).toBeInTheDocument();
@@ -228,6 +260,7 @@ describe('revisão — treino', () => {
   it('"Reabrir" brings the footer back and keeps the workout', async () => {
     const user = userEvent.setup();
     await applyFiveDaySplit();
+    await addSet('2026-11-11', 'p0', { reps: 10 });
     renderScreen();
     await user.click(await screen.findByRole('button', { name: 'Terminei o treino' }));
     await user.click(await screen.findByRole('button', { name: 'Reabrir' }));
@@ -253,6 +286,49 @@ describe('revisão — treino', () => {
     expect(live[0]!.minutes).toBe(35);
     const xp = (await db.xpEvents.toArray()).filter((x) => !x.deleted && x.reason === 'workout');
     expect(xp.map((x) => x.amount)).toEqual([8]);
+  });
+
+  it('a past day (?dia=): "Terminei" and the cardio create the workouts without XP', async () => {
+    const user = userEvent.setup();
+    window.history.pushState(null, '', '/corpo/treino?dia=2026-11-04');
+    await applyFiveDaySplit();
+    await addSet('2026-11-04', 'p0', { reps: 10 });
+    renderScreen();
+    await user.click(await screen.findByRole('button', { name: 'Terminei o treino' }));
+    expect(await screen.findByText(/^Treino encerrado às/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Treino registrado.');
+    const section = (await screen.findByRole('heading', { name: 'Cardio' })).closest('section')!;
+    await user.type(within(section).getByLabelText('Minutos'), '25');
+    await user.click(within(section).getByRole('button', { name: 'Salvar cardio' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cardio registrado.'));
+    const live = (await db.workouts.toArray()).filter((w) => !w.deleted);
+    expect(live.map((w) => [w.kind, w.day]).sort()).toEqual([['cardio', '2026-11-04'], ['musculacao', '2026-11-04']]);
+    expect((await db.xpEvents.toArray()).filter((x) => !x.deleted)).toEqual([]);
+  });
+
+  it('?bloco=: the minutes follow the block session live until the field is edited; 60 without a session', async () => {
+    const user = userEvent.setup();
+    await applyFiveDaySplit();
+    await addSet('2026-11-11', 'p0', { reps: 10 });
+    await put('blockSessions', newRecord<BlockSession>({
+      id: 'bs-b2-2026-11-11', blockId: 'b2', day: '2026-11-11', startedAt: at(11, 12, 30), version: 'normal',
+    }));
+    window.history.pushState(null, '', '/corpo/treino?bloco=b2');
+    const view = renderScreen();
+    const field = await screen.findByLabelText('Minutos de treino');
+    await waitFor(() => expect(field).toHaveValue(10));
+    vi.setSystemTime(at(11, 13, 25));
+    act(() => refreshNow());
+    await waitFor(() => expect(field).toHaveValue(55));
+    await user.clear(field);
+    await user.type(field, '50');
+    vi.setSystemTime(at(11, 13, 40));
+    act(() => refreshNow());
+    expect(field).toHaveValue(50);
+    view.unmount();
+    window.history.pushState(null, '', '/corpo/treino?bloco=outro');
+    renderScreen();
+    expect(await screen.findByLabelText('Minutos de treino')).toHaveValue(60);
   });
 
   it('sets and clears a "Como foi?" chip', async () => {
@@ -285,7 +361,7 @@ describe('bloco Treino do Agora', () => {
     await applyFiveDaySplit();
     render(<BodyBlockPanel occurrence={occurrence(11)} now={Date.now()} />);
     expect(await screen.findByText('Treino de hoje: Pernas')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Abrir treino' })).toHaveAttribute('href', '/corpo/treino?bloco=b2&min=10');
+    expect(screen.getByRole('link', { name: 'Abrir treino' })).toHaveAttribute('href', '/corpo/treino?bloco=b2');
   });
 
   it('shows the count once there is a log', async () => {

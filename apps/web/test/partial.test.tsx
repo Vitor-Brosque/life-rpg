@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLiveQuery } from 'dexie-react-hooks';
 import type { LifeEvent, Mission, Suggestion } from '@life/shared';
 import { latestResult } from '@life/shared';
 import { db } from '../src/db/db';
@@ -110,6 +111,32 @@ describe('Parcial in the interface', () => {
     expect(await screen.findByText('Parcial anotada. Guardada para amanhã.')).toBeInTheDocument();
     await waitFor(async () => expect(await db.missions.get(m.id)).toMatchObject({ status: 'open', date: '2026-11-12', postponeCount: 1 }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Parcial' })).not.toBeInTheDocument());
+  });
+
+  it('when "Parcial" leaves the main card, focus goes to the page heading (never <body>)', async () => {
+    const user = userEvent.setup();
+    const m = await createMission({ title: 'Parser', status: 'doing' });
+    function LiveCard() {
+      const live = useLiveQuery(() => db.missions.get(m.id), []);
+      return live?.status === 'doing' ? <MainCard suggestion={suggestionOf(live)} canSkip actions={noopActions} /> : null;
+    }
+    render(<><h1 tabIndex={-1} data-focus-target="page">Agora</h1><LiveCard /><PartialSheetHost /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Parcial' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Parcial' })).getByRole('button', { name: 'Amanhã' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Parcial' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Parcial' })).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Agora' })));
+  });
+
+  it('opened from the mission sheet (which closes), focus still lands on the page heading after saving', async () => {
+    const user = userEvent.setup();
+    const m = await createMission({ title: 'Em curso', status: 'doing' });
+    render(<><h1 tabIndex={-1} data-focus-target="page">Agora</h1><MissionSheetHost /><PartialSheetHost /><ToastHost /></>);
+    useMissionSheet.getState().open(m.id);
+    await user.click(await screen.findByRole('button', { name: 'Parcial' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Parcial' })).getByRole('button', { name: 'Mais tarde hoje' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Parcial' })).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Agora' })));
   });
 
   it('closing the sheet writes nothing', async () => {

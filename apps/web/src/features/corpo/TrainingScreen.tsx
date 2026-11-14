@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useSearch } from 'wouter';
 import type { CardioModality, DayKey, ExerciseSet, ID, TrainingExercise, TrainingLog, Workout } from '@life/shared';
 import {
@@ -6,7 +7,8 @@ import {
   lastSession, lastSessionText, parseSet, performedName, startTrainingLog, trainingDayOf,
 } from '@life/shared';
 import { useTrainingLog, useTrainingLogs, useTrainingPlan, useWorkouts } from '../../db/corpoData';
-import { useToday } from '../../db/hooks';
+import { db } from '../../db/db';
+import { useNow, useToday } from '../../db/hooks';
 import {
   TrainingValidationError, addExtraExercise, addSet, clearExerciseStatus, finishTraining, removeCardio, removeExtraExercise,
   removeSet, reopenTraining, replaceExercise, saveCardio, setTrainingFeel, skipExercise, undoFinishTraining, updateSet,
@@ -39,6 +41,20 @@ async function attempt(task: () => Promise<unknown>, onInvalid?: (message: strin
   }
 }
 
+const DEFAULT_TRAINING_MIN = 60;
+
+/** Minutes since "Começar bloco" for `?bloco=` (live, from the block session of the day); 60 without a session. */
+function useBlockMinutes(blockId: ID | undefined, day: DayKey | undefined): number {
+  const now = useNow();
+  const session = useLiveQuery(
+    async () => (blockId && day ? (await db.blockSessions.get(`bs-${blockId}-${day}`)) ?? null : null),
+    [blockId, day],
+  );
+  if (!session || session.deleted || session.startedAt === undefined) return DEFAULT_TRAINING_MIN;
+  const end = session.endedAt ?? now;
+  return Math.min(WORKOUT_MAX_MIN, Math.max(1, Math.round((end - session.startedAt) / 60_000)));
+}
+
 /** "/corpo/treino": the day's plan, sets, skipped/swapped, cardio and "Terminei" (spec Acompanhamento A). Nothing is written by opening it. */
 export function TrainingScreen() {
   const today = useToday();
@@ -50,8 +66,7 @@ export function TrainingScreen() {
   const logs = useTrainingLogs();
   const workouts = useWorkouts();
   const blockParam = search.get('bloco') ?? undefined;
-  const minParam = Number(search.get('min'));
-  const defaultMin = Number.isInteger(minParam) && minParam >= 1 && minParam <= WORKOUT_MAX_MIN ? minParam : 60;
+  const defaultMin = useBlockMinutes(blockParam, day);
 
   const loaded = day !== undefined && plan !== undefined && log !== undefined && logs !== undefined;
   const title = day === undefined || day === today ? 'Treino de hoje' : `Treino de ${shortDay(day)}`;
@@ -79,7 +94,7 @@ export function TrainingScreen() {
               return last ? lastSessionText(last) : undefined;
             })()} />
           ))}
-          {exercises.length > 0 || planName ? <AddExtra day={day} /> : null}
+          <AddExtra day={day} />
           <CardioSection day={day} log={log} others={(workouts ?? []).filter((w) => w.day === day && w.kind === 'cardio' && w.id !== log?.cardioWorkoutId)} />
           <Feel day={day} log={log} />
           <Footer day={day} log={log} defaultMin={defaultMin} blockId={blockParam} />
@@ -99,6 +114,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
   const [swapping, setSwapping] = useState(false);
   const [swapName, setSwapName] = useState('');
   const headingId = `training-ex-${e.id}`;
+  const swapToggle = useRef<HTMLButtonElement>(null);
   const name = e.name;
   const toHeading = () => document.getElementById(headingId);
 
@@ -112,18 +128,23 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
   const startEdit = (i: number, s: ExerciseSet) => {
     setEditing(i); setEditReps(String(s.reps)); setEditKg(s.kg !== undefined ? kgLabel(s.kg) : ''); setError(undefined);
   };
-  const saveEdit = (i: number) => {
+  const saveEdit = (i: number, control: Element) => {
     const set = parseSet(editReps, editKg);
     if (set === 'reps' || set === 'kg') { setError(SET_ISSUE_TEXT[set]); return; }
     setError(undefined);
+    focusWhenGone(control, toHeading);
     setEditing(undefined);
     void attempt(() => updateSet(day, e.id, i, set), setError);
   };
-  const saveSwap = (ev: FormEvent) => {
+  const saveSwap = (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     if (swapName.trim() === '') return;
+    const form = ev.currentTarget;
     void attempt(() => replaceExercise(day, e.id, swapName), setError).then((ok) => {
-      if (ok) { setSwapping(false); setSwapName(''); }
+      if (!ok) return;
+      // The form closes: focus goes back to the "Troquei por…" button that opened it.
+      focusWhenGone(form, () => swapToggle.current);
+      setSwapping(false); setSwapName('');
     });
   };
 
@@ -157,7 +178,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
                     <span className="field__label">Carga (kg)</span>
                     <input aria-label={`Carga da série ${i + 1} de ${name}`} inputMode="decimal" value={editKg} onChange={(ev) => setEditKg(ev.target.value)} />
                   </label>
-                  <Button size="sm" variant="primary" aria-label={`Salvar série ${i + 1} de ${name}`} onClick={() => saveEdit(i)}>Salvar</Button>
+                  <Button size="sm" variant="primary" aria-label={`Salvar série ${i + 1} de ${name}`} onClick={(ev) => saveEdit(i, ev.currentTarget)}>Salvar</Button>
                   <Button size="sm" variant="ghost" aria-label={`Cancelar edição da série ${i + 1} de ${name}`} onClick={() => { setEditing(undefined); setError(undefined); }}>Cancelar</Button>
                 </div>
               ) : (
@@ -193,7 +214,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
             Pulei
           </Button>
         )}
-        <Button size="sm" aria-expanded={swapping} aria-label={`Troquei ${name} por outro exercício`} onClick={() => setSwapping((v) => !v)}>Troquei por…</Button>
+        <Button ref={swapToggle} size="sm" aria-expanded={swapping} aria-label={`Troquei por… ${name}`} onClick={() => setSwapping((v) => !v)}>Troquei por…</Button>
         {state && e.sets.length === 0 && (
           <Button size="sm" variant="ghost" aria-label={`Desfazer ${state} de ${name}`}
             onClick={(ev) => { focusWhenGone(ev.currentTarget, toHeading); safeRun(clearExerciseStatus(day, e.id)); }}>
@@ -248,8 +269,9 @@ function CardioSection({ day, log, others }: { day: DayKey; log: TrainingLog | n
     setModality(cardio.modality); setMinutes(String(cardio.minutes)); setIntensity(cardio.intensity !== undefined ? String(cardio.intensity) : '');
     setError(undefined); setEditing(true);
   };
-  const submit = async (ev: FormEvent) => {
+  const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
+    const form = ev.currentTarget;
     setBusy(true);
     const ok = await attempt(async () => {
       const r = await saveCardio(day, {
@@ -258,12 +280,16 @@ function CardioSection({ day, log, others }: { day: DayKey; log: TrainingLog | n
       toast(r.created ? (r.xp > 0 ? `Cardio registrado · +${r.xp} XP` : 'Cardio registrado.') : 'Cardio atualizado.');
     }, setError);
     setBusy(false);
-    if (ok) { setEditing(false); setError(undefined); setMinutes(''); setIntensity(''); }
+    if (ok) {
+      // The form gives way to the saved cardio: focus goes to the section heading.
+      focusWhenGone(form, () => document.getElementById('training-cardio-title'));
+      setEditing(false); setError(undefined); setMinutes(''); setIntensity('');
+    }
   };
 
   return (
     <section className="training-cardio stack" aria-labelledby="training-cardio-title">
-      <h2 id="training-cardio-title" className="section-title">Cardio</h2>
+      <h2 id="training-cardio-title" className="section-title" tabIndex={-1}>Cardio</h2>
       {cardio && !editing ? (
         <div className="training-cardio__row">
           <span>{cardioText(cardio)}</span>
@@ -332,23 +358,31 @@ function Feel({ day, log }: { day: DayKey; log: TrainingLog | null | undefined }
   );
 }
 
+const FINISHED_ID = 'training-finished';
+
 function Footer({ day, log, defaultMin, blockId }: { day: DayKey; log: TrainingLog | null | undefined; defaultMin: number; blockId?: ID }) {
-  const [minutes, setMinutes] = useState(String(defaultMin));
+  // The default follows the block's live minutes until the field is edited.
+  const [typed, setTyped] = useState<string>();
+  const minutes = typed ?? String(defaultMin);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
   if (log?.finishedAt !== undefined) {
     return (
       <div className="training-footer">
-        <p>{`Treino encerrado às ${formatClock(log.finishedAt)}.`}</p>
+        <p id={FINISHED_ID} tabIndex={-1}>{`Treino encerrado às ${formatClock(log.finishedAt)}.`}</p>
         <Button onClick={(ev) => { focusWhenGone(ev.currentTarget); safeRun(reopenTraining(day)); }}>Reabrir</Button>
       </div>
     );
   }
-  const finish = async (ev: FormEvent) => {
+  // "Terminei o treino" once something was done: a set or an exercise outside the plan (the cardio has its own save).
+  if (!log?.exercises.some((x) => x.sets.length > 0 || x.extra)) return null;
+  const finish = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
+    const form = ev.currentTarget;
     setBusy(true);
     await attempt(async () => {
+      focusWhenGone(form, () => document.getElementById(FINISHED_ID));
       const r = await finishTraining(day, Number(minutes), blockId);
       const msg = r.created
         ? (r.xp > 0 ? `Treino registrado · +${r.xp} XP` : 'Treino registrado.')
@@ -363,7 +397,7 @@ function Footer({ day, log, defaultMin, blockId }: { day: DayKey; log: TrainingL
       <label className="field">
         <span className="field__label">Minutos de treino</span>
         <input type="number" inputMode="numeric" min={1} max={WORKOUT_MAX_MIN} value={minutes}
-          onChange={(ev) => { setMinutes(ev.target.value); setError(undefined); }} />
+          onChange={(ev) => { setTyped(ev.target.value); setError(undefined); }} />
       </label>
       <Button type="submit" variant="primary" disabled={busy}>Terminei o treino</Button>
       {error && <p role="alert" className="training__error">{error}</p>}

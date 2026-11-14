@@ -7,6 +7,7 @@ import { db } from '../../db/db';
 import { useToday } from '../../db/hooks';
 import { FIRST_STEP_MAX, type PartialWhen } from '../../domain/missionActions';
 import { Button } from '../../ui/Button';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { formatDay } from '../../ui/format';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
@@ -17,11 +18,22 @@ import '../agora/agora.css';
 
 interface PartialSheetStore { missionId?: string; open(id: string): void; close(): void }
 
+let opener: HTMLElement | null = null;
+
 /** Global opener of "Parcial" (the Agora card and the mission sheet). Mount `PartialSheetHost` once. */
 export const usePartialSheet = create<PartialSheetStore>((set) => ({
   missionId: undefined,
-  open: (id) => set({ missionId: id }),
-  close: () => set({ missionId: undefined }),
+  open: (id) => {
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    set({ missionId: id });
+  },
+  close: () => {
+    // The "Parcial" button is usually gone by then (the mission left the card, or the mission sheet closed):
+    // focus must not fall on <body>.
+    focusWhenGone(opener);
+    opener = null;
+    set({ missionId: undefined });
+  },
 }));
 
 /** "Parcial": a started mission stays open; what came out is noted and it comes back later. Not a postponement. */

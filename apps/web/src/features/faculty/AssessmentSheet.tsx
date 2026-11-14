@@ -40,7 +40,9 @@ function AssessmentForm({ onClose, subjects, today, journeyId }: Omit<Assessment
     setBusy(true);
     try {
       const m = await createAssessment({ kind, journeyId: subject, date, content });
-      useToast.getState().show(`${m.title} guardada para ${formatDay(date, today)}.`);
+      // "Prova de Cálculo II em qui 03/12." · "… amanhã." (no gendered word: prova and trabalho alike)
+      const when = formatDay(date, today);
+      useToast.getState().show(when === 'hoje' || when === 'amanhã' ? `${m.title} ${when}.` : `${m.title} em ${when}.`);
       onClose();
     } catch (err) {
       if (err instanceof FacultyValidationError) setError(err.message);

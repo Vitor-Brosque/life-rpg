@@ -67,7 +67,7 @@ export function TrainingToday() {
         ))}
       </ul>
       <div className="body-block__actions">
-        <Link href="/corpo/treino" className="body-card__link">Registrar o treino</Link>
+        <Link href="/corpo/treino" className="body-card__link">Abrir o treino de hoje</Link>
         <Link href="/corpo/plano" className="body-card__link">Editar plano</Link>
       </div>
     </div>

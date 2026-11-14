@@ -49,19 +49,22 @@ describe('sugestão no bloco Faculdade', () => {
     expect((await db.dayState.get('2026-11-11'))?.subjectPicks).toBeUndefined();
   });
 
-  it('"Trocar sugestão" percorre a lista em ciclo', async () => {
+  it('"Trocar sugestão" percorre a lista em ciclo; a nova sugestão é anunciada e o foco fica em Trocar', async () => {
     const user = userEvent.setup();
     renderAgora();
     const card = await suggestion();
-    await user.click(within(card).getByRole('button', { name: 'Trocar sugestão' }));
-    expect(await within(card).findByText('Banco de Dados — Aula hoje à noite')).toBeInTheDocument();
+    const trocar = within(card).getByRole('button', { name: 'Trocar sugestão' });
+    await user.click(trocar);
+    const title = await within(card).findByText('Banco de Dados — Aula hoje à noite');
+    expect(title.closest('[aria-live="polite"]')).not.toBeNull();
+    expect(document.activeElement).toBe(trocar);
     await user.click(within(card).getByRole('button', { name: 'Trocar sugestão' }));
     expect(await within(card).findByText('Matemática Discreta — Revisar a aula de ontem')).toBeInTheDocument();
     await user.click(within(card).getByRole('button', { name: 'Trocar sugestão' }));
     expect(await within(card).findByText(`${PROB} — Prova em 5 dias`)).toBeInTheDocument();
   });
 
-  it('"Usar" grava a escolha, mostra a próxima missão e a põe no cartão principal; "Escolher outra" desfaz', async () => {
+  it('"Usar" grava a escolha e põe a próxima missão no cartão principal (sem repetir a linha); "Escolher outra" desfaz', async () => {
     const user = userEvent.setup();
     renderAgora();
     const card = await suggestion();
@@ -70,15 +73,30 @@ describe('sugestão no bloco Faculdade', () => {
     expect(await db.dayState.get('2026-11-11')).toMatchObject({ subjectPicks: { b3: await idOf(PROB) } });
     expect(await screen.findByText('Bloco com Redes de Computadores.')).toBeInTheDocument();
     expect(within(picked).getByText(PROB)).toBeInTheDocument();
-    expect(within(picked).getByText('Próxima missão: Lista 3')).toBeInTheDocument();
     const main = await screen.findByRole('region', { name: 'Missão agora' });
     expect(within(main).getByText('Lista 3')).toBeInTheDocument();
+    // The main card already shows it: no "Próxima missão" line.
+    expect(within(picked).queryByText('Próxima missão: Lista 3')).not.toBeInTheDocument();
     expect(document.activeElement).not.toBe(document.body);
 
     await user.click(within(picked).getByRole('button', { name: 'Escolher outra' }));
     expect(await screen.findByRole('region', { name: 'Sugestão para este bloco' }, SLOW)).toBeInTheDocument();
     expect((await db.dayState.get('2026-11-11'))?.subjectPicks).toEqual({});
     expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('com outra missão no cartão principal ("Outra"), a linha "Próxima missão" volta', async () => {
+    const user = userEvent.setup();
+    await createMission({ title: 'Ler artigo', date: '2026-11-11' });
+    renderAgora();
+    const card = await suggestion();
+    await user.click(within(card).getByRole('button', { name: 'Usar' }));
+    const picked = await screen.findByRole('region', { name: 'Disciplina deste bloco' }, SLOW);
+    const main = await screen.findByRole('region', { name: 'Missão agora' });
+    await waitFor(() => expect(within(main).getByText('Lista 3')).toBeInTheDocument());
+    await user.click(within(main).getByRole('button', { name: /Outra/ }));
+    await waitFor(() => expect(within(main).getByText('Ler artigo')).toBeInTheDocument());
+    expect(await within(picked).findByText('Próxima missão: Lista 3')).toBeInTheDocument();
   });
 
   it('disciplina sem missão: "Sem missão aberta" e "Registrar exercícios" abre a folha', async () => {

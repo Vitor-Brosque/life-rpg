@@ -109,7 +109,8 @@ export function AgoraNow({
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
           blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
-        <SubjectSuggestion current={current} today={today} />
+        <SubjectSuggestion current={current} today={today}
+          mainMissionId={current.block.kind !== 'routine' ? primary?.mission.id : undefined} />
         {showReview || showPractice ? (
           <BlockNudges mode={mode} current={current} focus={focus} showReview={showReview} showPractice={showPractice}>
             {current.block.kind !== 'routine' && main}

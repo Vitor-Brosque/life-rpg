@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import type { DayKey } from '@life/shared';
 import type { SleepQuality } from '@life/shared';
 import { SLEEP_QUALITIES, SLEEP_QUALITY_LABEL, sleepMinutes, sleepPrompt } from '@life/shared';
@@ -37,10 +37,16 @@ async function tapWake(night: DayKey): Promise<boolean> {
   return true;
 }
 
-/** "Como foi o sono?" after "Acordei": optional, one tap, "Pular" leaves it blank. */
+/**
+ * "Como foi o sono?" after "Acordei": optional, one tap, "Pular" leaves it blank. It takes the place of the row
+ * whose button was tapped, so focus goes to the question (announced); after an answer, to the screen heading.
+ */
 function QualityPrompt({ night, onDone }: { night: DayKey; onDone(): void }) {
-  const pick = (q: SleepQuality) => {
-    onDone();
+  const question = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => { question.current?.focus(); }, []);
+  const done = (e: MouseEvent<HTMLButtonElement>) => { focusWhenGone(e.currentTarget); onDone(); };
+  const pick = (q: SleepQuality) => (e: MouseEvent<HTMLButtonElement>) => {
+    done(e);
     safeRun(async () => {
       await setSleepQuality(night, q);
       toast(`Sono anotado: ${SLEEP_QUALITY_LABEL[q].toLocaleLowerCase('pt-BR')}.`);
@@ -49,12 +55,12 @@ function QualityPrompt({ night, onDone }: { night: DayKey; onDone(): void }) {
   return (
     <div className="care-row care-row--quality" role="group" aria-label="Qualidade do sono">
       <Icon name="moon" size={24} className="care-row__icon" />
-      <span className="care-row__text">Como foi o sono?</span>
+      <span ref={question} className="care-row__text" tabIndex={-1}>Como foi o sono?</span>
       <span className="care-row__actions">
         {SLEEP_QUALITIES.map((q) => (
-          <Button key={q} size="sm" aria-label={`${q} de 5: ${SLEEP_QUALITY_LABEL[q]}`} onClick={() => pick(q)}>{q}</Button>
+          <Button key={q} size="sm" aria-label={`${q} de 5: ${SLEEP_QUALITY_LABEL[q]}`} onClick={pick(q)}>{q}</Button>
         ))}
-        <Button size="sm" variant="ghost" onClick={onDone}>Pular</Button>
+        <Button size="sm" variant="ghost" onClick={done}>Pular</Button>
       </span>
       <span className="care-row__hint muted">1 = muito ruim · 5 = muito bom</span>
     </div>

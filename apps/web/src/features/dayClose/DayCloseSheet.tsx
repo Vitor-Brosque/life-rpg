@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type MouseEvent } from 'react';
 import type { DayCloseSummary, DayKey, DayState, Mission, Tiredness } from '@life/shared';
 import {
   BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, CLOSE_NOTE_MAX, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays,
@@ -8,6 +8,7 @@ import { rescheduleMission } from '../../domain/actions';
 import { closeDay } from '../../domain/dayCloseActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
+import { focusWhenGone } from '../../ui/focusAfter';
 import { formatClock, formatDuration, plural } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
@@ -63,7 +64,7 @@ function Observed({ summary }: { summary: DayCloseSummary }) {
   const hasBlocks = summary.blocks.length > 0;
   return (
     <section className="day-close" aria-labelledby="day-close-observed">
-      <h3 id="day-close-observed">Observado</h3>
+      <h3 id="day-close-observed" tabIndex={-1}>Observado</h3>
       {!hasBlocks && <p className="day-close__line">Nenhum bloco planejado hoje.</p>}
       {lines.map((l) => <p key={l} className="day-close__line">{l}</p>)}
       {hasBlocks && (
@@ -88,6 +89,9 @@ function Observed({ summary }: { summary: DayCloseSummary }) {
   );
 }
 
+const pendingTarget = (): HTMLElement | null =>
+  document.getElementById('day-close-pending') ?? document.getElementById('day-close-observed');
+
 function PendingItem({ mission, today, onHandled, onUnhandled }: {
   mission: Mission; today: DayKey; onHandled(id: string): void; onUnhandled(id: string): void;
 }) {
@@ -96,8 +100,10 @@ function PendingItem({ mission, today, onHandled, onUnhandled }: {
   const [date, setDate] = useState(tomorrow);
   const titleId = useId();
 
-  // Decided at the tap (the row leaves right away); a failed write brings it back.
-  const act = (fn: () => Promise<unknown>) => () => {
+  // Decided at the tap (the row leaves right away); a failed write brings it back. The row's controls go
+  // with it: focus moves to "Pendências de hoje", or to "Observado" when it was the last one.
+  const act = (fn: () => Promise<unknown>) => (e: MouseEvent<HTMLElement>) => {
+    focusWhenGone(e.currentTarget, pendingTarget);
     onHandled(mission.id);
     safeRun(async () => {
       try {
@@ -111,32 +117,38 @@ function PendingItem({ mission, today, onHandled, onUnhandled }: {
   const moveTo = (day: DayKey) => act(() => rescheduleMission(mission.id, day));
   const drop = (reason?: string) => act(() => dropWithFeedback(mission.id, reason, () => onUnhandled(mission.id)));
 
+  const title = mission.title;
   return (
-    <li className="day-close__item" role="group" aria-labelledby={titleId}>
-      <span id={titleId} className="day-close__item-title">{mission.title}</span>
-      <div className="day-close__row-actions">
-        <Button size="sm" onClick={moveTo(tomorrow)}>Amanhã</Button>
-        <Button size="sm" aria-expanded={mode === 'pick'} onClick={() => setMode(mode === 'pick' ? undefined : 'pick')}>
-          Escolher dia
-        </Button>
-        <Button size="sm" variant="ghost" aria-expanded={mode === 'drop'} onClick={() => setMode(mode === 'drop' ? undefined : 'drop')}>
-          Soltar
-        </Button>
+    <li className="day-close__item">
+      <div role="group" aria-labelledby={titleId}>
+        <span id={titleId} className="day-close__item-title">{title}</span>
+        <div className="day-close__row-actions">
+          <Button size="sm" aria-label={`Amanhã: ${title}`} onClick={moveTo(tomorrow)}>Amanhã</Button>
+          <Button size="sm" aria-label={`Escolher dia para ${title}`} aria-expanded={mode === 'pick'}
+            onClick={() => setMode(mode === 'pick' ? undefined : 'pick')}>
+            Escolher dia
+          </Button>
+          <Button size="sm" variant="ghost" aria-label={`Soltar ${title}`} aria-expanded={mode === 'drop'}
+            onClick={() => setMode(mode === 'drop' ? undefined : 'drop')}>
+            Soltar
+          </Button>
+        </div>
+        {mode === 'pick' && (
+          <div className="day-close__extra">
+            <input type="date" aria-label={`Novo dia para ${title}`} value={date} min={tomorrow}
+              onChange={(e) => setDate(e.target.value)} />
+            <Button size="sm" variant="primary" aria-label={`Mover ${title}`} disabled={!date || date < tomorrow}
+              onClick={moveTo(date)}>Mover</Button>
+          </div>
+        )}
+        {mode === 'drop' && (
+          <div className="day-close__extra" role="group" aria-labelledby={`${titleId}-reason`}>
+            <span id={`${titleId}-reason`} className="day-close__extra-label">Motivo (opcional):</span>
+            {DROP_REASONS.map((r) => <Chip key={r} aria-label={`${r} — soltar ${title}`} onClick={drop(r)}>{r}</Chip>)}
+            <Chip aria-label={`só soltar ${title}`} onClick={drop()}>só soltar</Chip>
+          </div>
+        )}
       </div>
-      {mode === 'pick' && (
-        <div className="day-close__extra">
-          <input type="date" aria-label={`Novo dia para ${mission.title}`} value={date} min={tomorrow}
-            onChange={(e) => setDate(e.target.value)} />
-          <Button size="sm" variant="primary" disabled={!date || date < tomorrow} onClick={moveTo(date)}>Mover</Button>
-        </div>
-      )}
-      {mode === 'drop' && (
-        <div className="day-close__extra" role="group" aria-labelledby={`${titleId}-reason`}>
-          <span id={`${titleId}-reason`} className="day-close__extra-label">Motivo (opcional):</span>
-          {DROP_REASONS.map((r) => <Chip key={r} onClick={drop(r)}>{r}</Chip>)}
-          <Chip onClick={drop()}>só soltar</Chip>
-        </div>
-      )}
     </li>
   );
 }
@@ -176,7 +188,7 @@ function DayCloseForm({ today, summary, state, onClose }: {
       <Observed summary={summary} />
       {pending.length > 0 && (
         <section className="day-close" aria-labelledby="day-close-pending">
-          <h3 id="day-close-pending">Pendências de hoje</h3>
+          <h3 id="day-close-pending" tabIndex={-1}>Pendências de hoje</h3>
           <p className="day-close__hint">Amanhã, outro dia ou soltar — você escolhe.</p>
           <ul className="day-close__pending">
             {pending.map((m) => <PendingItem key={m.id} mission={m} today={today} onHandled={mark} onUnhandled={unmark} />)}

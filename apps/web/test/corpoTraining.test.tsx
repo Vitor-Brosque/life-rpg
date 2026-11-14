@@ -55,7 +55,8 @@ describe('Corpo: treino de hoje', () => {
     renderAt('/corpo', <CorpoScreen />);
     expect(await screen.findByText('Agachamento livre — feito (2 séries)')).toBeInTheDocument();
     expect(screen.getByText('Cadeira extensora — trocado por Afundo')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Registrar o treino' })).toHaveAttribute('href', '/corpo/treino');
+    expect(screen.getByRole('link', { name: 'Abrir o treino de hoje' })).toHaveAttribute('href', '/corpo/treino');
+    expect(screen.queryByRole('link', { name: 'Registrar o treino' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Editar plano' })).toHaveAttribute('href', '/corpo/plano');
   });
 

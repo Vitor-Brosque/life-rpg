@@ -27,31 +27,34 @@ const strip = () => <><CareStrip now={Date.now()} inCommitment={false} /><ToastH
 const NIGHT = 'sleep-2026-11-13';
 
 describe('qualidade do sono', () => {
-  it('after "Acordei" asks how it was; a tap saves the quality and thanks', async () => {
+  it('after "Acordei" asks how it was (focus on the question); a tap saves the quality and thanks', async () => {
     const user = userEvent.setup();
     await logBedtime('2026-11-13');
     vi.setSystemTime(at(14, 7, 10));
-    render(strip());
+    render(<><h1 tabIndex={-1} data-focus-target="page">Agora</h1>{strip()}</>);
     await user.click(await screen.findByRole('button', { name: 'Acordei' }));
     const group = await screen.findByRole('group', { name: 'Qualidade do sono' });
-    expect(within(group).getByText('Como foi o sono?')).toBeInTheDocument();
+    const question = within(group).getByText('Como foi o sono?');
+    await waitFor(() => expect(document.activeElement).toBe(question));
     expect(within(group).getByText('1 = muito ruim · 5 = muito bom')).toBeInTheDocument();
     await user.click(within(group).getByRole('button', { name: '4 de 5: Bom' }));
     await waitFor(async () => expect((await db.sleepLogs.get(NIGHT))!.quality).toBe(4));
     expect(screen.getByRole('status')).toHaveTextContent('Sono anotado: bom.');
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Qualidade do sono' })).not.toBeInTheDocument());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Agora' })));
   });
 
-  it('"Pular" hides the question without writing', async () => {
+  it('"Pular" hides the question without writing; focus goes to the page heading', async () => {
     const user = userEvent.setup();
     await logBedtime('2026-11-13');
     vi.setSystemTime(at(14, 7, 10));
-    render(strip());
+    render(<><h1 tabIndex={-1} data-focus-target="page">Agora</h1>{strip()}</>);
     await user.click(await screen.findByRole('button', { name: 'Acordei' }));
     const group = await screen.findByRole('group', { name: 'Qualidade do sono' });
     await user.click(within(group).getByRole('button', { name: 'Pular' }));
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Qualidade do sono' })).not.toBeInTheDocument());
     expect((await db.sleepLogs.get(NIGHT))!.quality).toBeUndefined();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Agora' })));
   });
 
   it('the night sheet has an optional quality select', async () => {

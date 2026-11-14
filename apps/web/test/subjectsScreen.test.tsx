@@ -24,7 +24,7 @@ const journey = (id: string, title: string, order = 0) =>
 describe('SubjectsScreen', () => {
   it('empty: explains when subjects appear', async () => {
     render(<SubjectsScreen />);
-    expect(await screen.findByText('As matérias aparecem quando um baralho ou uma sessão de prática estiver ligado a uma jornada.')).toBeInTheDocument();
+    expect(await screen.findByText('As matérias aparecem quando você cadastra uma disciplina, ou quando um baralho ou uma sessão de prática está ligado a uma jornada.')).toBeInTheDocument();
   });
 
   it('journey card: observed lines, progress bar with text alternative, links', async () => {

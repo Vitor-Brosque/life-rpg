@@ -27,7 +27,8 @@ export function BodyBlockPanel({ occurrence, now }: { occurrence: BlockOccurrenc
   const entry = trainingDayOf(plan ?? undefined, occurrence.day);
   const counts = trainingLog ? trainingCounts(trainingLog) : undefined;
   const planned = trainingLog?.planName ?? entry?.name;
-  const openHref = `/corpo/treino?bloco=${blockId}${elapsed !== undefined ? `&min=${elapsed}` : ''}`;
+  // Only the block: the training screen counts the minutes live from the block session (never stale).
+  const openHref = `/corpo/treino?bloco=${blockId}`;
 
   return (
     <div className="block-banner__group body-block" role="group" aria-label="Treino de hoje">

@@ -10,6 +10,7 @@ import {
 import { rescheduleMission, updateMission } from '../src/domain/missionActions';
 import { ProblemSetSheetHost } from '../src/features/faculty/ProblemSetSheet';
 import { useSemesterCard } from '../src/features/faculty/SemesterCard';
+import { AssessmentSheet } from '../src/features/faculty/AssessmentSheet';
 import { SubjectDetailScreen } from '../src/features/faculty/SubjectDetailScreen';
 import { MissionSheetHost } from '../src/features/mission/MissionSheet';
 import { SubjectsScreen } from '../src/features/study/SubjectsScreen';
@@ -187,6 +188,43 @@ describe('SubjectDetailScreen', () => {
     render(<SubjectDetailScreen id="nada" />);
     expect(await screen.findByText('Disciplina não encontrada.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '← Matérias' })).toHaveAttribute('href', '/estudo/materias');
+  });
+});
+
+describe('Nova prova ou trabalho', () => {
+  it('pede a data, salva e avisa com o dia; sem disciplina, pede a disciplina', async () => {
+    await setupSemester([...SEMESTER_GRADE]);
+    const user = userEvent.setup();
+    const view = render(<><SubjectsScreen /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Nova prova ou trabalho' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Nova prova ou trabalho' });
+    await user.click(within(sheet).getByRole('radio', { name: 'Trabalho' }));
+    await user.selectOptions(within(sheet).getByLabelText('Disciplina'), 'Matemática Discreta');
+    await user.click(within(sheet).getByRole('button', { name: 'Salvar' }));
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Escolha a data.');
+    await user.type(within(sheet).getByLabelText('Data'), '2026-12-03');
+    await user.click(within(sheet).getByRole('button', { name: 'Salvar' }));
+    expect(await screen.findByText('Trabalho de Matemática Discreta em qui 03/12.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nova prova ou trabalho' })).not.toBeInTheDocument());
+    const m = (await db.missions.toArray()).find((x) => x.assessment === 'trabalho');
+    expect(m).toMatchObject({ title: 'Trabalho de Matemática Discreta', date: '2026-12-03', deadline: '2026-12-03' });
+    view.unmount();
+
+    render(<AssessmentSheet open onClose={() => {}} subjects={[]} today="2026-11-13" />);
+    const empty = await screen.findByRole('dialog', { name: 'Nova prova ou trabalho' });
+    await user.click(within(empty).getByRole('button', { name: 'Salvar' }));
+    expect(await within(empty).findByRole('alert')).toHaveTextContent('Escolha a disciplina.');
+  });
+
+  it('amanhã: o aviso diz "amanhã", sem "em"', async () => {
+    await setupSemester([...SEMESTER_GRADE]);
+    const user = userEvent.setup();
+    render(<><SubjectsScreen /><ToastHost /></>);
+    await user.click(await screen.findByRole('button', { name: 'Nova prova ou trabalho' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Nova prova ou trabalho' });
+    await user.type(within(sheet).getByLabelText('Data'), '2026-11-14');
+    await user.click(within(sheet).getByRole('button', { name: 'Salvar' }));
+    expect(await screen.findByText('Prova de Estruturas de Dados amanhã.')).toBeInTheDocument();
   });
 });
 

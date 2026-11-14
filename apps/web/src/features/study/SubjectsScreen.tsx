@@ -66,7 +66,7 @@ export function SubjectsScreen() {
       </div>
       {disciplines.length === 0 && !hideCard && <SemesterCard data={faculty} />}
       {subjects.length === 0 ? (
-        <Panel variant="stone"><p className="muted">As matérias aparecem quando um baralho ou uma sessão de prática estiver ligado a uma jornada.</p></Panel>
+        <Panel variant="stone"><p className="muted">As matérias aparecem quando você cadastra uma disciplina, ou quando um baralho ou uma sessão de prática está ligado a uma jornada.</p></Panel>
       ) : subjects.map((s) => (
         <SubjectCard key={`${s.kind}-${s.id}`} subject={s} deckName={deckName} deckCards={deckCards}
           faculty={s.kind === 'journey' && subjectIds.has(s.id) ? faculty : undefined} />
