@@ -80,6 +80,17 @@ describe('desiredStudyReminders', () => {
     expect(out[0]).toEqual({ tag: 'study:2026-11-12', at: at(12, 18), title: 'LIFE RPG', body: 'Revisão de hoje: 12 cards, uns 4 min.' });
     expect(out[1]).toEqual({ tag: 'study:2026-11-13', at: at(13, 18), title: 'LIFE RPG', body: 'Revisão de hoje: há cards esperando.' });
   });
+  it('um card só fica no singular', () => {
+    expect(desiredStudyReminders({ ...base, remaining: { count: 1, minutes: 2 } })[0]!.body).toBe('Revisão de hoje: 1 card, uns 2 min.');
+  });
+  it('um dia livre (fim de semana) não recebe lembrete futuro, mesmo sem restDays', () => {
+    const out = desiredStudyReminders({
+      ...base, study: { ...study, restDays: [0] }, today: '2026-11-13', now: at(13, 10),
+      forecast: [{ day: '2026-11-14', min: 4 }, { day: '2026-11-16', min: 4 }],
+    });
+    expect(tags(out)).not.toContain('study:2026-11-14');
+    expect(tags(out)).toContain('study:2026-11-16');
+  });
   it('a free day today has no reminder (the other days stay)', () => {
     expect(tags(desiredStudyReminders({ ...base, mode: 'free' }))).not.toContain('study:2026-11-12');
     expect(tags(desiredStudyReminders({ ...base, mode: 'free' }))).toContain('study:2026-11-13');

@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Commitment, DayKey, DayMode, SleepLog, SleepSettings, StudyInput, StudySettings } from '@life/shared';
 import {
-  addDays, logicalTimestamp, occurrencesOn, remainingOf, sleepNightOf, sleepSettingsOf, studyPlan, studySettingsOf, weekdayOf,
+  addDays, defaultDayMode, logicalTimestamp, occurrencesOn, remainingOf, sleepNightOf, sleepSettingsOf, studyPlan, studySettingsOf, weekdayOf,
 } from '@life/shared';
 import { db } from '../../db/db';
 import { useDayMode, useSettings, useToday } from '../../db/hooks';
 import { getMeta, setMeta } from '../../db/repo';
 import { readStudyData } from '../../db/studyData';
 import { cancelPush, schedulePush } from '../../timer/push';
+import { plural } from '../../ui/format';
 
 // Commitment reminders are server pushes (they must arrive with the app closed). The device
 // keeps the list it scheduled in meta 'scheduledReminders' and only sends what changed.
@@ -184,6 +185,8 @@ export function useWindDownReminders(): void {
 
 const STUDY_META = 'scheduledStudy';
 const STUDY_DAYS = 7;
+/** Answering cards changes the plan on every rating: the push sync waits for a quiet moment. (Mutable only for tests.) */
+export const studySync = { debounceMs: 3000 };
 export const STUDY_BODY_LATER = 'Revisão de hoje: há cards esperando.';
 
 export interface StudyReminderInput {
@@ -216,8 +219,9 @@ export function desiredStudyReminders(p: StudyReminderInput): ScheduledReminder[
     let body: string;
     if (i === 0) {
       if (p.mode === 'free' || p.goalMet || p.remaining.count <= 0) continue;
-      body = `Revisão de hoje: ${p.remaining.count} cards, uns ${p.remaining.minutes} min.`;
+      body = `Revisão de hoje: ${plural(p.remaining.count, 'card', 'cards')}, uns ${p.remaining.minutes} min.`;
     } else {
+      if (defaultDayMode(day) === 'free') continue;
       if (!((p.forecast.find((f) => f.day === day)?.min ?? 0) > 0)) continue;
       body = STUDY_BODY_LATER;
     }
@@ -253,17 +257,20 @@ export function useStudyReminders(): void {
     const study = studySettingsOf(settings);
     const now = Date.now();
     const base = { study, today, now, mode, dayStartHour: settings.dayStartHour };
+    let input: StudyReminderInput;
     if (!study.reminderAt) {
-      void syncStudyReminders({ ...base, goalMet: false, remaining: { count: 0, minutes: 0 }, forecast: [] });
-      return;
+      input = { ...base, goalMet: false, remaining: { count: 0, minutes: 0 }, forecast: [] };
+    } else {
+      if (!loaded || loaded.today !== today) return;
+      const studyInput: StudyInput = {
+        cards: loaded.data.cards, reviews: loaded.data.reviews, deckOrder: loaded.data.deckOrder,
+        settings: study, mode, today, now, dayStartHour: settings.dayStartHour,
+      };
+      const plan = studyPlan(studyInput);
+      input = { ...base, goalMet: plan.goalMet, remaining: remainingOf(studyInput, plan), forecast: plan.forecast };
     }
-    if (!loaded || loaded.today !== today) return;
-    const input: StudyInput = {
-      cards: loaded.data.cards, reviews: loaded.data.reviews, deckOrder: loaded.data.deckOrder,
-      settings: study, mode, today, now, dayStartHour: settings.dayStartHour,
-    };
-    const plan = studyPlan(input);
-    void syncStudyReminders({ ...base, goalMet: plan.goalMet, remaining: remainingOf(input, plan), forecast: plan.forecast });
+    const timer = setTimeout(() => { void syncStudyReminders(input); }, studySync.debounceMs);
+    return () => clearTimeout(timer);
   }, [settings, today, mode, loaded, tokenTick]);
 }
 

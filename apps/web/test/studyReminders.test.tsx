@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/db/db';
 import { ensureSeed } from '../src/db/seed';
 import { rateCard, saveDeck, saveNote, saveStudySettings } from '../src/domain/studyActions';
-import { useStudyReminders } from '../src/features/reminders/reminders';
+import { studySync, useStudyReminders } from '../src/features/reminders/reminders';
 import { StudyPrefsSheet } from '../src/features/study/StudyPrefsSheet';
 
 const push = vi.hoisted(() => ({ schedulePush: vi.fn(async () => true), cancelPush: vi.fn(async () => true) }));
@@ -13,6 +13,7 @@ vi.mock('../src/timer/push', () => push);
 function Harness() { useStudyReminders(); return null; }
 
 beforeEach(async () => {
+  studySync.debounceMs = 0;
   push.schedulePush.mockClear(); push.cancelPush.mockClear();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 12, 10, 0)); // Thursday
@@ -55,6 +56,22 @@ describe('study reminder scheduling', () => {
     await vi.waitFor(() => expect(scheduled().map((c) => c[0])).toContain('study:2026-11-12'));
     for (const id of ids.slice(0, 5)) await rateCard(id, 3, { durationMs: 60_000, wrote: false });
     await vi.waitFor(() => expect(push.cancelPush).toHaveBeenCalledWith('study:2026-11-12'));
+  });
+});
+
+describe('study reminder debounce', () => {
+  it('várias respostas seguidas reagendam o lembrete de hoje uma vez só', async () => {
+    const ids = await cards(8);
+    await saveStudySettings({ budgetMin: 30, reminderAt: '18:00' });
+    render(<Harness />);
+    await vi.waitFor(() => expect(scheduled().map((c) => c[0])).toContain('study:2026-11-12'));
+    studySync.debounceMs = 300;
+    push.schedulePush.mockClear();
+    for (const id of ids.slice(0, 4)) await rateCard(id, 3, { durationMs: 1000, wrote: false });
+    expect(push.schedulePush).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(scheduled().filter((c) => c[0] === 'study:2026-11-12')).toHaveLength(1), { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 500));
+    expect(scheduled().filter((c) => c[0] === 'study:2026-11-12')).toHaveLength(1);
   });
 });
 
