@@ -119,8 +119,8 @@ function PendingItem({ mission, today, onHandled, onUnhandled }: {
 
   const title = mission.title;
   return (
-    <li className="day-close__item">
-      <div role="group" aria-labelledby={titleId}>
+    <li>
+      <div className="day-close__item" role="group" aria-labelledby={titleId}>
         <span id={titleId} className="day-close__item-title">{title}</span>
         <div className="day-close__row-actions">
           <Button size="sm" aria-label={`Amanhã: ${title}`} onClick={moveTo(tomorrow)}>Amanhã</Button>

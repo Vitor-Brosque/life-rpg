@@ -27,8 +27,8 @@ async function attempt(fn: () => Promise<void>, setError: (m: string | undefined
 const backTo = (form: HTMLFormElement, toggle: RefObject<HTMLButtonElement | null>): void =>
   focusWhenGone(form, () => toggle.current);
 
-function TimesForm({ name, initial, submit, note, onDone }: {
-  name: string; initial: { start: string; end: string }; submit: string; note?: string;
+function TimesForm({ name, initial, submit, submitLabel, note, onDone }: {
+  name: string; initial: { start: string; end: string }; submit: string; submitLabel: string; note?: string;
   onDone(start: string, end: string, form: HTMLFormElement): Promise<void>;
 }) {
   const [start, setStart] = useState(initial.start);
@@ -44,7 +44,7 @@ function TimesForm({ name, initial, submit, note, onDone }: {
     }}>
       <label><span>Início</span><input type="time" aria-label={`Início de ${name}`} value={start} onChange={(e) => setStart(e.target.value)} /></label>
       <label><span>Fim</span><input type="time" aria-label={`Fim de ${name}`} value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-      <Button type="submit" size="sm" variant="primary" aria-label={`${submit} ${submit === 'Registrar' ? name : `de ${name}`}`} disabled={busy}>{submit}</Button>
+      <Button type="submit" size="sm" variant="primary" aria-label={submitLabel} disabled={busy}>{submit}</Button>
       {note && <p className="day-close__hint">{note}</p>}
       {error && <p role="alert" className="day-close__error">{error}</p>}
     </form>
@@ -69,9 +69,10 @@ function BlockFix({ row }: { row: CloseBlockRow }) {
         </Button>
       </div>
       {open && (started
-        ? <TimesForm name={row.name} initial={times} submit="Salvar horário"
+        ? <TimesForm name={row.name} initial={times} submit="Salvar horário" submitLabel={`Salvar horário de ${row.name}`}
             onDone={async (s, e, form) => { await correctBlockTimes(row.blockId, s, e); backTo(form, toggle); setOpen(false); }} />
-        : <TimesForm name={row.name} initial={times} submit="Registrar" note="Fica marcado como registrado depois e não dá XP."
+        : <TimesForm name={row.name} initial={times} submit="Registrar" submitLabel={`Registrar ${row.name}`}
+            note="Fica marcado como registrado depois e não dá XP."
             onDone={async (s, e, form) => { await retroBlock(row.blockId, s, e); backTo(form, toggle); setOpen(false); }} />)}
     </li>
   );
