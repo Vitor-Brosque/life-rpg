@@ -137,11 +137,14 @@ export async function setDayMode(mode: DayMode): Promise<void> {
   const startedAt = (existing && !existing.deleted ? existing.startedAt : undefined) ?? Date.now();
   await upsertDayState(today, { mode, startedAt, hardDay: mode === 'low' || mode === 'recovery' });
 
-  const startHour = (await db.settings.get('settings'))?.dayStartHour ?? 4;
-  const level = MODE_ENERGY[mode];
-  const logs = await db.energyLogs.orderBy('at').reverse().filter((l) => !l.deleted).toArray();
-  const latest = logs.find((l) => dayKeyOf(l.at, startHour) === today);
-  if (latest?.level !== level) await put('energyLogs', newRecord<EnergyLog>({ at: Date.now(), level }));
+  // Two quick taps must not both see "no log yet" and write the same level twice.
+  await withLock('energy', async () => {
+    const startHour = (await db.settings.get('settings'))?.dayStartHour ?? 4;
+    const level = MODE_ENERGY[mode];
+    const logs = await db.energyLogs.orderBy('at').reverse().filter((l) => !l.deleted).toArray();
+    const latest = logs.find((l) => dayKeyOf(l.at, startHour) === today);
+    if (latest?.level !== level) await put('energyLogs', newRecord<EnergyLog>({ at: Date.now(), level }));
+  });
 }
 
 export const startBlock = (blockId: ID): Promise<{ xp: number; resumption: boolean }> =>

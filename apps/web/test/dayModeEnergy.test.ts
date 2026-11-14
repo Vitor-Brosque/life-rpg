@@ -38,6 +38,11 @@ describe('day type sets the day energy', () => {
     expect(await levels()).toEqual(['low']);
   });
 
+  it('dois toques seguidos no mesmo tipo escrevem uma só energia', async () => {
+    await Promise.all([setDayMode('low'), setDayMode('low'), setDayMode('low')]);
+    expect(await levels()).toEqual(['low']);
+  });
+
   it('changing to normal writes medium', async () => {
     await setDayMode('low');
     vi.setSystemTime(new Date(2026, 10, 11, 10, 5));
