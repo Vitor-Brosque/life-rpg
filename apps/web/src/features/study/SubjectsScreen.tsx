@@ -38,6 +38,12 @@ export function SubjectsScreen() {
   const today = dayKeyOf(now, loaded.data.dayStartHour);
   const subjects = subjectsOf(loaded.data, today);
   const deckName = new Map(loaded.decks.map((d) => [d.id, d.name]));
+  // "Revisar" only makes sense for a deck that has cards to review (live, not suspended).
+  const deckCards = new Map<string, number>();
+  for (const c of loaded.data.cards) {
+    if (c.deleted || c.suspended || c.deckId === undefined) continue;
+    deckCards.set(c.deckId, (deckCards.get(c.deckId) ?? 0) + 1);
+  }
 
   return (
     <section className="screen study stack" aria-labelledby="subjects-title">
@@ -45,12 +51,12 @@ export function SubjectsScreen() {
       <h1 id="subjects-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Matérias</h1>
       {subjects.length === 0 ? (
         <Panel variant="stone"><p className="muted">As matérias aparecem quando um baralho ou uma sessão de prática estiver ligado a uma jornada.</p></Panel>
-      ) : subjects.map((s) => <SubjectCard key={`${s.kind}-${s.id}`} subject={s} deckName={deckName} />)}
+      ) : subjects.map((s) => <SubjectCard key={`${s.kind}-${s.id}`} subject={s} deckName={deckName} deckCards={deckCards} />)}
     </section>
   );
 }
 
-function SubjectCard({ subject: s, deckName }: { subject: Subject; deckName: Map<string, string> }) {
+function SubjectCard({ subject: s, deckName, deckCards }: { subject: Subject; deckName: Map<string, string>; deckCards: Map<string, number> }) {
   const titleId = `subject-${s.id}`;
   const href = s.kind === 'journey' ? `/jornadas/${s.id}` : `/estudo/baralho/${s.id}`;
   const hasPractice = s.practice.sessions > 0;
@@ -61,9 +67,11 @@ function SubjectCard({ subject: s, deckName }: { subject: Subject; deckName: Map
         {s.cards > 0
           ? <ProgressBar value={s.learned} max={s.cards} label={`${s.learned} de ${s.cards} cards aprendidos`} />
           : <p className="subject__line">Nenhum card ativo ainda</p>}
-        <p className="subject__caption">Observado · últimos 30 dias</p>
         <ul className="subject__lines">
-          <li>{s.recall !== undefined ? `Lembrou ${Math.round(s.recall * 100)}% dos cards maduros` : 'Aparece com 20 revisões de cards aprendidos'}</li>
+          <li>
+            {s.recall !== undefined ? `Lembrou ${Math.round(s.recall * 100)}% dos cards maduros` : 'Aparece com 20 revisões de cards aprendidos'}
+            {' '}<span className="subject__caption">Observado · últimos 30 dias</span>
+          </li>
           <li>{s.minutesWeek} min de revisão nesta semana</li>
           {s.topics > 0 && <li>{plural(s.topics, 'tópico', 'tópicos')}</li>}
           {hasPractice && <li>{`Prática: ${plural(s.practice.sessions, 'sessão', 'sessões')}, ${s.practice.autonomous} com Autônomo`}</li>}
@@ -74,7 +82,7 @@ function SubjectCard({ subject: s, deckName }: { subject: Subject; deckName: Map
             {s.deckIds.map((id) => (
               <li key={id}>
                 <Link className="subject__action" href={`/estudo/baralho/${id}`} aria-label={`Ver baralho ${deckName.get(id) ?? ''}`}>Ver baralho {deckName.get(id)}</Link>
-                {s.cards > 0 && <Link className="subject__action" href={`/estudo/revisar?baralho=${id}`} aria-label={`Revisar ${deckName.get(id) ?? ''}`}>Revisar</Link>}
+                {(deckCards.get(id) ?? 0) > 0 && <Link className="subject__action" href={`/estudo/revisar?baralho=${id}`} aria-label={`Revisar ${deckName.get(id) ?? ''}`}>Revisar</Link>}
               </li>
             ))}
           </ul>

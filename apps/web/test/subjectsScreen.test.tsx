@@ -75,6 +75,35 @@ describe('SubjectsScreen', () => {
     expect(within(card).getByRole('link', { name: 'Ver baralho Álgebra' })).toBeInTheDocument();
   });
 
+  it('"Revisar" só aparece no baralho que tem cards ativos', async () => {
+    await journey('j1', 'Faculdade');
+    const full = await saveDeck({ name: 'Cálculo', journeyId: 'j1' });
+    await saveDeck({ name: 'Álgebra', journeyId: 'j1' });
+    const paused = await saveDeck({ name: 'Física', journeyId: 'j1' });
+    await saveNote({ deckId: full.id, type: 'basic', front: 'a', back: 'b' });
+    await saveNote({ deckId: paused.id, type: 'basic', front: 'c', back: 'd' });
+    for (const c of await db.cards.where('deckId').equals(paused.id).toArray()) await db.cards.update(c.id, { suspended: true });
+    render(<SubjectsScreen />);
+    const card = await screen.findByRole('article', { name: 'Faculdade' });
+    expect(within(card).getByRole('link', { name: 'Revisar Cálculo' })).toBeInTheDocument();
+    expect(within(card).queryByRole('link', { name: 'Revisar Álgebra' })).toBeNull();
+    expect(within(card).queryByRole('link', { name: 'Revisar Física' })).toBeNull();
+    expect(within(card).getByRole('link', { name: 'Ver baralho Álgebra' })).toBeInTheDocument();
+  });
+
+  it('a legenda "Observado · últimos 30 dias" fica só na linha de lembrança, não nos minutos', async () => {
+    const deck = await saveDeck({ name: 'Inglês' });
+    await saveNote({ deckId: deck.id, type: 'basic', front: 'a', back: 'b' });
+    render(<SubjectsScreen />);
+    const card = await screen.findByRole('article', { name: 'Inglês' });
+    const items = within(card).getAllByRole('listitem');
+    const recall = items.find((li) => /Aparece com 20 revisões/.test(li.textContent ?? ''))!;
+    const minutes = items.find((li) => /min de revisão nesta semana/.test(li.textContent ?? ''))!;
+    expect(recall).toHaveTextContent('Observado · últimos 30 dias');
+    expect(minutes).not.toHaveTextContent('Observado');
+    expect(within(card).getAllByText('Observado · últimos 30 dias')).toHaveLength(1);
+  });
+
   it('the Estudo screen links to Matérias', async () => {
     const user = userEvent.setup();
     window.history.pushState({}, '', '/estudo');
