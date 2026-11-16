@@ -181,6 +181,7 @@ describe('Capturar: Compromisso, Prova ou trabalho e Card', () => {
     await user.click(row('Toda semana: Não'));
     await user.click(screen.getByRole('button', { name: 'terça' }));
     await user.click(screen.getByRole('button', { name: 'quinta' }));
+    expect(row('Até (opcional): —')).toBeInTheDocument();
     await user.click(row('Até (opcional): —'));
     fireEvent.change(screen.getByLabelText('Até (opcional)', { selector: 'input' }), { target: { value: '2026-12-17' } });
     await user.click(screen.getByRole('switch', { name: 'Lembrar antes' }));
@@ -267,17 +268,35 @@ describe('Capturar: Compromisso, Prova ou trabalho e Card', () => {
     expect(await screen.findByText('Rascunho de card salvo. Complete na aba Estudo.')).toBeInTheDocument();
   });
 
-  it('trocar de tipo mantém o texto e o foco; nos tipos de uma linha, as quebras viram espaço', async () => {
+  it('trocar de tipo mantém o texto e o foco fica no chip tocado, sem remontar os chips', async () => {
     const user = setup();
     const input = await open();
     await user.type(input, 'Dentista{Shift>}{Enter}{/Shift}com a Ana');
     await user.click(screen.getByRole('button', { name: 'Compromisso' }));
     expect(input).toHaveValue('Dentista com a Ana');
-    expect(input).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Compromisso' })).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Card' }));
     expect(input).toHaveValue('Dentista com a Ana');
-    expect(input).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Card' })).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
     expect(within(screen.getByRole('group', { name: 'Tipo' })).getByRole('button', { name: 'Card' }))
       .toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('desmarcar o último dia da semana tira também o Até', async () => {
+    const user = setup();
+    const input = await open();
+    await user.click(screen.getByRole('button', { name: 'Compromisso' }));
+    await user.type(input, 'Aula');
+    await user.click(row('Toda semana: Não'));
+    await user.click(screen.getByRole('button', { name: 'terça' }));
+    await user.click(row('Até (opcional): —'));
+    fireEvent.change(screen.getByLabelText('Até (opcional)', { selector: 'input' }), { target: { value: '2026-12-17' } });
+    await user.click(row('Toda semana: ter'));
+    await user.click(screen.getByRole('button', { name: 'terça' }));
+    expect(screen.queryByRole('button', { name: /^Até/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'terça' }));
+    expect(row('Até (opcional): —')).toBeInTheDocument();
   });
 });

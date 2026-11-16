@@ -224,7 +224,6 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
   const pickKind = (kind: CaptureKind) => {
     update((s) => chooseKind(s, kind));
     setOpenRow(undefined);
-    ref.current?.focus();
   };
   const toggleRow = (id: RowId) => setOpenRow((cur) => (cur === id ? undefined : id));
 

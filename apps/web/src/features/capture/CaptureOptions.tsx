@@ -205,8 +205,11 @@ function CommitmentOptions({ view, ctx, openRow, onToggleRow, choose }: CaptureO
   const row = { openRow, onToggleRow };
   const end = c.end ?? (c.start ? defaultEnd(c.start) : undefined);
   const days = [...c.weekdays].sort((a, b) => a - b);
-  const toggleDay = (d: number) => choose('commitment', 'weekdays',
-    days.includes(d) ? days.filter((x) => x !== d) : [...days, d].sort((a, b) => a - b));
+  const toggleDay = (d: number) => {
+    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d].sort((a, b) => a - b);
+    choose('commitment', 'weekdays', next);
+    if (next.length === 0) choose('commitment', 'until', undefined);
+  };
   const daysText = days.length === 0 ? 'Não' : days.length === 7 ? 'todo dia' : days.map((d) => WEEKDAY_ABBR[d]).join(', ');
   return (
     <>
