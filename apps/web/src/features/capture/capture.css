@@ -1,9 +1,8 @@
-/* Capture bar (sheet or inline). */
+/* Capture "escrever e tocar" (sheet or inline). */
 
 .capture { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
-.capture__row { display: flex; align-items: flex-end; gap: var(--space-3); }
 .capture__input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 48px;
   max-height: 200px;
@@ -13,54 +12,55 @@
   line-height: 1.4;
   resize: none;
 }
-.capture__row .btn { flex-shrink: 0; }
 .capture__hint { margin: 0; color: var(--muted); font-size: 0.875rem; }
+.capture__alert { margin: 0; color: var(--gold); font-weight: 600; }
+.capture__actions { display: flex; justify-content: flex-end; }
 .capture__feedback { margin: 0; color: var(--gold); font-weight: 600; }
 .capture__feedback:empty { display: block; height: 0; overflow: hidden; }
 
-.capture-chips { display: flex; flex-wrap: wrap; gap: 10px; padding: 2px; }
+/* Type on top. */
+.capture-kinds { display: flex; flex-wrap: wrap; gap: 10px; padding: 2px; }
 .chip-icon { display: inline-flex; align-items: center; }
 
-/* "Compromisso ⇄ Missão" two-option toggle. */
-.kind-toggle {
-  display: inline-flex;
-  align-items: stretch;
-  background: var(--stone-light);
-  box-shadow: 0 -2px 0 0 var(--outline), 0 2px 0 0 var(--outline), -2px 0 0 0 var(--outline), 2px 0 0 0 var(--outline);
-}
-.kind-toggle__opt {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--touch);
-  margin: -2px 0;
-  padding: 0 12px;
-  color: var(--text);
-  font-size: 0.9375rem;
-  background: transparent;
-  border: 0;
-}
-.kind-toggle__opt[aria-pressed='true'] { color: var(--ink); background: var(--gold); font-weight: 600; }
-.kind-toggle__sep { display: inline-flex; align-items: center; padding: 0 2px; color: var(--text); }
-
-/* Optional details for the item just captured: one scrollable row per kind. */
-.quick-details { display: flex; flex-direction: column; gap: var(--space-1); animation: fade-in 120ms steps(3); }
-.quick-details__row {
+/* Option rows and their inline panels (one open at a time). */
+.capture-opts { display: flex; flex-direction: column; }
+.capture-opt__row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 3px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 6px 4px;
+  color: var(--text);
+  font-size: 0.9375rem;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--stone-light);
 }
-.quick-details__row::-webkit-scrollbar { display: none; }
-.quick-details__row .chip { flex-shrink: 0; }
-.quick-details__label {
+.capture-opt__label {
   flex-shrink: 0;
-  min-width: 64px;
+  min-width: 112px;
   color: var(--muted);
   font-family: var(--font-pixel);
   font-size: 0.875rem;
   font-weight: 700;
 }
+.capture-opt__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capture-opt__mark { flex-shrink: 0; color: var(--muted); }
+.capture-opt__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) 2px var(--space-4);
+  animation: fade-in 120ms steps(3);
+}
+.capture-opt__panel .cluster { gap: 10px; padding: 2px; }
+.capture-opt__field { display: flex; flex-direction: column; gap: var(--space-1); max-width: 280px; }
+.capture-opt__field span { color: var(--muted); font-size: 0.875rem; }
+.capture-opt__sub { display: flex; flex-direction: column; gap: var(--space-1); }
+.capture-opt__sublabel { color: var(--muted); font-family: var(--font-pixel); font-size: 0.8125rem; font-weight: 700; }
+.capture-opt__new { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.capture-opt__switch { padding: 4px; border-bottom: 2px solid var(--stone-light); }
+.capture-opt__assessment { gap: 10px; padding: 2px; }
+.capture-opt__link { display: inline-flex; align-items: center; min-height: var(--touch); }

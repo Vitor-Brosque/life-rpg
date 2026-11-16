@@ -1,18 +1,24 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { create } from 'zustand';
-import type { CaptureToken, DayKey, Mission } from '@life/shared';
-import { dayKeyOf, parseCapture } from '@life/shared';
-import { useAreas, useToday } from '../../db/hooks';
-import { isCardCapture } from '../../domain/studyActions';
+import type { DayKey, Deck } from '@life/shared';
+import { dayKeyOf } from '@life/shared';
+import { db } from '../../db/db';
+import { useAreas, useJourneys, useToday } from '../../db/hooks';
+import { FacultyValidationError } from '../../domain/facultyActions';
 import { Button } from '../../ui/Button';
-import { formatDay, plural } from '../../ui/format';
+import { formatDay } from '../../ui/format';
 import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
 import { usePageHide } from '../../ui/usePageHide';
-import { CaptureChips, QuickDetails } from './CaptureChips';
-import { removeSpans } from './captureModel';
-import { isCardDraft, isMission, saveCapture, type Captured } from './captureSave';
+import { CaptureKindPicker } from './CaptureKindPicker';
+import {
+  buildRequests, choose as chooseOption, chooseKind, initialState, isSingleLineKind, joinLines, missing, prefill,
+  type CaptureCtx, type CaptureKind, type CaptureState,
+} from './captureModel';
+import { CaptureOptions, type ChooseFn, type RowId } from './CaptureOptions';
+import { isCardDraft, isMission, saveCaptureRequests, type Captured } from './captureSave';
 import './capture.css';
 
 // ------------------------------------------------------------------ global opener
@@ -101,11 +107,12 @@ export function CaptureBar({ open, onClose, defaultDate }: CaptureBarProps) {
   );
 }
 
-const QUICK_DETAILS_MS = 6000;
+const FEEDBACK_MS = 6000;
 
 /**
  * A half-typed capture is kept here while the page is hidden, so an app reload (update) or the
  * phone killing the app in the background does not lose it. Restored once, by the next form.
+ * Only the text: the tapped options are not kept.
  */
 const DRAFT_KEY = 'life-rpg.capture.draft';
 
@@ -120,16 +127,36 @@ function writeDraft(text: string): void {
   } catch { /* storage may be unavailable */ }
 }
 
-interface Feedback { key: number; message: string; mission?: Mission }
-
-function feedbackFor(items: Captured[], today: DayKey): Omit<Feedback, 'key'> | undefined {
+/** The status line after Salvar. */
+function feedbackFor(items: Captured[], today: DayKey): string | undefined {
   if (items.length === 0) return undefined;
-  if (items.length > 1) return { message: `${plural(items.length, 'item capturado', 'itens capturados')}.` };
+  if (items.length > 1) {
+    return items.every(isCardDraft)
+      ? `${items.length} rascunhos de card salvos. Complete na aba Estudo.`
+      : `${items.length} tarefas capturadas.`;
+  }
   const item = items[0]!;
-  if (isCardDraft(item)) return { message: 'Rascunho de card salvo. Complete na aba Estudo.' };
-  if (isMission(item)) return { message: `Capturada: ${item.title}`, mission: item };
-  return { message: `Compromisso salvo: ${item.title} · ${formatDay(item.date, today)} ${item.start}` };
+  if (isCardDraft(item)) return 'Rascunho de card salvo. Complete na aba Estudo.';
+  if (isMission(item)) {
+    if (item.assessment && item.date) {
+      // "Prova de Cálculo II em qui 03/12." · "… amanhã." (as AssessmentSheet says it)
+      const when = formatDay(item.date, today);
+      return when === 'hoje' || when === 'amanhã' ? `${item.title} ${when}.` : `${item.title} em ${when}.`;
+    }
+    return `Capturada: ${item.title}`;
+  }
+  return `Compromisso salvo: ${item.title} · ${formatDay(item.date, today)} ${item.start}`;
 }
+
+/** The field changes name and example with the type; "Capturar" stays the name of Tarefa's. */
+const FIELD: Record<CaptureKind, { label: string; placeholder: string }> = {
+  tarefa: { label: 'Capturar', placeholder: 'O que precisa fazer?' },
+  compromisso: { label: 'O que é?', placeholder: 'O que é? Ex.: Dentista' },
+  avaliacao: { label: 'Conteúdo (opcional)', placeholder: 'Conteúdo (opcional). Ex.: integrais por partes' },
+  card: { label: 'Frente do card', placeholder: 'Frente do card. Ex.: O que é um índice composto?' },
+};
+
+const NO_DECKS: Deck[] = [];
 
 export interface CaptureFormProps {
   defaultDate?: DayKey;
@@ -139,20 +166,29 @@ export interface CaptureFormProps {
 }
 
 /**
- * One-line capture: auto-growing textarea (multi-line paste creates one item per line), live
- * chips, Enter saves (Shift+Enter = new line), then optional quick details for 6 s.
+ * "Escrever e tocar": the type on top, the field (several lines = several items in Tarefa and Card),
+ * one option row per choice with its panel inside the form. Only Salvar (or Enter in the field) writes.
  * Layout-agnostic so the Painel can render it inline.
  */
 export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormProps) {
   const today = useToday() ?? dayKeyOf(Date.now(), 4);
-  const areas = useAreas().filter((a) => !a.archived);
-  const [text, setText] = useState(readDraft);
-  const [asMission, setAsMission] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback>();
-  const [activity, setActivity] = useState(0);
+  const allAreas = useAreas();
+  const journeys = useJourneys();
+  const decks = useLiveQuery(
+    async () => (await db.decks.orderBy('order').toArray()).filter((d) => !d.deleted && !d.archived),
+  ) ?? NO_DECKS;
+  const areas = useMemo(() => allAreas.filter((a) => !a.archived), [allAreas]);
+  const ctx = useMemo<CaptureCtx>(
+    () => ({ today, defaultDate, journeys, areas, decks }), [today, defaultDate, journeys, areas, decks],
+  );
+  const [state, setState] = useState<CaptureState>(() => initialState(readDraft()));
+  const [openRow, setOpenRow] = useState<RowId>();
+  const [alertText, setAlertText] = useState<string>();
+  const [feedback, setFeedback] = useState<string>();
   const ref = useRef<HTMLTextAreaElement>(null);
-  const textRef = useRef(text);
-  textRef.current = text;
+  const textRef = useRef(state.text);
+  textRef.current = state.text;
+  const view = useMemo(() => prefill(state, ctx), [state, ctx]);
 
   // The restored draft now lives in the field; back in the foreground, the field holds it again.
   useEffect(() => {
@@ -164,52 +200,60 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
   // Only a form with text writes (an empty inline form must not erase the sheet's draft).
   usePageHide(() => { if (textRef.current.trim()) writeDraft(textRef.current); });
 
-  const lines = useMemo(() => text.split(/\r?\n/).filter((l) => l.trim() !== ''), [text]);
-  const cardLine = lines.length === 1 && isCardCapture(lines[0]!);
-  const single = useMemo(
-    () => (lines.length === 1 && !isCardCapture(lines[0]!) ? parseCapture(lines[0]!, today) : undefined),
-    [lines, today],
-  );
-  const canSave = lines.length > 1 || cardLine || (single !== undefined && single.title !== '');
-
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [text]);
+  }, [state.text]);
 
   useEffect(() => {
     if (!feedback) return;
-    const id = setTimeout(() => setFeedback(undefined), QUICK_DETAILS_MS);
+    const id = setTimeout(() => setFeedback(undefined), FEEDBACK_MS);
     return () => clearTimeout(id);
-  }, [feedback, activity]);
+  }, [feedback]);
 
-  const change = (value: string) => {
-    setText(value);
-    if (value.trim() === '') setAsMission(false);
-    else setFeedback(undefined);
+  const update = (next: (s: CaptureState) => CaptureState) => {
+    setState(next);
+    setAlertText(undefined);
+    setFeedback(undefined);
   };
+  const changeText = (value: string) =>
+    update((s) => ({ ...s, text: s.kindTouched && isSingleLineKind(s.kind) ? joinLines(value) : value }));
+  const choose: ChooseFn = (section, field, value) => update((s) => chooseOption(s, section, field, value));
+  const pickKind = (kind: CaptureKind) => {
+    update((s) => chooseKind(s, kind));
+    setOpenRow(undefined);
+  };
+  const toggleRow = (id: RowId) => setOpenRow((cur) => (cur === id ? undefined : id));
 
   const save = async () => {
-    if (!canSave) return;
-    const draft = text;
-    setText('');
-    setAsMission(false);
+    const problem = missing(state, ctx);
+    if (problem) {
+      setAlertText(problem);
+      return;
+    }
+    const requests = buildRequests(state, ctx);
+    const kept = state;
+    setState(initialState());
+    setOpenRow(undefined);
     ref.current?.focus();
     try {
-      const items = await saveCapture(draft, { today, asMission, defaultDate });
-      const fb = feedbackFor(items, today);
-      setFeedback(fb ? { ...fb, key: Date.now() } : undefined);
+      setFeedback(feedbackFor(await saveCaptureRequests(requests), today));
     } catch (e) {
+      setState(kept);
+      if (e instanceof FacultyValidationError) {
+        setAlertText(e.message);
+        return;
+      }
       console.error('capture failed', e);
-      setText(draft);
       useToast.getState().show('Não foi possível salvar. Tente de novo.');
     }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    // Shift+Enter breaks the line only where several lines make sense (Tarefa, Card).
+    if (e.key === 'Enter' && (!e.shiftKey || isSingleLineKind(view.kind)) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void save();
     } else if (e.key === 'Escape' && onEscape) {
@@ -218,55 +262,39 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
     }
   };
 
-  // Token offsets refer to the single non-empty line (the text may carry blank lines around it).
-  const removeToken = (t: CaptureToken) => change(removeSpans(lines[0] ?? '', [t]));
+  const many = view.lines.length > 1 && (view.kind === 'tarefa' || view.kind === 'card');
+  const hint = many
+    ? view.kind === 'card'
+      ? `${view.lines.length} rascunhos de card serão criados, um por linha. As escolhas abaixo valem para todas.`
+      : `${view.lines.length} tarefas serão criadas, uma por linha. As escolhas abaixo valem para todas.`
+    : view.kind === 'card' ? 'Vira rascunho de card. Complete depois na aba Estudo.' : undefined;
 
   return (
     <form className="capture" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-      <div className="capture__row">
-        <textarea
-          ref={ref}
-          className="capture__input"
-          rows={1}
-          aria-label="Capturar"
-          placeholder="O que está na sua cabeça?"
-          value={text}
-          onChange={(e) => change(e.target.value)}
-          onKeyDown={onKeyDown}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus={autoFocus}
-          enterKeyHint="done"
-          autoComplete="off"
-          autoCapitalize="sentences"
-        />
-        <Button type="submit" variant="primary" icon="check" aria-label="Salvar" disabled={!canSave} />
+      <CaptureKindPicker value={view.kind} onChange={pickKind} />
+      <textarea
+        ref={ref}
+        className="capture__input"
+        rows={1}
+        aria-label={FIELD[view.kind].label}
+        placeholder={FIELD[view.kind].placeholder}
+        value={state.text}
+        onChange={(e) => changeText(e.target.value)}
+        onKeyDown={onKeyDown}
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus={autoFocus}
+        enterKeyHint="done"
+        autoComplete="off"
+        autoCapitalize="sentences"
+      />
+      {hint && <p className="capture__hint">{hint}</p>}
+      <CaptureOptions view={view} ctx={ctx} openRow={openRow} onToggleRow={toggleRow} choose={choose}
+        onLeave={() => useCaptureStore.getState().close()} />
+      {alertText && <p className="capture__alert" role="alert">{alertText}</p>}
+      <div className="capture__actions">
+        <Button type="submit" variant="primary" icon="check">Salvar</Button>
       </div>
-      {defaultDate && <p className="capture__hint">Para {formatDay(defaultDate, today)}</p>}
-      {cardLine ? (
-        <p className="capture__hint">Vira rascunho de card. Complete depois na aba Estudo.</p>
-      ) : single ? (
-        <CaptureChips
-          parsed={single}
-          today={today}
-          areas={areas}
-          asMission={asMission}
-          onToggleKind={setAsMission}
-          onRemoveToken={removeToken}
-        />
-      ) : lines.length > 1 ? (
-        <p className="capture__hint">{lines.length} itens serão criados, um por linha.</p>
-      ) : !feedback ? (
-        <p className="capture__hint">Experimente: amanhã · 15h · 20min · #jornada · @área · !</p>
-      ) : null}
-      <p className="capture__feedback" role="status">{feedback?.message}</p>
-      {feedback?.mission && (
-        <QuickDetails
-          key={feedback.key}
-          mission={feedback.mission}
-          areas={areas}
-          onActivity={() => setActivity((n) => n + 1)}
-        />
-      )}
+      <p className="capture__feedback" role="status">{feedback}</p>
     </form>
   );
 }

@@ -8,8 +8,7 @@ import { safeRun } from '../../ui/safeRun';
 import { CommitmentSheet } from '../plan/CommitmentSheet';
 import { useMissionSheet } from '../mission/MissionSheet';
 
-const EMPTY_TEXT =
-  'Nada se repete ainda. Na captura, escreva por exemplo “lavar roupa toda seg”, ou use Repetir na ficha da missão.';
+const EMPTY_TEXT = 'Nada se repete ainda. Ao capturar, toque em Repetir; ou use Repetir na ficha da missão.';
 
 /** First day on or after `today` the mission comes up: its own date, or the next occurrence of the rule. */
 function nextDay(m: Mission, today: DayKey): DayKey {

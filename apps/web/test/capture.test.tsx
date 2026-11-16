@@ -69,7 +69,7 @@ describe('CaptureBar', () => {
     await waitFor(async () => expect((await liveMissions()).map((m) => m.title).sort()).toEqual(['dois', 'um']));
   });
 
-  it('a time suggests a commitment; toggling to Missão creates a mission instead', async () => {
+  it('a time suggests a commitment; tapping Tarefa creates a task instead', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
@@ -77,8 +77,8 @@ describe('CaptureBar', () => {
     const commitment = await screen.findByRole('button', { name: 'Compromisso' });
     expect(commitment).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(screen.getByRole('button', { name: 'Missão' }));
-    expect(screen.getByRole('button', { name: 'Missão' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Tarefa' }));
+    expect(screen.getByRole('button', { name: 'Tarefa' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(input);
     await user.keyboard('{Enter}');
     await waitFor(async () => {
@@ -98,19 +98,22 @@ describe('CaptureBar', () => {
     expect(await liveMissions()).toHaveLength(0);
   });
 
-  it('quick details after saving update the created mission', async () => {
+  it('Duração e Energia tocadas antes de salvar vão para a tarefa', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
-    await user.type(input, 'arrumar a mesa{Enter}');
-    const quick = await screen.findByRole('group', { name: 'Detalhes rápidos' });
-    await user.click(await screen.findByRole('button', { name: '15 min' }));
+    await user.type(input, 'arrumar a mesa');
+    await user.click(screen.getByRole('button', { name: 'Duração: —' }));
+    await user.click(screen.getByRole('button', { name: '15 min' }));
+    await user.click(screen.getByRole('button', { name: 'Energia: —' }));
     await user.click(screen.getByRole('button', { name: 'pesada' }));
+    expect(await liveMissions()).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(async () => {
       const [m] = await liveMissions();
-      expect(m).toMatchObject({ durationMin: 15, energy: 'heavy' });
+      expect(m).toMatchObject({ title: 'arrumar a mesa', durationMin: 15, energy: 'heavy' });
     });
-    expect(quick).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Detalhes rápidos' })).not.toBeInTheDocument();
   });
 
   it('defaultDate applies to captures without a date', async () => {
@@ -121,21 +124,29 @@ describe('CaptureBar', () => {
     await waitFor(async () => expect((await liveMissions())[0]?.date).toBe('2026-11-20'));
   });
 
-  it('removing a chip removes its token from the text', async () => {
+  it('um toque em Quando vence a data escrita (o texto não muda)', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
     await user.type(input, 'ler 20min amanhã');
-    await user.click(await screen.findByRole('button', { name: 'Remover amanhã' }));
-    expect(input).toHaveValue('ler 20min');
+    await user.click(screen.getByRole('button', { name: 'Quando: amanhã' }));
+    await user.click(screen.getByRole('button', { name: 'Hoje' }));
+    expect(screen.getByRole('button', { name: 'Quando: hoje' })).toBeInTheDocument();
+    expect(input).toHaveValue('ler 20min amanhã');
+    await user.click(input);
+    await user.keyboard('{Enter}');
+    await waitFor(async () => {
+      expect((await liveMissions())[0]).toMatchObject({ title: 'ler', durationMin: 20, date: '2026-11-11' });
+    });
   });
 
-  it('"toda seg" mostra o chip de repetição e salva a missão recorrente na próxima segunda', async () => {
+  it('"toda seg" acende Repetir e salva a missão recorrente na próxima segunda', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
     await user.type(input, 'lavar roupa toda seg');
-    expect(await screen.findByText('Repete toda seg')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Repetir: toda seg' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Quando: seg 16/11' })).toBeInTheDocument();
     await user.keyboard('{Enter}');
     await waitFor(async () => {
       const ms = await liveMissions();
@@ -146,14 +157,13 @@ describe('CaptureBar', () => {
     });
   });
 
-  it('"todo dia 5" salva repetição mensal; remover o chip tira o texto', async () => {
+  it('"todo dia 5" acende Repetir e salva a repetição mensal', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
     await user.type(input, 'pagar aluguel todo dia 5');
-    await user.click(await screen.findByRole('button', { name: 'Remover Repete todo dia 5' }));
-    expect(input).toHaveValue('pagar aluguel');
-    await user.type(input, ' todo dia 5{Enter}');
+    expect(await screen.findByRole('button', { name: 'Repetir: todo dia 5' })).toBeInTheDocument();
+    await user.keyboard('{Enter}');
     await waitFor(async () => {
       const [m] = await liveMissions();
       expect(m).toMatchObject({ title: 'pagar aluguel', recurrence: { kind: 'monthly', day: 5 }, date: '2026-12-05' });
@@ -173,12 +183,12 @@ describe('CaptureBar', () => {
     expect(await liveMissions()).toHaveLength(0);
   });
 
-  it('um compromisso recorrente trocado para Missão mantém a repetição', async () => {
+  it('um compromisso recorrente trocado para Tarefa mantém a repetição', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
     await user.type(input, 'aula 19h toda ter e qui');
-    await user.click(await screen.findByRole('button', { name: 'Missão' }));
+    await user.click(await screen.findByRole('button', { name: 'Tarefa' }));
     await user.click(input);
     await user.keyboard('{Enter}');
     await waitFor(async () => {
