@@ -108,9 +108,10 @@ export const isSingleLineKind = (kind: CaptureKind): boolean => kind === 'compro
 /** Line breaks become spaces; every other character stays as typed (so a trailing space survives). */
 export const joinLines = (text: string): string => text.replace(/[ \t]*\r?\n[ \t]*/g, ' ');
 
-/** Start + 1 h, capped at 23:59: the end `createCommitment` uses when none is given. */
-export const defaultEnd = (start: HHmm): HHmm => formatHHmm(Math.min(parseHHmm(start) + 60, MAX_MINUTE));
 const endAfter = (start: HHmm, min: number): HHmm => formatHHmm(Math.min(parseHHmm(start) + min, MAX_MINUTE));
+
+/** Start + 1 h, capped at 23:59: the end `createCommitment` uses when none is given. */
+export const defaultEnd = (start: HHmm): HHmm => endAfter(start, 60);
 
 interface Span { start: number; end: number }
 
@@ -350,9 +351,11 @@ function lineRequest(line: string, state: CaptureState, ctx: CaptureCtx): Captur
   }
   const p = parseCapture(line, ctx.today);
   if (p.kind === 'commitment') {
+    // A tapped Quando with a day wins over the line's own date (spec §2: tapped rows apply to every line).
     const when = state.touched.has('task.when') ? state.task.when : undefined;
-    const day = when?.kind === 'day' ? when.day : ctx.defaultDate;
-    return commitmentRequest(p.title, fillCommitment(initialState(), p, { ...ctx, defaultDate: day }));
+    const tappedDay = when?.kind === 'day' ? when.day : undefined;
+    const c = fillCommitment(initialState(), p, { ...ctx, defaultDate: tappedDay ?? ctx.defaultDate });
+    return commitmentRequest(p.title, tappedDay ? { ...c, day: tappedDay } : c);
   }
   const found = state.touched.has('task.journey') ? undefined : detectAssessment(p, textJourney(p, ctx));
   if (found) {

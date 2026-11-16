@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Area, Deck, Journey } from '@life/shared';
 import {
-  buildRequests, choose, chooseKind, dayWhen, initialState, kindOf, linesOf, missing, prefill, removeSpans,
+  buildRequests, choose, chooseKind, dayWhen, initialState, joinLines, kindOf, linesOf, missing, prefill, removeSpans,
   type CaptureCtx, type CaptureState,
 } from '../src/features/capture/captureModel';
 
@@ -228,6 +228,19 @@ describe('buildRequests', () => {
     });
   });
 
+  it('várias linhas: Quando tocado vence a data escrita na linha de compromisso', () => {
+    const tapped = choose(typed('reunião amanhã 15h\ncomprar pão'), 'task', 'when', dayWhen('2026-11-20'));
+    expect(buildRequests(tapped, ctx)).toEqual([
+      { type: 'commitment', fields: { title: 'reunião', date: '2026-11-20', start: '15:00', remind: true } },
+      { type: 'mission', fields: { title: 'comprar pão', important: false, date: '2026-11-20' } },
+    ]);
+    const untouched = typed('reunião amanhã 15h\ncomprar pão');
+    expect(buildRequests(untouched, ctx)).toEqual([
+      { type: 'commitment', fields: { title: 'reunião', date: '2026-11-12', start: '15:00', remind: true } },
+      { type: 'mission', fields: { title: 'comprar pão', important: false } },
+    ]);
+  });
+
   it('prova ou trabalho', () => {
     let s = typed('integrais por partes', chooseKind(initialState(), 'avaliacao'));
     s = choose(s, 'assessment', 'journeyId', 'j-calc');
@@ -272,6 +285,45 @@ describe('buildRequests', () => {
     expect(reqs.every((r) => r.type === 'mission' && r.fields.journeyId === 'j-tech' && r.fields.date === undefined
       && r.fields.durationMin === undefined)).toBe(true);
     expect(reqs.map((r) => r.type === 'mission' && r.fields.title)).toEqual(text.split('\n'));
+  });
+});
+
+describe('compromisso: toques vencem o texto; bordas', () => {
+  it('início tocado vence o horário escrito', () => {
+    const s = choose(typed('dentista 15h', chooseKind(initialState(), 'compromisso')), 'commitment', 'start', '16:00');
+    expect(buildRequests(s, ctx)).toEqual([{ type: 'commitment', fields: { title: 'dentista', date: TODAY, start: '16:00', remind: true } }]);
+  });
+
+  it('fim tocado vence o fim escrito', () => {
+    const s = choose(typed('dentista 15h 30min', chooseKind(initialState(), 'compromisso')), 'commitment', 'end', '16:00');
+    expect(buildRequests(s, ctx)).toEqual([{ type: 'commitment', fields: { title: 'dentista', date: TODAY, start: '15:00', end: '16:00', remind: true } }]);
+  });
+
+  it('dias da semana tocados vencem os dias escritos', () => {
+    const s = choose(typed('aula 19h toda ter e qui', chooseKind(initialState(), 'compromisso')), 'commitment', 'weekdays', [5]);
+    expect(buildRequests(s, ctx)[0]).toMatchObject({ type: 'commitment', fields: { weekdays: [5] } });
+  });
+
+  it('Lembrar tocado vence o padrão ligado', () => {
+    const s = choose(typed('dentista 15h', chooseKind(initialState(), 'compromisso')), 'commitment', 'remind', false);
+    expect(buildRequests(s, ctx)).toEqual([{ type: 'commitment', fields: { title: 'dentista', date: TODAY, start: '15:00', remind: false } }]);
+  });
+
+  it('texto vazio ou em branco não gera itens', () => {
+    expect(buildRequests(typed(''), ctx)).toEqual([]);
+    expect(buildRequests(typed('   \n  '), ctx)).toEqual([]);
+    expect(buildRequests(chooseKind(typed('  '), 'compromisso'), ctx)).toEqual([]);
+  });
+
+  it('fim igual ao início é recusado com a mensagem do fim', () => {
+    const s = choose(choose(typed('Dentista', chooseKind(initialState(), 'compromisso')), 'commitment', 'start', '15:00'), 'commitment', 'end', '15:00');
+    expect(buildRequests(s, ctx)).toEqual([]);
+    expect(missing(s, ctx)).toBe('O fim precisa ser depois do início.');
+  });
+
+  it('joinLines mantém o espaço digitado no fim', () => {
+    expect(joinLines('dentista ')).toBe('dentista ');
+    expect(chooseKind(typed('dentista '), 'compromisso').text).toBe('dentista ');
   });
 });
 
