@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Journey } from '@life/shared';
+import type { Deck, Journey } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
@@ -154,5 +154,130 @@ describe('Capturar: Tarefa por toques', () => {
     expect(await screen.findByRole('button', { name: 'Jornada: Tech News' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Área: Trabalho' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Importante' })).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+describe('Capturar: Compromisso, Prova ou trabalho e Card', () => {
+  it('compromisso: Dia, Início, Fim, Toda semana, Até e Lembrar', async () => {
+    const user = setup();
+    const input = await open();
+    await user.click(screen.getByRole('button', { name: 'Compromisso' }));
+    expect(screen.getByRole('textbox', { name: 'O que é?' })).toBe(input);
+    await user.type(input, 'Aula de inglês');
+    expect(row('Dia: hoje')).toBeInTheDocument();
+    expect(row('Fim: —')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Lembrar antes' })).toHaveAttribute('aria-checked', 'true');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Escolha o dia e o início.');
+
+    await user.click(row('Dia: hoje'));
+    await user.click(screen.getByRole('button', { name: 'Amanhã' }));
+    await user.click(row('Início: —'));
+    fireEvent.change(screen.getByLabelText('Início', { selector: 'input' }), { target: { value: '18:00' } });
+    expect(row('Fim: 19:00')).toBeInTheDocument();
+    await user.click(row('Fim: 19:00'));
+    fireEvent.change(screen.getByLabelText('Fim', { selector: 'input' }), { target: { value: '19:30' } });
+    expect(screen.queryByRole('button', { name: /^Até/ })).not.toBeInTheDocument();
+    await user.click(row('Toda semana: Não'));
+    await user.click(screen.getByRole('button', { name: 'terça' }));
+    await user.click(screen.getByRole('button', { name: 'quinta' }));
+    await user.click(row('Até (opcional): —'));
+    fireEvent.change(screen.getByLabelText('Até (opcional)', { selector: 'input' }), { target: { value: '2026-12-17' } });
+    await user.click(screen.getByRole('switch', { name: 'Lembrar antes' }));
+    expect(row('Toda semana: ter, qui')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(async () => {
+      const [c] = await live(db.commitments.toArray());
+      expect(c).toMatchObject({
+        title: 'Aula de inglês', date: '2026-11-12', start: '18:00', end: '19:30', weekdays: [2, 4],
+        untilDate: '2026-12-17', remind: false,
+      });
+    });
+  });
+
+  it('"dentista amanhã 15h" acende Compromisso, Dia e Início; um toque em Dia vence', async () => {
+    const user = setup();
+    const input = await open();
+    await user.type(input, 'dentista amanhã 15h');
+    expect(screen.getByRole('button', { name: 'Compromisso' })).toHaveAttribute('aria-pressed', 'true');
+    expect(row('Dia: amanhã')).toBeInTheDocument();
+    expect(row('Início: 15:00')).toBeInTheDocument();
+    expect(row('Fim: 16:00')).toBeInTheDocument();
+    await user.click(row('Dia: amanhã'));
+    await user.click(screen.getByRole('button', { name: 'Hoje' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(async () => {
+      const [c] = await live(db.commitments.toArray());
+      expect(c).toMatchObject({ title: 'dentista', date: '2026-11-11', start: '15:00', end: '16:00' });
+    });
+    expect(await missions()).toHaveLength(0);
+  });
+
+  it('prova sem disciplina: aviso, link para Matérias e nada gravado', async () => {
+    const user = setup();
+    await open();
+    await user.click(screen.getByRole('button', { name: 'Prova ou trabalho' }));
+    expect(screen.getByRole('textbox', { name: 'Conteúdo (opcional)' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Escolha a matéria e a data.');
+    await user.click(row('Matéria: —'));
+    expect(screen.getByText(/Nenhuma disciplina ainda\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Cadastrar em Matérias' })).toHaveAttribute('href', '/estudo/materias');
+    expect(await db.missions.count()).toBe(0);
+  });
+
+  it('prova completa: "Prova de Cálculo II" com date = deadline e o conteúdo nas notas', async () => {
+    await put('journeys', newRecord<Journey>({
+      id: 'j-calc', title: 'Cálculo II', status: 'active', order: 1, areaId: 'area-facul', subject: true,
+    }));
+    const user = setup();
+    const input = await open();
+    await user.click(screen.getByRole('button', { name: 'Prova ou trabalho' }));
+    expect(screen.getByRole('button', { name: 'Prova' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(row('Matéria: —'));
+    await user.click(await screen.findByRole('button', { name: 'Cálculo II' }));
+    await user.click(row('Data: —'));
+    fireEvent.change(screen.getByLabelText('Escolher dia'), { target: { value: '2026-12-03' } });
+    await user.type(input, 'integrais por partes');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(async () => {
+      const [m] = await missions();
+      expect(m).toMatchObject({
+        title: 'Prova de Cálculo II', assessment: 'prova', date: '2026-12-03', deadline: '2026-12-03',
+        notes: 'integrais por partes', journeyId: 'j-calc',
+      });
+    });
+    expect(await screen.findByText('Prova de Cálculo II em qui 03/12.')).toBeInTheDocument();
+  });
+
+  it('card com baralho vira rascunho nesse baralho', async () => {
+    await put('decks', newRecord<Deck>({ id: 'd-sql', name: 'SQL', order: 0, archived: false }));
+    const user = setup();
+    const input = await open();
+    await user.click(screen.getByRole('button', { name: 'Card' }));
+    expect(screen.getByText('Vira rascunho de card. Complete depois na aba Estudo.')).toBeInTheDocument();
+    await user.type(input, 'O que é um índice composto?');
+    await user.click(row('Baralho: Caixa de entrada'));
+    await user.click(await screen.findByRole('button', { name: 'SQL' }));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(async () => {
+      const [n] = await live(db.notes.toArray());
+      expect(n).toMatchObject({ front: 'O que é um índice composto?', draft: true, deckId: 'd-sql', type: 'basic' });
+    });
+    expect(await screen.findByText('Rascunho de card salvo. Complete na aba Estudo.')).toBeInTheDocument();
+  });
+
+  it('trocar de tipo mantém o texto e o foco; nos tipos de uma linha, as quebras viram espaço', async () => {
+    const user = setup();
+    const input = await open();
+    await user.type(input, 'Dentista{Shift>}{Enter}{/Shift}com a Ana');
+    await user.click(screen.getByRole('button', { name: 'Compromisso' }));
+    expect(input).toHaveValue('Dentista com a Ana');
+    expect(input).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Card' }));
+    expect(input).toHaveValue('Dentista com a Ana');
+    expect(input).toHaveFocus();
+    expect(within(screen.getByRole('group', { name: 'Tipo' })).getByRole('button', { name: 'Card' }))
+      .toHaveAttribute('aria-pressed', 'true');
   });
 });

@@ -199,26 +199,27 @@ Dá para desligar "Deitei" e "Acordei" em **Ajustes → Sono**.
 
 ### Capturar com "+"
 
-O botão **+** (flutuante, acima da navegação) abre a captura rápida. Escreva o que está na cabeça e
-salve. Leva menos de 5 segundos. O texto é entendido enquanto você digita, e o que foi reconhecido
-aparece como etiqueta que você pode remover:
+O botão **+** (flutuante, acima da navegação) abre a captura. Escreva só o que precisa fazer; o resto é toque.
+Nada é gravado antes de **Salvar** (ou Enter no campo).
 
-- **Data:** `hoje`, `amanhã`, `depois de amanhã`, dias da semana (`segunda`, `seg`...),
-  `dia 15`, `15/11`, `próxima semana`.
-- **Hora e duração:** `15h`, `20min`.
-- **Jornada, área e urgência:** `#jornada`, `@área`, `!`.
-- **Repetição:** `todo dia`, `toda seg`, `toda seg, qua e sex`, `todas as segundas e quintas`,
-  `toda semana`, `todo dia 5` ou `todo mês dia 5`. A missão repete (e a próxima aparece quando você
-  conclui). Com horário, vira compromisso semanal: `aula 19h toda ter e qui`.
-- **Rascunho de card:** começar a linha com `? ` cria um rascunho de card para completar depois em
-  Estudo ("Vira rascunho de card. Complete depois na aba Estudo.").
-- **Provas e trabalhos:** uma linha que começa com `prova` ou `trabalho`, com a `#disciplina` e uma data, vira a
-  avaliação da disciplina: `prova #calculo dia 3/12` → "Prova de Cálculo II" em 03/12. Sem data, é uma
-  missão comum.
-- **Várias linhas** viram várias capturas.
+- **Tipo**, no topo: **Tarefa** (o padrão), **Compromisso**, **Prova ou trabalho** ou **Card**. Trocar o tipo
+  mantém o que você escreveu.
+- **Tarefa:** abaixo do campo ficam as linhas **Quando** (Sem data, Hoje, Amanhã ou Escolher dia), **Repetir**
+  (todo dia, semanal, mensal ou após concluir), **Jornada** (as disciplinas aparecem sob "Faculdade"; **Nova
+  jornada…** cria a jornada quando você salva), **Área**, **Duração**, **Energia** e o interruptor
+  **Importante**. Toque numa linha para abrir as opções dela logo abaixo; toque de novo para fechar.
+- **Compromisso:** o que é, **Dia**, **Início**, **Fim** (sugere uma hora depois do início), **Toda semana**
+  (marque os dias; com algum dia marcado aparece **Até**, opcional) e **Lembrar antes**.
+- **Prova ou trabalho:** **Prova** ou **Trabalho**, **Matéria** (as disciplinas de Matérias), **Data** e o
+  **Conteúdo** (opcional, vai para as notas). O título sai pronto: "Prova de Cálculo II".
+- **Card:** o campo é a frente; escolha o **Baralho** ou deixe na Caixa de entrada. Vira rascunho para completar
+  em Estudo ("Vira rascunho de card. Complete depois na aba Estudo.").
+- **Várias linhas** (Tarefa e Card): cada linha vira um item, na ordem, e as escolhas valem para todas. Colou dez
+  passos de um projeto? Toque em **Jornada → Tech News** uma vez e salve.
+- Se faltar algo, a folha diz o quê ("Escolha o dia e o início.") e nada é gravado.
 
-Exemplo: `Estudar SQL amanhã · 15h · 20min · #tech-news · @ofício`. Os detalhes rápidos (energia,
-duração, área) também aparecem como chips.
+Se preferir digitar, "amanhã", "15h" e "toda seg" também são entendidos: as linhas acendem sozinhas, e um toque
+sempre vence o texto.
 
 ### Revisão rápida
 
@@ -301,7 +302,7 @@ A aba **Planejar** tem quatro visões. Uma lembrança da última escolhida fica 
   repetição (com a próxima data) e os compromissos semanais; toque para editar ou tirar a repetição.
 - **Casa:** cardápio, compras e freezer (veja [Corpo e casa](#5-corpo-e-casa)).
 
-Compromissos (aulas, consultas) entram pelo **+** com data e hora ou pela folha de compromisso no
+Compromissos (aulas, consultas) entram pelo **+** (tipo **Compromisso**) ou pela folha de compromisso no
 Planejar, com a opção **Repetir toda semana em…** (e **Repetir até**, opcional). Os lembretes de compromisso
 são notificações do servidor e dependem de **Ajustes → Notificações**.
 
@@ -338,7 +339,7 @@ No cartão de cada disciplina aparecem a aula (dias e horário), a **próxima av
 contato há N dias de estudo" (só a partir de 5), os últimos exercícios e os assuntos por nível. **Abrir
 disciplina** leva à tela dela, com:
 
-- **Avaliações:** provas e trabalhos com data (**Nova prova ou trabalho**, ou pela captura). Uma avaliação é
+- **Avaliações:** provas e trabalhos com data (**Nova prova ou trabalho**, ou pelo **+**, tipo **Prova ou trabalho**). Uma avaliação é
   um evento com data: ela aparece em Hoje no próprio dia, não vira sugestão do Agora, não entra nas pendências
   e só muda de data quando você edita.
 - **Exercícios:** "Lista 4 · 8 de 10 · 5 sem ajuda" (feitos, total e sem ajuda são opcionais), com Editar e
@@ -389,7 +390,7 @@ Dicas do editor de notas:
 - No editor de código: Tab indenta, Shift+Tab desindenta e Esc sai do campo.
 - Dá para colar ou arrastar imagens em qualquer campo.
 
-**Rascunhos.** Uma linha capturada com `? ` no **+**, um erro da prática técnica e as sugestões da IA
+**Rascunhos.** Um **Card** capturado no **+**, um erro da prática técnica e as sugestões da IA
 chegam como rascunhos em **Estudo → Rascunhos para completar**. Eles só viram cards de verdade quando você
 completa a resposta e escolhe o baralho. Rascunhos vão para a **Caixa de entrada** se nenhum baralho
 foi escolhido.
