@@ -9,6 +9,7 @@ import { db } from '../src/db/db';
 import { newRecord, patch, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { saveDiaryEntry, trashDiaryEntry } from '../src/domain/diaryActions';
+import { writeDiaryDraft } from '../src/features/diary/diaryDraft';
 import { DiaryScreen } from '../src/features/diary/DiaryScreen';
 import { at } from './blockFixture';
 
@@ -147,6 +148,36 @@ describe('search and filters', () => {
     expect(screen.queryByRole('link', { name: /Apagadas recentemente/ })).not.toBeInTheDocument();
     await trashDiaryEntry('a');
     expect(await screen.findByRole('link', { name: 'Apagadas recentemente (1)' })).toHaveAttribute('href', '/diario/apagadas');
+  });
+});
+
+describe('texts kept on this device', () => {
+  const kept = (text: string) => ({ text, day: '2026-11-12', at: at(12, 9), themes: [], links: [], private: false });
+
+  it('one line per kept draft whose entry is missing or older than it, newest first; Continuar opens it', async () => {
+    vi.setSystemTime(at(13, 8));
+    await write('older', 12, 9, 'Salvo antes');
+    vi.setSystemTime(at(13, 9));
+    writeDiaryDraft('gone', kept('Nunca salvo'));
+    vi.setSystemTime(at(13, 9, 30));
+    writeDiaryDraft('older', kept('Salvo antes e mais'), 1);
+    writeDiaryDraft('newer', kept('Velho'));
+    vi.setSystemTime(at(13, 10));
+    await write('newer', 12, 10, 'Editado depois, em outro aparelho');
+    const queued = await db.outbox.count();
+    renderDiary();
+    const list = await screen.findByRole('list', { name: 'Textos não salvos' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Texto não salvo de 13/11 09:30Continuar', 'Texto não salvo de 13/11 09:00Continuar',
+    ]);
+    expect(within(list).getAllByRole('link', { name: 'Continuar' }).map((l) => l.getAttribute('href'))).toEqual(['/diario/older', '/diario/gone']);
+    expect(await db.outbox.count()).toBe(queued);
+  });
+
+  it('nothing kept, no line', async () => {
+    renderDiary();
+    await screen.findByRole('heading', { name: 'Semana 09/11–15/11' });
+    expect(screen.queryByRole('list', { name: 'Textos não salvos' })).not.toBeInTheDocument();
   });
 });
 

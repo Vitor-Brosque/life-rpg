@@ -18,6 +18,11 @@ export function mainHeading(): HTMLElement | null {
     ?? document.querySelector<HTMLElement>(`[data-focus-target="${FOCUS_PAGE}"]`);
 }
 
+/** Moves focus to `target` only when it is on <body> (or nowhere): a screen that just opened after a tapped link went away. */
+export function focusIfLost(target: HTMLElement | null | undefined): void {
+  if (lost()) target?.focus();
+}
+
 /**
  * Once `control` leaves the page, moves focus to `target()` (default: the block heading or the
  * main heading) — only when focus went down with it, so a field the user moved to keeps it.

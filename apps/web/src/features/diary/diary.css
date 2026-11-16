@@ -27,4 +27,8 @@
 .diary-editor__option { width: 100%; justify-content: flex-start; min-height: 44px; text-align: left; }
 .diary-editor__footer { justify-content: space-between; }
 .diary-trash__row { display: flex; flex-direction: column; gap: var(--space-2); }
+.diary__kept-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3); border: 2px dashed var(--outline); }
+.diary-editor__kept { padding: var(--space-3); border: 2px dashed var(--gold); }
+.diary-editor__kept-title { margin: 0; font-weight: 600; }
+.diary-editor__kept-text { margin: 0; white-space: pre-line; overflow-wrap: anywhere; color: var(--text-dim); }
 .diary-export__preview { max-height: 40vh; overflow: auto; margin: 0; padding: var(--space-3); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; background: var(--stone); }

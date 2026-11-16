@@ -258,7 +258,11 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
 
 - **Escrever** abre uma entrada nova, com a data e a hora de agora. É só escrever e sair: a entrada se salva
   sozinha a cada pausa. Texto só com espaços não vira entrada, e uma entrada nova esvaziada antes de sair some.
-  Se o iPhone fechar o app em segundo plano, o que você acabou de digitar volta ao abrir a entrada.
+  Se o iPhone fechar o app em segundo plano, ou se um salvamento não passar, o que você digitou fica guardado no
+  aparelho e volta ao abrir a entrada. Se a entrada mudou depois disso (em outro aparelho ou no "Como foi hoje?"),
+  o campo mostra o texto salvo e um aviso, "Há um texto não salvo deste aparelho, de …", oferece **Usar este
+  texto** ou **Descartar**: nenhum dos dois textos some sem você escolher. No topo do Diário, "Texto não salvo
+  de …" com **Continuar** leva a um texto que ficou só no aparelho.
 - **Mudar data e hora** troca o dia e a hora (o dia segue o início do seu dia: 01:30 conta para o dia anterior).
 - Opcionais: **Ligar a…** uma missão ou uma jornada (as disciplinas são jornadas), até 3; **Temas** (Faculdade,
   Carreira, Projetos, Estudo, Saúde, Treino, Sono, Relacionamentos, Família, Lazer, Sentimentos, Ideias); e

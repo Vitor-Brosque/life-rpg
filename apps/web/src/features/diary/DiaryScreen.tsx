@@ -13,6 +13,7 @@ import { Chip } from '../../ui/Chip';
 import { DiaryExportSheet } from './DiaryExportSheet';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { formatDay, plural } from '../../ui/format';
+import { keptStamp, useDiaryDrafts } from './diaryDraft';
 import './diary.css';
 
 /** `?semana=` when it is a valid day: the Monday of its week. */
@@ -55,6 +56,7 @@ export function DiaryScreen() {
           id="diary-search" onChange={(e) => setQuery(e.target.value)} />
       </div>
       <DiaryFiltersPanel filters={filters} onChange={setFilters} />
+      <KeptDrafts />
       {diaryFiltering(query, filters)
         ? <DiaryResults query={query} filters={filters} today={today} onClear={() => { setQuery(''); setFilters({}); document.getElementById('diary-search')?.focus(); }} />
         : shown && current && <DiaryWeekView monday={shown} current={current} onWeek={goTo} />}
@@ -192,6 +194,35 @@ function DiaryResults({ query, filters, today, onClear }: {
       )}
       <div className="cluster"><Button size="sm" variant="ghost" onClick={onClear}>Limpar busca</Button></div>
     </section>
+  );
+}
+
+/**
+ * Texts kept on this device that did not reach the database (a save that did not go through): one line per
+ * kept draft whose entry is missing or older than it. Continuar opens the entry, where the editor decides
+ * whether the text comes back or waits for a choice.
+ */
+function KeptDrafts() {
+  const drafts = useDiaryDrafts();
+  const entries = useDiaryEntries();
+  const shown = useMemo(() => {
+    if (!entries) return [];
+    const byId = new Map(entries.map((e) => [e.id, e]));
+    return drafts.filter((k) => {
+      const e = byId.get(k.id);
+      return !e || e.updatedAt < k.keptAt;
+    });
+  }, [drafts, entries]);
+  if (shown.length === 0) return null;
+  return (
+    <ul className="diary__list diary__kept" aria-label="Textos não salvos">
+      {shown.map((k) => (
+        <li key={k.id} className="diary__kept-row">
+          <span id={`diary-kept-${k.id}`}>{`Texto não salvo de ${keptStamp(k.keptAt)}`}</span>
+          <Link href={`/diario/${k.id}`} className="btn btn--secondary btn--sm" aria-describedby={`diary-kept-${k.id}`}>Continuar</Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

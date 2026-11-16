@@ -9,6 +9,7 @@ import { FOCUS_PAGE, focusWhenGone } from '../../ui/focusAfter';
 import { plural } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
+import { clearDiaryDraft } from './diaryDraft';
 import './diary.css';
 
 const toast = (msg: string) => useToast.getState().show(msg);
@@ -49,7 +50,9 @@ export function DiaryTrashScreen() {
                   toHeading(e);
                   setConfirmAll(false);
                   safeRun(async () => {
-                    const n = (await emptyDiaryTrash()).length;
+                    const ids = await emptyDiaryTrash();
+                    for (const id of ids) clearDiaryDraft(id); // its text leaves this device too
+                    const n = ids.length;
                     if (n > 0) toast(n === 1 ? 'Entrada apagada de vez.' : 'Entradas apagadas de vez.');
                   });
                 }}>Esvaziar</Button>
@@ -93,6 +96,7 @@ function TrashRow({ entry, toHeading }: { entry: DiaryEntry; toHeading(e: MouseE
               toHeading(e);
               safeRun(async () => {
                 await purgeDiaryEntry(entry.id);
+                clearDiaryDraft(entry.id); // its text leaves this device too
                 toast('Entrada apagada de vez.');
               });
             }}>Apagar de vez</Button>

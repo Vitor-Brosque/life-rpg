@@ -1,20 +1,20 @@
-import { useId, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import type { DiaryEntry, DiaryLink, ID } from '@life/shared';
+import type { DiaryEntry, DiaryKind, DiaryLink, ID } from '@life/shared';
 import {
   DIARY_LINKS_MAX, DIARY_LINK_LABEL, DIARY_THEMES, DIARY_THEME_LABEL, dayKeyOf, diaryClock, diaryDayTitle, diaryMoment,
-  linkKey, normalize, sameLink, weekOfDay,
+  diaryPreview, linkKey, normalize, sameLink, weekOfDay,
 } from '@life/shared';
 import { useLinkNames, useDiaryEntry } from '../../db/diaryData';
 import { useJourneys, useMissions, useSettings } from '../../db/hooks';
-import { restoreDiaryEntry, trashDiaryEntry, type DiaryDraft } from '../../domain/diaryActions';
+import { restoreDiaryEntry, saveDiaryEntry, trashDiaryEntry, type DiaryDraft } from '../../domain/diaryActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
-import { FOCUS_PAGE, focusWhenGone } from '../../ui/focusAfter';
+import { FOCUS_PAGE, focusIfLost, focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
-import { readDiaryDraft } from './diaryDraft';
-import { useDiaryAutosave } from './useDiaryAutosave';
+import { clearDiaryDraft, keptStamp, readDiaryDraft, type KeptDiaryDraft } from './diaryDraft';
+import { useDiaryAutosave, type DiaryStart } from './useDiaryAutosave';
 import '../plan/plan.css';
 import './diary.css';
 
@@ -32,6 +32,7 @@ export function DiaryEditorScreen({ id }: { id: ID }) {
         <Link href="/diario" className="settings__back">‹ Diário</Link>
         <h1 tabIndex={-1} data-focus-target={FOCUS_PAGE}>Entrada do diário</h1>
         <p className="muted">Esta entrada foi apagada.</p>
+        <KeptOnDeleted id={id} kind={entry.kind} />
       </section>
     );
   }
@@ -53,25 +54,86 @@ export function DiaryEditorScreen({ id }: { id: ID }) {
   return <DiaryEditorForm id={id} entry={entry ?? undefined} dayStartHour={settings.dayStartHour} />;
 }
 
-function startDraft(id: ID, entry: DiaryEntry | undefined, dayStartHour: number): { draft: DiaryDraft; restored: boolean } {
+const draftKey = (d: DiaryDraft): string =>
+  JSON.stringify([d.text, d.day, d.at, d.themes, d.links.map((l) => [l.kind, l.id]), d.private]);
+
+/**
+ * How the editor opens `entry` (missing = never saved). A draft kept on this device comes back when the
+ * record is missing or still is the version the draft was based on; when the record changed since, the field
+ * shows the database text and the kept text waits for a choice (only when the texts differ).
+ */
+function startOf(id: ID, entry: DiaryEntry | undefined, dayStartHour: number): DiaryStart {
   const now = Date.now();
-  const base: DiaryDraft = entry
+  const shown: DiaryDraft = entry
     ? { text: entry.text, day: entry.day, at: entry.at, themes: entry.themes, links: entry.links, private: entry.private }
     : { text: '', day: dayKeyOf(now, dayStartHour), at: now, themes: [], links: [], private: false };
+  const common = { isNew: entry === undefined, kind: entry?.kind ?? 'livre', ...(entry ? { base: entry.updatedAt } : {}) } as const;
   const kept = readDiaryDraft(id);
-  return kept && kept.text !== base.text ? { draft: kept, restored: true } : { draft: base, restored: false };
+  if (kept && (!entry || kept.base === entry.updatedAt)) {
+    if (draftKey(kept.draft) !== draftKey(shown)) return { ...common, draft: kept.draft, restored: true };
+  } else if (kept && entry && kept.draft.text !== entry.text) {
+    return { ...common, draft: shown, restored: false, conflict: kept };
+  }
+  return { ...common, draft: shown, restored: false };
+}
+
+/** "Há um texto não salvo deste aparelho…": the kept text, with Usar este texto and Descartar. */
+function KeptNotice({ kept, labelId, onTake, onDrop }: {
+  kept: KeptDiaryDraft; labelId: string; onTake(e: MouseEvent<HTMLElement>): void; onDrop(e: MouseEvent<HTMLElement>): void;
+}) {
+  return (
+    <div className="diary-editor__kept stack" role="group" aria-labelledby={labelId}>
+      <p id={labelId} className="diary-editor__kept-title">{`Há um texto não salvo deste aparelho, de ${keptStamp(kept.keptAt)}.`}</p>
+      <p className="diary-editor__kept-text">{diaryPreview(kept.draft.text)}</p>
+      <div className="cluster">
+        <Button size="sm" variant="primary" onClick={onTake}>Usar este texto</Button>
+        <Button size="sm" variant="ghost" onClick={onDrop}>Descartar</Button>
+      </div>
+    </div>
+  );
+}
+
+/** An entry deleted for good elsewhere while this device kept a draft of it: the draft can bring it back. */
+function KeptOnDeleted({ id, kind }: { id: ID; kind: DiaryKind }) {
+  const [kept, setKept] = useState(() => readDiaryDraft(id));
+  const labelId = useId();
+  if (!kept) return null;
+  return (
+    <KeptNotice kept={kept} labelId={labelId}
+      onTake={(e) => {
+        focusWhenGone(e.currentTarget);
+        safeRun(async () => {
+          await saveDiaryEntry(id, kept.draft, { kind });
+          clearDiaryDraft(id);
+        });
+      }}
+      onDrop={(e) => {
+        focusWhenGone(e.currentTarget);
+        clearDiaryDraft(id);
+        setKept(undefined);
+      }} />
+  );
 }
 
 function DiaryEditorForm({ id, entry, dayStartHour }: { id: ID; entry?: DiaryEntry; dayStartHour: number }) {
-  const [start] = useState(() => startDraft(id, entry, dayStartHour));
-  const [isNew] = useState(() => entry === undefined); // frozen: this session created the entry or did not
-  const auto = useDiaryAutosave(id, start.draft, isNew, start.restored);
+  const [start] = useState(() => startOf(id, entry, dayStartHour));
+  const { isNew } = start; // frozen: this session created the entry or did not
+  const auto = useDiaryAutosave(id, start);
   const { draft } = auto;
   const live = useDiaryEntry(id);
   const [, navigate] = useLocation();
   const textId = useId();
+  const keptId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const [moving, setMoving] = useState(false);
   const fechamento = entry?.kind === 'fechamento';
+
+  // An existing entry opened from a list: the tapped link is gone, so focus goes to the heading, not <body>.
+  useEffect(() => {
+    if (!isNew) focusIfLost(heading.current);
+  }, [isNew]);
+  const toText = (e: MouseEvent<HTMLElement>) => focusWhenGone(e.currentTarget, () => textRef.current);
 
   const leaveTo = (e: MouseEvent<HTMLElement>) => {
     focusWhenGone(e.currentTarget);
@@ -89,12 +151,19 @@ function DiaryEditorForm({ id, entry, dayStartHour }: { id: ID; entry?: DiaryEnt
   return (
     <section className="screen diary diary-editor stack">
       <Link href={weekHref(draft.day)} className="settings__back">‹ Diário</Link>
-      <h1 tabIndex={-1} data-focus-target={FOCUS_PAGE}>{isNew ? 'Nova entrada' : 'Entrada do diário'}</h1>
+      <h1 ref={heading} tabIndex={-1} data-focus-target={FOCUS_PAGE}>{isNew ? 'Nova entrada' : 'Entrada do diário'}</h1>
       <p className="diary-editor__when">
         {`${diaryDayTitle(draft.day)} · ${diaryClock(draft.at)}`}{fechamento ? ' · fechamento do dia' : ''}
       </p>
+      {auto.conflict && (
+        <KeptNotice kept={auto.conflict} labelId={keptId}
+          onTake={(e) => { toText(e); auto.takeKept(); }}
+          onDrop={(e) => { toText(e); auto.dropKept(); }} />
+      )}
       <label htmlFor={textId} className="visually-hidden">Texto da entrada</label>
-      <textarea id={textId} className="diary-editor__text" value={draft.text} rows={10} autoFocus={isNew}
+      {/* Read-only while a kept text waits for a choice, so neither text can be lost. */}
+      <textarea ref={textRef} id={textId} className="diary-editor__text" value={draft.text} rows={10} autoFocus={isNew}
+        readOnly={auto.conflict !== undefined} aria-describedby={auto.conflict ? keptId : undefined}
         placeholder="Escreva livremente." onChange={(e) => auto.type(e.target.value)} />
       <p className="diary-editor__status">
         {!draft.text.trim() && !isNew ? 'Texto vazio não é salvo. Para tirar a entrada, use Apagar.'
