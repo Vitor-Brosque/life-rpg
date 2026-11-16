@@ -64,7 +64,7 @@ function DiaryExportContent({ initial }: { initial: DayKey }) {
         </button>
       ))}
       <h3 id="diary-export-preview" className="field__label">Prévia</h3>
-      <pre className="diary-export__preview" aria-labelledby="diary-export-preview" tabIndex={0}>{text ?? ''}</pre>
+      <pre className="diary-export__preview" role="region" aria-labelledby="diary-export-preview" tabIndex={0}>{text ?? ''}</pre>
       <div className="cluster">
         <Button variant="primary" disabled={text === undefined} onClick={deliver}>{share ? 'Compartilhar' : 'Baixar'}</Button>
       </div>

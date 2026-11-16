@@ -34,10 +34,9 @@ export function DiaryScreen() {
   const current = today ? weekOfDay(today) : undefined;
   const shown = monday ?? current;
 
-  // Links back from an entry (`?semana=`) choose the week again.
+  // Links back from an entry (`?semana=`) choose the week again; the Diário tab (no `?semana=`) is this week.
   useEffect(() => {
-    const asked = weekFromSearch(search);
-    if (asked) setMonday(asked);
+    setMonday(weekFromSearch(search));
   }, [search]);
 
   const goTo = (week: DayKey) => {

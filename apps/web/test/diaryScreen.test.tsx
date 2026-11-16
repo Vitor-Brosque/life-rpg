@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Router } from 'wouter';
@@ -74,6 +74,13 @@ describe('timeline', () => {
     expect(await screen.findByRole('heading', { name: 'Semana 28/09–04/10' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Próxima semana' }));
     expect(await screen.findByText('Outubro.')).toBeInTheDocument();
+  });
+
+  it('the Diário tab (no ?semana=) goes back to the current week', async () => {
+    const loc = renderDiary('/diario?semana=2026-11-02');
+    expect(await screen.findByRole('heading', { name: 'Semana 02/11–08/11' })).toBeInTheDocument();
+    act(() => loc.navigate('/diario'));
+    expect(await screen.findByRole('heading', { name: 'Semana 09/11–15/11' })).toBeInTheDocument();
   });
 
   it('?semana= opens that week; the reviews answered in it are read-only cards', async () => {

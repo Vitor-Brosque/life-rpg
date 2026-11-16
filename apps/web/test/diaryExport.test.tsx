@@ -68,6 +68,7 @@ describe('Exportar semana', () => {
     expect(within(sheet).getByRole('switch', { name: 'Registrado pelo app' })).toHaveAttribute('aria-checked', 'true');
     expect(within(sheet).getByRole('switch', { name: 'Revisões da semana e do mês' })).toHaveAttribute('aria-checked', 'true');
     await waitFor(() => expect(preview(sheet).textContent).toBe(DEFAULT_TEXT));
+    expect(within(sheet).getByRole('region', { name: 'Prévia' })).toBe(preview(sheet));
     await user.click(within(sheet).getByRole('switch', { name: 'Incluir entradas privadas' }));
     await waitFor(() => expect(preview(sheet)).toHaveTextContent('### 22:10 · privada Só meu.'));
     await user.click(within(sheet).getByRole('switch', { name: 'Registrado pelo app' }));
@@ -75,6 +76,19 @@ describe('Exportar semana', () => {
     await user.click(within(sheet).getByRole('button', { name: 'Próxima semana' }));
     await waitFor(() => expect(preview(sheet)).toHaveTextContent('# Diário — 16/11 a 22/11/2026'));
     expect(within(sheet).getByRole('button', { name: 'Próxima semana' })).toBeDisabled();
+  });
+
+  it('opening the sheet, changing the week and the switches write nothing', async () => {
+    const counts = async () => [await db.outbox.count(), await db.diaryEntries.count(), await db.dayState.count()];
+    const before = await counts();
+    const { user, sheet } = await openSheet();
+    await waitFor(() => expect(preview(sheet).textContent).toBe(DEFAULT_TEXT));
+    for (const name of ['Incluir entradas privadas', 'Registrado pelo app', 'Revisões da semana e do mês']) {
+      await user.click(within(sheet).getByRole('switch', { name }));
+    }
+    await user.click(within(sheet).getByRole('button', { name: 'Semana anterior' }));
+    await waitFor(() => expect(preview(sheet)).toHaveTextContent('# Diário — 02/11 a 08/11/2026'));
+    expect(await counts()).toEqual(before);
   });
 
   it('Compartilhar hands the .md file to the share sheet with the previewed text', async () => {

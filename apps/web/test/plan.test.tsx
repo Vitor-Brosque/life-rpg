@@ -209,6 +209,22 @@ describe('PlanScreen', () => {
     await user.keyboard('{Home}');
     expect(screen.getByRole('tab', { name: 'Semana', selected: true })).toHaveFocus();
   });
+
+  it('the selected tab is scrolled into view (five views do not fit at 375 px), on opening and on each change', async () => {
+    const user = userEvent.setup();
+    const scrolled: Array<{ id: string; options: unknown }> = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element, options?: unknown) { scrolled.push({ id: this.id, options }); });
+    try {
+      localStorage.setItem('life-rpg.plan.tab', 'casa');
+      render(<PlanScreen />);
+      await screen.findByRole('tab', { name: 'Casa', selected: true });
+      await waitFor(() => expect(scrolled.at(-1)).toEqual({ id: 'plan-tab-casa', options: { block: 'nearest', inline: 'nearest' } }));
+      await user.click(screen.getByRole('tab', { name: 'Semana' }));
+      await waitFor(() => expect(scrolled.at(-1)?.id).toBe('plan-tab-week'));
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
+  });
 });
 
 describe('moveToColumn out of "Feito"', () => {

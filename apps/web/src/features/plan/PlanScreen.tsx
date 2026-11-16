@@ -42,6 +42,11 @@ export function PlanScreen() {
     const asked = ABA[new URLSearchParams(search).get('aba') ?? ''];
     if (asked) setTab(asked);
   }, [search]);
+  // Five views do not fit at 375 px: the selected one is scrolled into view (on opening and on each change).
+  useEffect(() => {
+    const el = document.getElementById(`plan-tab-${tab}`);
+    if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [tab]);
   const choose = (t: Tab) => {
     setTab(t);
     try { localStorage.setItem(KEY, t); } catch { /* storage may be unavailable */ }
