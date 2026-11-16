@@ -1,6 +1,8 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Router } from 'wouter';
+import { memoryLocation } from 'wouter/memory-location';
 import type { BlockSession, FocusSession } from '@life/shared';
 import { db } from '../src/db/db';
 import { refreshNow, useNow, useToday } from '../src/db/hooks';
@@ -203,6 +205,17 @@ describe('sheet "Como foi hoje"', () => {
     expect(field).toHaveValue(long);
     expect(field).not.toHaveAttribute('maxlength');
     expect(screen.getByText('Fica no diário como o fechamento do dia.')).toBeInTheDocument();
+  });
+
+  it('"Escrever no diário" closes the sheet and opens a new entry, writing nothing', async () => {
+    const user = userEvent.setup();
+    const loc = memoryLocation({ path: '/', record: true });
+    render(<Router hook={loc.hook}>{view()}</Router>);
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    await user.click(await within(await sheet()).findByRole('button', { name: 'Escrever no diário' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Como foi hoje' })).not.toBeInTheDocument());
+    expect(loc.history!.at(-1)).toMatch(/^\/diario\/[0-9A-Z]{26}$/);
+    expect(await db.diaryEntries.count()).toBe(0);
   });
 
   it('"Fiz, mas não registrei" registers the block as done later, without XP', async () => {

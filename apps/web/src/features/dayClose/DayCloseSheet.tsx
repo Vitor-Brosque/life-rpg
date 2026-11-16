@@ -1,7 +1,8 @@
 import { useId, useState, type MouseEvent } from 'react';
+import { useLocation } from 'wouter';
 import type { DayCloseSummary, DayKey, DayState, DiaryEntry, Mission, Tiredness } from '@life/shared';
 import {
-  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays,
+  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays, ulid,
 } from '@life/shared';
 import { useToday } from '../../db/hooks';
 import { rescheduleMission } from '../../domain/actions';
@@ -161,6 +162,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
   const [note, setNote] = useState(closeEntry?.text ?? '');
   const [busy, setBusy] = useState(false);
   const noteId = useId();
+  const [, navigate] = useLocation();
   const pending = summary.pending.filter((m) => !handled.has(m.id));
   const closed = state?.closedAt;
 
@@ -209,6 +211,12 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       <textarea id={noteId} value={note} rows={4} placeholder="Escreva o quanto quiser, se quiser"
         aria-describedby={`${noteId}-hint`} onChange={(e) => setNote(e.target.value)} />
       <p id={`${noteId}-hint`} className="day-close__hint">Fica no diário como o fechamento do dia.</p>
+      <div className="cluster">
+        <Button size="sm" variant="ghost" icon="diary" onClick={() => {
+          onClose();
+          navigate(`/diario/${ulid()}`);
+        }}>Escrever no diário</Button>
+      </div>
       <DayCloseCorrections blocks={summary.blocks} focus={summary.focus} />
       <div className="day-close__footer">
         {closed !== undefined && <p className="day-close__hint">{`Dia fechado às ${formatClock(closed)}.`}</p>}

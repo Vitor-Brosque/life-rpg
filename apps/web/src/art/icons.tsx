@@ -10,9 +10,39 @@ export type IconName =
   | 'house' | 'people' | 'leaf' | 'star' | 'drop' | 'calendar' | 'board' | 'flame' | 'moon' | 'close'
   | 'bell' | 'chest' | 'door'
   | 'pen' | 'eraser' | 'move' | 'undo' | 'redo' | 'fit' | 'trash' | 'map'
-  | 'mic' | 'image' | 'speaker' | 'drive';
+  | 'mic' | 'image' | 'speaker' | 'drive'
+  | 'diary' | 'lock';
 
 const ROWS: Record<IconName, string[]> = {
+  // Diário (2026-11-16): a ring-bound notebook with written lines, and the padlock of a private entry.
+  diary: [
+    '.oooooooooo.',
+    'o.o........o',
+    'ooo.oooooo.o',
+    'o.o........o',
+    'ooo.oooooo.o',
+    'o.o........o',
+    'ooo.oooo...o',
+    'o.o........o',
+    'ooo........o',
+    'o.o........o',
+    '.oooooooooo.',
+    '............',
+  ],
+  lock: [
+    '............',
+    '....oooo....',
+    '...o....o...',
+    '...o....o...',
+    '...o....o...',
+    '..oooooooo..',
+    '..oooooooo..',
+    '..ooo..ooo..',
+    '..ooo..ooo..',
+    '..oooooooo..',
+    '..oooooooo..',
+    '............',
+  ],
   // Mundo RPG (Marco 6): a framed map with a dotted route to an X.
   map: [
     '............',

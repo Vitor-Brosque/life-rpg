@@ -1,0 +1,30 @@
+/* Diário (2026-11-16): timeline, editor, trash and export. No red anywhere. */
+.diary h1:focus, .diary h2:focus { outline: none; }
+.diary__bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.diary__bar input[type='search'] { flex: 1; min-width: 12ch; }
+.diary__week { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.diary__week-label { margin: 0; font-size: 1.125rem; }
+.diary__day { display: flex; flex-direction: column; gap: var(--space-2); }
+.diary__day-title { margin: 0; color: var(--gold); font-size: 1rem; }
+.diary__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.diary-entry { display: flex; flex-direction: column; gap: 6px; padding: var(--space-3); background: var(--stone); box-shadow: inset 0 0 0 2px var(--outline); }
+.diary-entry__open { display: flex; flex-direction: column; gap: 4px; min-height: 44px; color: var(--text); text-decoration: none; }
+.diary-entry__time { color: var(--text-dim); font-size: 0.875rem; }
+.diary-entry__preview { white-space: pre-line; overflow-wrap: anywhere; }
+.diary-entry__tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.diary-review { padding: var(--space-3); border: 2px dashed var(--outline); }
+.diary-review__title { margin: 0 0 var(--space-2); font-size: 0.95rem; }
+.diary-review dl { margin: 0; display: grid; gap: 4px; }
+.diary-review dt { color: var(--text-dim); font-size: 0.875rem; }
+.diary-review dd { margin: 0; white-space: pre-line; }
+.diary__filters { display: flex; flex-direction: column; gap: var(--space-3); }
+.diary__filters summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.diary-editor__when { margin: 0; color: var(--text-dim); }
+.diary-editor__text { width: 100%; min-height: 40vh; resize: vertical; font: inherit; line-height: 1.5; }
+.diary-editor__status, .diary-editor__hint { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.diary-editor__links { list-style: none; margin: 0; padding: 0; }
+.diary-editor__options-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.diary-editor__option { width: 100%; justify-content: flex-start; min-height: 44px; text-align: left; }
+.diary-editor__footer { justify-content: space-between; }
+.diary-trash__row { display: flex; flex-direction: column; gap: var(--space-2); }
+.diary-export__preview { max-height: 40vh; overflow: auto; margin: 0; padding: var(--space-3); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; background: var(--stone); }

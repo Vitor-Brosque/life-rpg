@@ -8,6 +8,8 @@ import { CheckinCardHost } from '../features/agora/CheckinCard';
 import { ResumePromptHost } from '../features/agora/ResumePrompt';
 import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
 import { CharacterScreen } from '../features/character/CharacterScreen';
+import { DiaryEditorScreen } from '../features/diary/DiaryEditor';
+import { DiaryTrashScreen } from '../features/diary/DiaryTrash';
 import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
@@ -76,7 +78,7 @@ export function App() {
   }
   return (
     <>
-      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') || location.startsWith('/casa/compras') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
+      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') || location.startsWith('/diario/') || location.startsWith('/casa/compras') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
@@ -95,6 +97,8 @@ export function App() {
           <Route path="/estudo/nota/:id">{(params) => <NoteEditor key={params.id} id={params.id} />}</Route>
           <Route path="/jornadas"><JourneysScreen /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
+          <Route path="/diario/apagadas"><DiaryTrashScreen /></Route>
+          <Route path="/diario/:id">{(params) => <DiaryEditorScreen key={params.id} id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>
           <Route path="/mapa"><MapScreen /></Route>
           <Route path="/corpo/treino"><TrainingScreen /></Route>
