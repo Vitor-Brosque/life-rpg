@@ -1,17 +1,17 @@
 import { PracticeScreen } from '../features/practice/PracticeScreen';
 import { PracticeListScreen } from '../features/practice/PracticeListScreen';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Route, Switch, useLocation } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { db } from '../db/db';
 import { AgoraScreen } from '../features/agora/AgoraScreen';
 import { CheckinCardHost } from '../features/agora/CheckinCard';
 import { ResumePromptHost } from '../features/agora/ResumePrompt';
 import { CaptureFab, CaptureHost } from '../features/capture/CaptureBar';
 import { CharacterScreen } from '../features/character/CharacterScreen';
+import { DiaryScreen } from '../features/diary/DiaryScreen';
 import { DiaryEditorScreen } from '../features/diary/DiaryEditor';
 import { DiaryTrashScreen } from '../features/diary/DiaryTrash';
 import { JourneyDetail } from '../features/journeys/JourneyDetail';
-import { JourneysScreen } from '../features/journeys/JourneysScreen';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
 import { RecipesScreen } from '../features/casa/RecipesScreen';
@@ -95,8 +95,9 @@ export function App() {
           <Route path="/pratica/:id">{(params) => <PracticeScreen key={params.id} id={params.id} />}</Route>
           <Route path="/estudo/nota/nova"><NoteEditor /></Route>
           <Route path="/estudo/nota/:id">{(params) => <NoteEditor key={params.id} id={params.id} />}</Route>
-          <Route path="/jornadas"><JourneysScreen /></Route>
+          <Route path="/jornadas"><Redirect to="/planejar?aba=jornadas" replace /></Route>
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
+          <Route path="/diario"><DiaryScreen /></Route>
           <Route path="/diario/apagadas"><DiaryTrashScreen /></Route>
           <Route path="/diario/:id">{(params) => <DiaryEditorScreen key={params.id} id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>

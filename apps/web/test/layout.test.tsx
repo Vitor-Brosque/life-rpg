@@ -15,17 +15,23 @@ describe('Layout', () => {
     renderAt('/', <Layout><h1>Conteúdo</h1></Layout>);
     const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
     const links = within(nav).getAllByRole('link');
-    expect(links.map((l) => l.textContent?.trim())).toEqual(['Agora', 'Planejar', 'Estudo', 'Jornadas', 'Personagem']);
-    for (const [name, href] of [['Agora', '/'], ['Planejar', '/planejar'], ['Estudo', '/estudo'], ['Jornadas', '/jornadas'], ['Personagem', '/personagem']]) {
+    expect(links.map((l) => l.textContent?.trim())).toEqual(['Agora', 'Planejar', 'Estudo', 'Diário', 'Personagem']);
+    for (const [name, href] of [['Agora', '/'], ['Planejar', '/planejar'], ['Estudo', '/estudo'], ['Diário', '/diario'], ['Personagem', '/personagem']]) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
     expect(screen.getByRole('main')).toHaveTextContent('Conteúdo');
   });
 
   it('marks the current section, including nested routes', () => {
-    renderAt('/jornadas/abc', <Layout>x</Layout>);
-    expect(screen.getByRole('link', { name: 'Jornadas' })).toHaveAttribute('aria-current', 'page');
+    renderAt('/diario/abc', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Diário' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Agora' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('the journeys (/jornadas, /jornadas/…) belong to Planejar', () => {
+    renderAt('/jornadas/abc', <Layout>x</Layout>);
+    expect(screen.getByRole('link', { name: 'Planejar' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'Jornadas' })).not.toBeInTheDocument();
   });
 
   it('a lousa (/lousa/…) belongs to Estudo', () => {

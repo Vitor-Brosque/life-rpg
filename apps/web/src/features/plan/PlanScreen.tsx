@@ -1,23 +1,25 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useSearch } from 'wouter';
 import { tabKeyTarget } from '../../ui/tabKeys';
 import { CasaView } from '../casa/CasaView';
+import { JourneysView } from '../journeys/JourneysView';
 import { RoutineScreen } from '../routine/RoutineScreen';
 import { BoardView } from './BoardView';
 import { WeekView } from './WeekView';
 import './plan.css';
 
-type Tab = 'week' | 'board' | 'routine' | 'casa';
+type Tab = 'week' | 'board' | 'routine' | 'journeys' | 'casa';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'week', label: 'Semana' },
   { id: 'board', label: 'Quadro' },
   { id: 'routine', label: 'Rotina' },
+  { id: 'journeys', label: 'Jornadas' },
   { id: 'casa', label: 'Casa' },
 ];
 const KEY = 'life-rpg.plan.tab';
 
-/** `?aba=` values (links back from /casa/compras and /casa/receitas). */
-const ABA: Record<string, Tab> = { semana: 'week', quadro: 'board', rotina: 'routine', casa: 'casa' };
+/** `?aba=` values (links back from /casa/…, /jornadas and a journey). */
+const ABA: Record<string, Tab> = { semana: 'week', quadro: 'board', rotina: 'routine', jornadas: 'journeys', casa: 'casa' };
 
 function readTab(search: string): Tab {
   const asked = ABA[new URLSearchParams(search).get('aba') ?? ''];
@@ -31,10 +33,15 @@ function readTab(search: string): Tab {
   } catch { return 'week'; }
 }
 
-/** Planejar: missions across days (week) or by state (board), and the block routine and the house (menu, freezer). */
+/** Planejar: missions across days (week) or by state (board), the block routine, the journeys and the house. */
 export function PlanScreen() {
   const search = useSearch();
   const [tab, setTab] = useState<Tab>(() => readTab(search));
+  // A link with `?aba=` while Planejar is already open switches the view too.
+  useEffect(() => {
+    const asked = ABA[new URLSearchParams(search).get('aba') ?? ''];
+    if (asked) setTab(asked);
+  }, [search]);
   const choose = (t: Tab) => {
     setTab(t);
     try { localStorage.setItem(KEY, t); } catch { /* storage may be unavailable */ }
@@ -60,7 +67,8 @@ export function PlanScreen() {
         ))}
       </div>
       <div id="plan-panel" role="tabpanel" aria-labelledby={`plan-tab-${tab}`}>
-        {tab === 'week' ? <WeekView /> : tab === 'board' ? <BoardView /> : tab === 'routine' ? <RoutineScreen /> : <CasaView />}
+        {tab === 'week' ? <WeekView /> : tab === 'board' ? <BoardView /> : tab === 'routine' ? <RoutineScreen />
+          : tab === 'journeys' ? <JourneysView /> : <CasaView />}
       </div>
     </section>
   );

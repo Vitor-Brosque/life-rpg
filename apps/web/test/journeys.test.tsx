@@ -7,7 +7,7 @@ import { ensureSeed } from '../src/db/seed';
 import { newRecord, put } from '../src/db/repo';
 import { createMission } from '../src/domain/actions';
 import { JourneyDetail } from '../src/features/journeys/JourneyDetail';
-import { JourneysScreen } from '../src/features/journeys/JourneysScreen';
+import { JourneysView } from '../src/features/journeys/JourneysView';
 import { ToastHost } from '../src/ui/Toast';
 
 beforeEach(async () => {
@@ -30,17 +30,17 @@ async function seedJourney(): Promise<Journey> {
   return j;
 }
 
-describe('JourneysScreen', () => {
+describe('JourneysView', () => {
   it('shows progress 1/3 and the next mission', async () => {
     await seedJourney();
-    render(<JourneysScreen />);
+    render(<JourneysView />);
     expect(await screen.findByText('Mudança')).toBeInTheDocument();
     expect(await screen.findByText('1/3')).toBeInTheDocument();
     expect(screen.getByText(/Contratar frete/)).toBeInTheDocument();
   });
 
   it('creates a journey with the inline form', async () => {
-    render(<JourneysScreen />);
+    render(<JourneysView />);
     await userEvent.click(await screen.findByRole('button', { name: 'Nova jornada' }));
     await userEvent.type(screen.getByLabelText('Título'), 'Aprender violão');
     await userEvent.type(screen.getByLabelText('Resultado esperado'), 'Tocar três músicas');

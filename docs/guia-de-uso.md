@@ -23,7 +23,7 @@ Uma ideia atravessa o app inteiro: **um dia parado não apaga nada**. Nada zera,
 12. [Perguntas frequentes e quando algo não funciona](#12-perguntas-frequentes-e-quando-algo-não-funciona)
 13. [Base científica, com honestidade](#13-base-científica-com-honestidade)
 
-A barra de navegação tem cinco abas: **Agora**, **Planejar**, **Estudo**, **Jornadas** e **Personagem**.
+A barra de navegação tem cinco abas: **Agora**, **Planejar**, **Estudo**, **Diário** e **Personagem**. Jornadas fica no **Planejar**.
 Corpo, Padrões, Mapa e Ajustes abrem a partir do **Personagem**. O Painel abre em `/painel`.
 
 ---
@@ -248,6 +248,28 @@ A folha mostra:
 
 **Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar cansaço e nota.
 
+### Diário
+
+A aba **Diário** é um lugar para escrever livremente sobre os seus dias, com as suas palavras. Nada ali é
+obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada.
+
+- **Escrever** abre uma entrada nova, com a data e a hora de agora. É só escrever e sair: a entrada se salva
+  sozinha a cada pausa. Texto só com espaços não vira entrada, e uma entrada nova esvaziada antes de sair some.
+  Se o iPhone fechar o app em segundo plano, o que você acabou de digitar volta ao abrir a entrada.
+- **Mudar data e hora** troca o dia e a hora (o dia segue o início do seu dia: 01:30 conta para o dia anterior).
+- Opcionais: **Ligar a…** uma missão ou uma jornada (as disciplinas são jornadas), até 3; **Temas** (Faculdade,
+  Carreira, Projetos, Estudo, Saúde, Treino, Sono, Relacionamentos, Família, Lazer, Sentimentos, Ideias); e
+  **Privada**, que deixa a entrada fora das exportações, a menos que você a inclua naquela exportação.
+- A tela mostra **uma semana** (segunda a domingo), um grupo por dia, o mais recente primeiro, com as entradas na
+  ordem da hora. **Semana anterior**, **Próxima semana** e **Mesma semana, mês passado** navegam. As respostas da
+  **Nova semana** e da reflexão do mês escritas naquela semana aparecem como cartões só de leitura.
+- **Buscar no diário** acha palavras em todas as semanas, sem diferenciar acentos e maiúsculas. Em **Filtros**:
+  por tema, por vínculo e **Só privadas**.
+- **Apagar** (dentro da entrada) leva para **Apagadas recentemente**, com **Desfazer** na hora. Lá, **Restaurar**
+  devolve a entrada; **Apagar de vez** (numa entrada) e **Esvaziar** (todas) pedem confirmação e não têm volta:
+  o texto sai do aparelho e, na sincronização, do servidor. Os backups diários do servidor ainda guardam o texto
+  antigo até girarem (14 dias).
+
 ---
 
 ## 3. A semana
@@ -285,9 +307,9 @@ card Nova semana dá as boas-vindas de volta. Dá para desmarcar a qualquer mome
 Cada bloco pode ter um objetivo para a semana. Eles aparecem na aba **Planejar → Semana** e vão sendo
 marcados conforme você avança.
 
-### Planejar: Semana, Quadro, Rotina e Casa
+### Planejar: Semana, Quadro, Rotina, Jornadas e Casa
 
-A aba **Planejar** tem quatro visões. Uma lembrança da última escolhida fica no aparelho.
+A aba **Planejar** tem cinco visões. Uma lembrança da última escolhida fica no aparelho.
 
 - **Semana:** a semana em blocos, com setas para semana anterior e próxima. É onde se enxerga
   quais blocos caem em quais dias, compromissos e objetivos. Toque num dia para ver o plano dele.
@@ -302,6 +324,7 @@ A aba **Planejar** tem quatro visões. Uma lembrança da última escolhida fica 
   inteira.** Em cada bloco, o interruptor **Revisão espaçada neste bloco** diz se o Agora deve oferecer
   cards durante ele. No fim da Rotina, **Recorrentes** lista tudo o que repete: as missões com
   repetição (com a próxima data) e os compromissos semanais; toque para editar ou tirar a repetição.
+- **Jornadas:** os projetos grandes, com a próxima missão de cada um (veja [Jornadas](#jornadas)).
 - **Casa:** cardápio, compras e freezer (veja [Corpo e casa](#5-corpo-e-casa)).
 
 Compromissos (aulas, consultas) entram pelo **+** (tipo **Compromisso**) ou pela folha de compromisso no
@@ -310,8 +333,8 @@ são notificações do servidor e dependem de **Ajustes → Notificações**.
 
 ### Jornadas
 
-A aba **Jornadas** guarda os projetos grandes: um objetivo (o **Resultado esperado**) e várias missões em
-ordem. **Só a próxima missão aparece no Agora**, para não virar lista de tarefas. Ao concluir a jornada,
+A visão **Jornadas**, no **Planejar**, guarda os projetos grandes: um objetivo (o **Resultado esperado**) e várias missões em
+ordem. O endereço antigo `/jornadas` abre essa visão. **Só a próxima missão aparece no Agora**, para não virar lista de tarefas. Ao concluir a jornada,
 você ganha um bônus de XP. Uma jornada pode ter área, um baralho de estudo e sessões de prática.
 
 ---

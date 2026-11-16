@@ -8,9 +8,9 @@ interface NavItem { href: string; label: string; icon: IconName; also?: string[]
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Agora', icon: 'agora', also: ['/painel'] },
-  { href: '/planejar', label: 'Planejar', icon: 'plan', also: ['/casa'] },
+  { href: '/planejar', label: 'Planejar', icon: 'plan', also: ['/casa', '/jornadas'] },
   { href: '/estudo', label: 'Estudo', icon: 'book', also: ['/lousa', '/pratica'] },
-  { href: '/jornadas', label: 'Jornadas', icon: 'journey' },
+  { href: '/diario', label: 'Diário', icon: 'diary' },
   { href: '/personagem', label: 'Personagem', icon: 'character', also: ['/ajustes', '/corpo', '/padroes', '/mapa'] },
 ];
 

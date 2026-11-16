@@ -1,9 +1,10 @@
 /* Planejar: tabs, week strip, day boxes, board, commitment sheet, move menu. */
 
 .plan, .week, .board-wrap { min-width: 0; max-width: 100%; }
-.plan__tabs { display: flex; gap: var(--space-2); }
+.plan__tabs { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+.plan__tabs::-webkit-scrollbar { display: none; }
 .plan__tab {
-  flex: 1;
+  flex: 1 0 auto;
   min-height: var(--touch);
   max-width: 200px;
   padding: 0 var(--space-4);

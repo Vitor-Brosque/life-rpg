@@ -111,7 +111,7 @@ function JourneyBody({ journey }: { journey: Journey }) {
 
   return (
     <section className="screen stack">
-      <Link href="/jornadas" className="journey-detail__back">← Jornadas</Link>
+      <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Jornadas</Link>
       <h1 className="journey-detail__title">{journey.title}</h1>
       {journey.outcome && <p className="journey-detail__outcome">{journey.outcome}</p>}
       {inactive && <p className="muted">Esta jornada está {journey.status === 'done' ? 'concluída' : 'arquivada'}.</p>}
@@ -188,7 +188,7 @@ export function JourneyDetail({ id }: { id: string }) {
   if (!journey || journey.deleted) {
     return (
       <section className="screen stack">
-        <Link href="/jornadas" className="journey-detail__back">← Jornadas</Link>
+        <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Jornadas</Link>
         <Panel variant="stone"><p>Jornada não encontrada.</p></Panel>
       </section>
     );

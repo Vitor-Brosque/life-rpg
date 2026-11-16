@@ -102,8 +102,8 @@ function NewJourneyForm({ onDone }: { onDone(): void }) {
   );
 }
 
-/** "Jornadas": active journeys (drag to reorder) with progress and the next mission. */
-export function JourneysScreen() {
+/** Planejar → Jornadas: active journeys (drag to reorder) with progress and the next mission. */
+export function JourneysView() {
   const journeys = useJourneys();
   const missions = useMissions();
   const areas = useAreas();
@@ -130,8 +130,7 @@ export function JourneysScreen() {
   };
 
   return (
-    <section className="screen stack">
-      <h1>Jornadas</h1>
+    <div className="journeys stack">
       <p className="muted">Um objetivo, várias missões. Só a próxima aparece na tela Agora.</p>
       <div className="journeys__bar">
         {!adding && <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Nova jornada</Button>}
@@ -163,6 +162,6 @@ export function JourneysScreen() {
           </ul>
         </div>
       )}
-    </section>
+    </div>
   );
 }
