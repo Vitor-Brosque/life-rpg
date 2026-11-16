@@ -288,7 +288,10 @@ class FakeES {
 
 describe('startSync', () => {
   beforeEach(() => { FakeES.instances = []; });
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  // A failed assertion must not leave a live startSync behind: its listeners would leak into the next test.
+  const stops: Array<() => void> = [];
+  const start = (): (() => void) => { const stop = startSync(); stops.push(stop); return stop; };
+  afterEach(() => { for (const stop of stops.splice(0)) stop(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
   const realSetTimeout = globalThis.setTimeout;
   // fake-indexeddb schedules with timers too, so let real time pass between small fake steps.
@@ -319,7 +322,7 @@ describe('startSync', () => {
     vi.stubGlobal('fetch', f);
     vi.stubGlobal('EventSource', FakeES);
     fake();
-    const stop = startSync();
+    const stop = start();
     await flushUntil(() => f.mock.calls.length > 0 && FakeES.instances.length > 0);
     const initial = f.mock.calls.length;
     expect(initial).toBe(1);
@@ -349,9 +352,12 @@ describe('startSync', () => {
     fake();
     const spy = vi.spyOn(globalThis, 'setTimeout');
     const retryDelays = () => spy.mock.calls.map((c) => c[1]).filter((ms): ms is number => typeof ms === 'number' && ms >= 2000 && ms <= 16_000);
-    const stop = startSync();
+    const stop = start();
     await flushUntil(() => f.mock.calls.length >= 1);
     expect(f).toHaveBeenCalledTimes(1);
+    // Wait for the first run to finish (its retry timer armed): an `online` arriving while the run is still in
+    // flight joins it, and a failed run does not loop again, so that trigger would be absorbed (one fetch, not two).
+    await settleUntil(() => retryDelays().length >= 1);
     // An ordinary trigger failing must not escalate the delay.
     window.dispatchEvent(new Event('online'));
     await settleUntil(() => f.mock.calls.length >= 2);
@@ -370,7 +376,7 @@ describe('startSync', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json({ cursor: 1, changes: [] })));
     vi.stubGlobal('EventSource', FakeES);
     fake();
-    const stop = startSync();
+    const stop = start();
     await flushUntil(() => FakeES.instances.length > 0);
     const es = FakeES.instances[0]!;
     es.readyState = 2;
