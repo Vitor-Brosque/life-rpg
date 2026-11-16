@@ -1,7 +1,7 @@
 import { useId, useState, type MouseEvent } from 'react';
-import type { DayCloseSummary, DayKey, DayState, Mission, Tiredness } from '@life/shared';
+import type { DayCloseSummary, DayKey, DayState, DiaryEntry, Mission, Tiredness } from '@life/shared';
 import {
-  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, CLOSE_NOTE_MAX, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays,
+  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays,
 } from '@life/shared';
 import { useToday } from '../../db/hooks';
 import { rescheduleMission } from '../../domain/actions';
@@ -35,7 +35,7 @@ function DayCloseContent({ onClose }: { onClose(): void }) {
   const today = useToday();
   const data = useDayCloseData(today);
   if (!today || !data) return <div aria-busy="true" className="day-close" />;
-  return <DayCloseForm today={today} summary={data.summary} state={data.state} onClose={onClose} />;
+  return <DayCloseForm today={today} summary={data.summary} state={data.state} closeEntry={data.closeEntry} onClose={onClose} />;
 }
 
 function observedLines(s: DayCloseSummary): string[] {
@@ -153,12 +153,12 @@ function PendingItem({ mission, today, onHandled, onUnhandled }: {
   );
 }
 
-function DayCloseForm({ today, summary, state, onClose }: {
-  today: DayKey; summary: DayCloseSummary; state?: DayState; onClose(): void;
+function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
+  today: DayKey; summary: DayCloseSummary; state?: DayState; closeEntry?: DiaryEntry; onClose(): void;
 }) {
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
   const [tiredness, setTiredness] = useState<Tiredness | undefined>(state?.tiredness);
-  const [note, setNote] = useState(state?.closeNote ?? '');
+  const [note, setNote] = useState(closeEntry?.text ?? '');
   const [busy, setBusy] = useState(false);
   const noteId = useId();
   const pending = summary.pending.filter((m) => !handled.has(m.id));
@@ -206,8 +206,9 @@ function DayCloseForm({ today, summary, state, onClose }: {
       <label className="field" htmlFor={noteId}>
         <span className="field__label">Observação (opcional)</span>
       </label>
-      <textarea id={noteId} value={note} maxLength={CLOSE_NOTE_MAX} placeholder="Uma frase sobre o dia, se quiser"
-        onChange={(e) => setNote(e.target.value)} />
+      <textarea id={noteId} value={note} rows={4} placeholder="Escreva o quanto quiser, se quiser"
+        aria-describedby={`${noteId}-hint`} onChange={(e) => setNote(e.target.value)} />
+      <p id={`${noteId}-hint`} className="day-close__hint">Fica no diário como o fechamento do dia.</p>
       <DayCloseCorrections blocks={summary.blocks} focus={summary.focus} />
       <div className="day-close__footer">
         {closed !== undefined && <p className="day-close__hint">{`Dia fechado às ${formatClock(closed)}.`}</p>}

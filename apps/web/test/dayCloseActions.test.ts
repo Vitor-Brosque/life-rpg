@@ -27,15 +27,33 @@ const session = (blockId: string, extra: Partial<BlockSession>) =>
 const xpCount = async () => (await db.xpEvents.toArray()).filter((x) => !x.deleted).length;
 
 describe('closeDay and dismissDayClose', () => {
-  it('keeps the first close time, replaces tiredness and note, trims the note to 280', async () => {
-    const first = await closeDay(DAY, { tiredness: 'medio', note: 'Dia corrido' });
-    expect(first).toMatchObject({ closedAt: at(11, 23, 30), tiredness: 'medio', closeNote: 'Dia corrido' });
+  it('keeps the first close time and replaces tiredness; the observation is the fechamento entry, with no length limit', async () => {
+    const first = await closeDay(DAY, { tiredness: 'medio', note: ' Dia corrido ' });
+    expect(first).toMatchObject({ closedAt: at(11, 23, 30), tiredness: 'medio' });
+    expect(first.closeNote).toBeUndefined();
+    expect(await db.diaryEntries.get('diary-close-2026-11-11')).toMatchObject({
+      day: DAY, at: at(11, 23, 30), kind: 'fechamento', text: 'Dia corrido', themes: [], links: [], private: false, deleted: false,
+    });
     vi.setSystemTime(at(11, 23, 50));
     const second = await closeDay(DAY, { note: 'x'.repeat(300) });
     expect(second.closedAt).toBe(at(11, 23, 30));
     expect(second.tiredness).toBeUndefined();
-    expect(second.closeNote).toHaveLength(280);
     expect((await db.dayState.get(DAY))!.tiredness).toBeUndefined();
+    const entry = (await db.diaryEntries.get('diary-close-2026-11-11'))!;
+    expect(entry.text).toHaveLength(300);
+    expect(entry).toMatchObject({ at: at(11, 23, 30), editedAt: at(11, 23, 50) });
+    expect(await db.outbox.get('diaryEntries:diary-close-2026-11-11')).toBeDefined();
+  });
+
+  it('a blank observation moves the fechamento entry to "Apagadas recentemente"; no observation leaves it alone', async () => {
+    await closeDay(DAY, { note: 'Dia corrido' });
+    await closeDay(DAY, { tiredness: 'pouco' });
+    expect((await db.diaryEntries.get('diary-close-2026-11-11'))!.trashedAt).toBeUndefined();
+    vi.setSystemTime(at(11, 23, 40));
+    await closeDay(DAY, { note: '   ' });
+    expect(await db.diaryEntries.get('diary-close-2026-11-11')).toMatchObject({ text: 'Dia corrido', trashedAt: at(11, 23, 40), deleted: false });
+    await closeDay(DAY, { note: 'Outra frase' });
+    expect(await db.diaryEntries.get('diary-close-2026-11-11')).toMatchObject({ text: 'Outra frase', trashedAt: undefined });
   });
 
   it('"Agora não" marks closeDismissed', async () => {

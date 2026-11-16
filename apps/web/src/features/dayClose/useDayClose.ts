@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { create } from 'zustand';
-import type { DayCloseSummary, DayKey, DayMode, DayState } from '@life/shared';
+import type { DayCloseSummary, DayKey, DayMode, DayState, DiaryEntry } from '@life/shared';
 import { addDays, closeCardDue, dayCloseSummary, formatHHmm, logicalTimestamp, trainingLogId } from '@life/shared';
 import { db } from '../../db/db';
+import { readCloseEntry } from '../../db/diaryData';
 import { useCommitments, useDayPlan, useSettings } from '../../db/hooks';
 import { focusWhenGone } from '../../ui/focusAfter';
 
@@ -42,8 +43,8 @@ export function useDayCloseDue(today: DayKey | undefined, mode: DayMode, now: nu
   });
 }
 
-/** What today observed, with the day's state; undefined while loading. */
-export function useDayCloseData(today?: DayKey): { summary: DayCloseSummary; state?: DayState } | undefined {
+/** What today observed, with the day's state and its observation (the visible `fechamento` entry); undefined while loading. */
+export function useDayCloseData(today?: DayKey): { summary: DayCloseSummary; state?: DayState; closeEntry?: DiaryEntry } | undefined {
   const occurrences = useDayPlan(today);
   const data = useLiveQuery(async () => {
     if (!today) return undefined;
@@ -51,7 +52,7 @@ export function useDayCloseData(today?: DayKey): { summary: DayCloseSummary; sta
     const dayStartHour = settings?.dayStartHour ?? 4;
     const from = logicalTimestamp(today, formatHHmm(dayStartHour * 60), dayStartHour);
     const to = logicalTimestamp(addDays(today, 1), formatHHmm(dayStartHour * 60), dayStartHour);
-    const [missions, events, focus, reviews, practice, trainingLog, workouts, state] = await Promise.all([
+    const [missions, events, focus, reviews, practice, trainingLog, workouts, state, closeEntry] = await Promise.all([
       db.missions.toArray(),
       db.events.where('at').between(from, to, true, false).toArray(),
       db.focusSessions.where('startedAt').between(from, to, true, false).toArray(),
@@ -60,8 +61,9 @@ export function useDayCloseData(today?: DayKey): { summary: DayCloseSummary; sta
       db.trainingLogs.get(trainingLogId(today)),
       db.workouts.where('day').equals(today).toArray(),
       db.dayState.get(today),
+      readCloseEntry(today),
     ]);
-    return { day: today, dayStartHour, missions, events, focus, reviews, practice, trainingLog, workouts, state };
+    return { day: today, dayStartHour, missions, events, focus, reviews, practice, trainingLog, workouts, state, closeEntry };
   }, [today]);
   if (!today || !occurrences || !data || data.day !== today) return undefined;
   const live = data.state && !data.state.deleted ? data.state : undefined;
@@ -69,5 +71,5 @@ export function useDayCloseData(today?: DayKey): { summary: DayCloseSummary; sta
     day: today, dayStartHour: data.dayStartHour, occurrences, missions: data.missions, events: data.events,
     focus: data.focus, reviews: data.reviews, practice: data.practice, trainingLog: data.trainingLog, workouts: data.workouts,
   });
-  return { summary, ...(live ? { state: live } : {}) };
+  return { summary, ...(live ? { state: live } : {}), ...(data.closeEntry ? { closeEntry: data.closeEntry } : {}) };
 }

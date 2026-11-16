@@ -7,6 +7,7 @@ import { refreshNow, useNow, useToday } from '../src/db/hooks';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, setDayMode } from '../src/domain/actions';
+import { saveCloseNote } from '../src/domain/diaryActions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
 import { DayCloseCard, DayCloseLink } from '../src/features/dayClose/DayCloseCard';
@@ -181,7 +182,8 @@ describe('sheet "Como foi hoje"', () => {
     await user.type(within(s).getByLabelText('Observação (opcional)'), 'Dia corrido');
     await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
-    expect(await db.dayState.get(TODAY)).toMatchObject({ closedAt: at(11, 23, 10), tiredness: 'medio', closeNote: 'Dia corrido' });
+    expect(await db.dayState.get(TODAY)).toMatchObject({ closedAt: at(11, 23, 10), tiredness: 'medio' });
+    expect(await db.diaryEntries.get('diary-close-2026-11-11')).toMatchObject({ kind: 'fechamento', text: 'Dia corrido', at: at(11, 23, 10) });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Como foi hoje' })).not.toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Como foi hoje' }));
     const again = await sheet();
@@ -189,6 +191,18 @@ describe('sheet "Como foi hoje"', () => {
     expect(within(again).getByRole('button', { name: 'Médio' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(again).getByLabelText('Observação (opcional)')).toHaveValue('Dia corrido');
     expect(within(again).getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
+  });
+
+  it('the observation shows the fechamento entry of the day, with no length limit', async () => {
+    const long = `Escrito no diário. ${'x'.repeat(400)}`;
+    await saveCloseNote(TODAY, long);
+    const user = userEvent.setup();
+    render(view());
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const field = await within(await sheet()).findByLabelText('Observação (opcional)');
+    expect(field).toHaveValue(long);
+    expect(field).not.toHaveAttribute('maxlength');
+    expect(screen.getByText('Fica no diário como o fechamento do dia.')).toBeInTheDocument();
   });
 
   it('"Fiz, mas não registrei" registers the block as done later, without XP', async () => {

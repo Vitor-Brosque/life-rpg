@@ -11,7 +11,6 @@ import { trainingSummaryText } from './training';
 // rules of the corrections (typed times, focus minutes). Optional, never blocking, no XP.
 
 export const CLOSE_FROM: HHmm = '20:00';
-export const CLOSE_NOTE_MAX = 280;
 export const TIREDNESS: readonly Tiredness[] = ['pouco', 'medio', 'muito'];
 export const TIREDNESS_LABEL: Record<Tiredness, string> = { pouco: 'Pouco', medio: 'Médio', muito: 'Muito' };
 /** Longest focus session a correction accepts. */

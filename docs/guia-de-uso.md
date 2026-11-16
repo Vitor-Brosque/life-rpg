@@ -239,7 +239,9 @@ A folha mostra:
 - **Observado:** blocos iniciados (e em que versão), pulados e não iniciados, missões concluídas e parciais,
   minutos de foco, o treino, cards revisados e sessões de prática encerradas.
 - **Pendências de hoje:** Amanhã, Escolher dia ou Soltar para cada uma.
-- **Cansaço durante o dia** (Pouco, Médio, Muito) e uma **Observação**, opcionais.
+- **Cansaço durante o dia** (Pouco, Médio, Muito) e uma **Observação**, opcionais. A observação não tem limite de
+  tamanho e fica no [Diário](#diário) como a entrada **fechamento do dia** (as notas escritas antes desta versão
+  passaram para lá sozinhas, sem duplicar).
 - **Correções:** ajustar o início e o fim de um bloco, marcar **Fiz, mas não registrei** num bloco que você
   fez sem tocar no app (fica "registrado depois" e não dá XP) e corrigir os minutos de uma sessão de foco ou
   apagá-la (com Desfazer).

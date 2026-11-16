@@ -1,9 +1,10 @@
 import type { BaseRecord, BlockSession, DayKey, DayState, FocusSession, HHmm, ID, SyncTable, Tiredness, XpEvent } from '@life/shared';
-import { CLOSE_NOTE_MAX, FOCUS_ISSUE_TEXT, TIME_ISSUE_TEXT, correctedFocus, defaultDayMode, typedWindow } from '@life/shared';
+import { FOCUS_ISSUE_TEXT, TIME_ISSUE_TEXT, correctedFocus, defaultDayMode, typedWindow } from '@life/shared';
 import { db } from '../db/db';
 import { patch, putAll, upsert } from '../db/repo';
 import { getToday, upsertDayState, withLock } from './common';
 import { ensureDayPlan } from './dayPlanActions';
+import { saveCloseNote } from './diaryActions';
 
 // Encerramento do dia (Acompanhamento C): close, dismiss and the corrections of today. Nothing here gives XP;
 // deleting a focus session removes its own award (undoing the record) and Desfazer brings both back.
@@ -13,14 +14,16 @@ export class CorrectionError extends Error {}
 const sessionId = (blockId: ID, day: DayKey): string => `bs-${blockId}-${day}`;
 const startHour = async (): Promise<number> => (await db.settings.get('settings'))?.dayStartHour ?? 4;
 
-/** "Fechar o dia": the first close time stays; tiredness and note are replaced (absent = removed). */
+/**
+ * "Fechar o dia": the first close time stays and tiredness is replaced (absent = removed). The observation,
+ * when given, is the day's `fechamento` diary entry (saveCloseNote); DayState.closeNote is no longer written.
+ */
 export async function closeDay(day: DayKey, input: { tiredness?: Tiredness; note?: string }): Promise<DayState> {
+  if (input.note !== undefined) await saveCloseNote(day, input.note);
   const prev = await db.dayState.get(day);
-  const note = input.note?.trim().slice(0, CLOSE_NOTE_MAX).trim();
   return upsertDayState(day, {
     closedAt: (prev && !prev.deleted ? prev.closedAt : undefined) ?? Date.now(),
     tiredness: input.tiredness,
-    closeNote: note || undefined,
   });
 }
 
