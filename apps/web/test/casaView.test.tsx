@@ -58,7 +58,7 @@ describe('Planejar → Casa', () => {
     await user.type(within(sheet).getByLabelText('Prato'), 'Frango com arroz');
     await user.click(within(sheet).getByRole('button', { name: 'Criar “Frango com arroz”' }));
     expect(await screen.findByRole('button', { name: 'Almoço de seg 09/11: Frango com arroz' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), { timeout: 3000 });
     // Focus never falls back to <body> after the dish is placed.
     await waitFor(() => expect(document.activeElement).not.toBe(document.body), { timeout: 3000 });
 

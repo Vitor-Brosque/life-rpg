@@ -130,9 +130,20 @@ export function removeSpans(line: string, spans: Span[]): string {
 
 // ------------------------------------------------------------------ state changes
 
-/** A tapped type: it wins over the text from now on. Single-line types join the lines. */
+/** A tapped type: it wins over the text from now on. The raw text is kept (single-line types only show it joined). */
 export function chooseKind(state: CaptureState, kind: CaptureKind): CaptureState {
-  return { ...state, kind, kindTouched: true, text: isSingleLineKind(kind) ? joinLines(state.text) : state.text };
+  return { ...state, kind, kindTouched: true };
+}
+
+/** What the field shows: single-line types show the pasted lines joined; the raw lines stay in the state. */
+export const shownText = (state: CaptureState): string =>
+  state.kindTouched && isSingleLineKind(state.kind) ? joinLines(state.text) : state.text;
+
+/** Tapping a row while the type is still read from the text pins that type (so editing the text can't undo it). */
+export function pinInferredKind(state: CaptureState, ctx: CaptureCtx): CaptureState {
+  if (state.kindTouched) return state;
+  const kind = kindOf(state, ctx);
+  return kind === 'tarefa' ? state : { ...state, kind, kindTouched: true };
 }
 
 /** A tapped option: it wins over the text from now on. */

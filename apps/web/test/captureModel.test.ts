@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Area, Deck, Journey } from '@life/shared';
 import {
-  buildRequests, choose, chooseKind, dayWhen, initialState, joinLines, kindOf, linesOf, missing, prefill, removeSpans,
+  buildRequests, choose, chooseKind, pinInferredKind, shownText, dayWhen, initialState, joinLines, kindOf, linesOf, missing, prefill, removeSpans,
   type CaptureCtx, type CaptureState,
 } from '../src/features/capture/captureModel';
 
@@ -41,11 +41,24 @@ describe('kindOf: o tipo vem do texto só enquanto não foi tocado', () => {
     expect(kindOf(typed('prova #calculo dia 3/12', s), ctx)).toBe('tarefa');
   });
 
-  it('trocar para um tipo de uma linha junta as linhas', () => {
+  it('trocar para um tipo de uma linha mostra e lê as linhas juntas, sem perder as originais', () => {
     const s = chooseKind(typed('Dentista\ncom a Ana'), 'compromisso');
-    expect(s.text).toBe('Dentista com a Ana');
+    expect(shownText(s)).toBe('Dentista com a Ana');
     expect(linesOf(s)).toEqual(['Dentista com a Ana']);
     expect(linesOf(chooseKind(typed('a\nb'), 'card'))).toEqual(['a', 'b']);
+    const back = chooseKind(s, 'tarefa');
+    expect(shownText(back)).toBe('Dentista\ncom a Ana');
+    expect(linesOf(back)).toEqual(['Dentista', 'com a Ana']);
+  });
+
+  it('um tipo inferido do texto é fixado por pinInferredKind; tarefa e tipo já tocado ficam como estão', () => {
+    const p = pinInferredKind(typed('dentista 15h'), ctx);
+    expect(p).toMatchObject({ kind: 'compromisso', kindTouched: true });
+    expect(kindOf(typed('dentista', p), ctx)).toBe('compromisso');
+    expect(pinInferredKind(typed('prova #calculo 3/12'), ctx)).toMatchObject({ kind: 'avaliacao', kindTouched: true });
+    expect(pinInferredKind(typed('Ler artigo'), ctx).kindTouched).toBe(false);
+    const touched = chooseKind(typed('dentista 15h'), 'tarefa');
+    expect(pinInferredKind(touched, ctx)).toBe(touched);
   });
 });
 

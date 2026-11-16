@@ -1,4 +1,5 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { Link } from 'wouter';
 import type { DayKey, Journey } from '@life/shared';
 import { ASSESSMENT_LABEL, addDays, describeRecurrence, subjectJourneys } from '@life/shared';
@@ -40,6 +41,11 @@ interface RowProps {
 function OptionRow({ id, label, value, required = false, openRow, onToggleRow, children }: RowProps) {
   const panelId = useId();
   const open = openRow === id;
+  const panelRef = useRef<HTMLDivElement>(null);
+  // An opened panel may sit below the fold of the sheet; bring it into view (jsdom has no scrollIntoView).
+  useEffect(() => {
+    if (open) panelRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [open]);
   return (
     <div className="capture-opt">
       <button type="button" className="capture-opt__row" aria-expanded={open} aria-controls={open ? panelId : undefined}
@@ -50,7 +56,7 @@ function OptionRow({ id, label, value, required = false, openRow, onToggleRow, c
         <span className="capture-opt__value">{value}</span>
         <span className="capture-opt__mark" aria-hidden="true">{open ? '▾' : '▸'}</span>
       </button>
-      {open && <div id={panelId} className="capture-opt__panel" role="group" aria-label={label}>{children}</div>}
+      {open && <div ref={panelRef} id={panelId} className="capture-opt__panel" role="group" aria-label={label}>{children}</div>}
     </div>
   );
 }
@@ -95,21 +101,26 @@ function journeyText(choice: JourneyChoice, ctx: CaptureCtx): string {
 function JourneyPanel({ value, ctx, onPick }: { value: JourneyChoice; ctx: CaptureCtx; onPick(j: JourneyChoice): void }) {
   const subLabel = useId();
   const [naming, setNaming] = useState(false);
+  const newChipsRef = useRef<HTMLDivElement>(null);
   const [name, setName] = useState(value !== null && 'newName' in value ? value.newName : '');
   const subjects = subjectJourneys(ctx.journeys);
   const others = ctx.journeys.filter((j) => j.status === 'active' && j.subject !== true).sort((a, b) => a.order - b.order);
   const picked = (j: Journey): boolean => value !== null && 'id' in value && value.id === j.id;
-  const chip = (j: Journey) => <Chip key={j.id} selected={picked(j)} onClick={() => onPick({ id: j.id })}>{j.title}</Chip>;
+  const chip = (j: Journey) => <Chip key={j.id} selected={picked(j)} onClick={() => { setNaming(false); onPick({ id: j.id }); }}>{j.title}</Chip>;
   const use = () => {
     const n = name.trim();
     if (!n) return;
-    onPick({ newName: n });
-    setNaming(false);
+    // The field unmounts with the focus inside it: move the focus to the "Nova jornada…" chip (now pressed).
+    flushSync(() => {
+      onPick({ newName: n });
+      setNaming(false);
+    });
+    newChipsRef.current?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
   };
   return (
     <>
       <div className="cluster">
-        <Chip selected={value === null} onClick={() => onPick(null)}>Nenhuma</Chip>
+        <Chip selected={value === null} onClick={() => { setNaming(false); onPick(null); }}>Nenhuma</Chip>
       </div>
       {subjects.length > 0 && (
         <div className="capture-opt__sub" role="group" aria-labelledby={subLabel}>
@@ -117,7 +128,7 @@ function JourneyPanel({ value, ctx, onPick }: { value: JourneyChoice; ctx: Captu
           <div className="cluster">{subjects.map(chip)}</div>
         </div>
       )}
-      <div className="cluster">
+      <div className="cluster" ref={newChipsRef}>
         {others.map(chip)}
         <Chip selected={naming || (value !== null && 'newName' in value)} onClick={() => setNaming(true)}>Nova jornada…</Chip>
       </div>

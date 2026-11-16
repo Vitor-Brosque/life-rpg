@@ -5,7 +5,7 @@ import type { Deck, Journey } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
-import { CaptureBar } from '../src/features/capture/CaptureBar';
+import { CaptureBar, CaptureHost, useCaptureStore } from '../src/features/capture/CaptureBar';
 
 beforeEach(async () => {
   // setImmediate stays real: fake-indexeddb schedules transaction work with it.
@@ -277,11 +277,109 @@ describe('Capturar: Compromisso, Prova ou trabalho e Card', () => {
     expect(screen.getByRole('button', { name: 'Compromisso' })).toHaveFocus();
     expect(document.body).not.toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Card' }));
-    expect(input).toHaveValue('Dentista com a Ana');
+    expect(input).toHaveValue('Dentista\ncom a Ana'); // as linhas originais voltam
     expect(screen.getByRole('button', { name: 'Card' })).toHaveFocus();
     expect(document.body).not.toHaveFocus();
     expect(within(screen.getByRole('group', { name: 'Tipo' })).getByRole('button', { name: 'Card' }))
       .toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('um tipo lido do texto fica fixado ao tocar numa linha: apagar o texto não o desfaz', async () => {
+    const user = setup();
+    const input = await open();
+    await user.type(input, 'dentista 15h');
+    expect(screen.getByRole('button', { name: 'Compromisso' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(row('Início: 15:00'));
+    fireEvent.change(screen.getByLabelText('Início', { selector: 'input' }), { target: { value: '16:00' } });
+    await user.clear(input);
+    await user.type(input, 'dentista');
+    expect(screen.getByRole('button', { name: 'Compromisso' })).toHaveAttribute('aria-pressed', 'true');
+    expect(row('Início: 16:00')).toBeInTheDocument();
+  });
+
+  it('prova lida do texto fica fixada ao tocar em Data, mesmo sem a data no texto', async () => {
+    await put('journeys', newRecord<Journey>({
+      id: 'j-calc', title: 'Cálculo II', status: 'active', order: 1, areaId: 'area-facul', subject: true,
+    }));
+    const user = setup();
+    const input = await open();
+    await user.type(input, 'prova #calculo 3/12');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Prova ou trabalho' })).toHaveAttribute('aria-pressed', 'true'));
+    await user.click(row('Data: qui 03/12'));
+    await user.click(screen.getByRole('button', { name: 'Amanhã' }));
+    await user.clear(input);
+    await user.type(input, 'integrais');
+    expect(screen.getByRole('button', { name: 'Prova ou trabalho' })).toHaveAttribute('aria-pressed', 'true');
+    expect(row('Data: amanhã')).toBeInTheDocument();
+  });
+
+  it('colar 3 linhas, Compromisso (uma linha), Tarefa: as 3 linhas voltam', async () => {
+    const user = setup();
+    const input = await open();
+    await user.click(input);
+    await user.paste('um\ndois\ntrês');
+    await user.click(screen.getByRole('button', { name: 'Compromisso' }));
+    expect(input).toHaveValue('um dois três');
+    await user.click(screen.getByRole('button', { name: 'Tarefa' }));
+    expect(input).toHaveValue('um\ndois\ntrês');
+  });
+
+  it('Nova jornada: Enter e "Usar este nome" devolvem o foco ao chip, nunca ao body', async () => {
+    const user = setup();
+    await open();
+    await user.click(row('Jornada: Nenhuma'));
+    await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
+    await user.type(screen.getByLabelText('Nome da nova jornada'), 'Leituras{Enter}');
+    expect(document.body).not.toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
+    const field = screen.getByLabelText('Nome da nova jornada');
+    await user.clear(field);
+    await user.type(field, 'Outra');
+    await user.click(screen.getByRole('button', { name: 'Usar este nome' }));
+    expect(document.body).not.toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveFocus();
+  });
+
+  it('o campo da nova jornada fecha ao tocar outra jornada ou Nenhuma', async () => {
+    const user = setup();
+    await open();
+    await user.click(row('Jornada: Nenhuma'));
+    await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
+    expect(screen.getByLabelText('Nome da nova jornada')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tech News' }));
+    expect(screen.queryByLabelText('Nome da nova jornada')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
+    await user.click(screen.getByRole('button', { name: 'Nenhuma' }));
+    expect(screen.queryByLabelText('Nome da nova jornada')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('o painel que abre rola para dentro da vista', async () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    try {
+      const user = setup();
+      await open();
+      await user.click(row('Duração: —'));
+      expect(spy).toHaveBeenCalledWith({ block: 'nearest' });
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
+
+  it('"Cadastrar em Matérias" fecha o "+" e vai para /estudo/materias', async () => {
+    const user = setup();
+    useCaptureStore.getState().open();
+    render(<CaptureHost />);
+    await user.click(await screen.findByRole('button', { name: 'Prova ou trabalho' }));
+    await user.click(row('Matéria: —'));
+    await user.click(screen.getByRole('link', { name: 'Cadastrar em Matérias' }));
+    expect(useCaptureStore.getState().isOpen).toBe(false);
+    await waitFor(() => expect(window.location.pathname).toBe('/estudo/materias'));
   });
 
   it('desmarcar o último dia da semana tira também o Até', async () => {

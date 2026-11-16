@@ -14,7 +14,8 @@ import { useToast } from '../../ui/Toast';
 import { usePageHide } from '../../ui/usePageHide';
 import { CaptureKindPicker } from './CaptureKindPicker';
 import {
-  buildRequests, choose as chooseOption, chooseKind, initialState, isSingleLineKind, joinLines, missing, prefill,
+  buildRequests, choose as chooseOption, chooseKind, initialState, isSingleLineKind, joinLines, missing, pinInferredKind,
+  prefill, shownText,
   type CaptureCtx, type CaptureKind, type CaptureState,
 } from './captureModel';
 import { CaptureOptions, type ChooseFn, type RowId } from './CaptureOptions';
@@ -220,7 +221,8 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
   };
   const changeText = (value: string) =>
     update((s) => ({ ...s, text: s.kindTouched && isSingleLineKind(s.kind) ? joinLines(value) : value }));
-  const choose: ChooseFn = (section, field, value) => update((s) => chooseOption(s, section, field, value));
+  const choose: ChooseFn = (section, field, value) =>
+    update((s) => chooseOption(pinInferredKind(s, ctx), section, field, value));
   const pickKind = (kind: CaptureKind) => {
     update((s) => chooseKind(s, kind));
     setOpenRow(undefined);
@@ -278,7 +280,7 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
         rows={1}
         aria-label={FIELD[view.kind].label}
         placeholder={FIELD[view.kind].placeholder}
-        value={state.text}
+        value={shownText(state)}
         onChange={(e) => changeText(e.target.value)}
         onKeyDown={onKeyDown}
         // eslint-disable-next-line jsx-a11y/no-autofocus

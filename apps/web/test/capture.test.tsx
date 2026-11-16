@@ -39,7 +39,7 @@ describe('format helpers', () => {
 });
 
 describe('CaptureBar', () => {
-  it('shows live chips and Enter saves a mission with duration and date', async () => {
+  it('shows the option rows live and Enter saves a mission with duration and date', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);
     const input = await screen.findByRole('textbox', { name: 'Capturar' });
