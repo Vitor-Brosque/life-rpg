@@ -44,7 +44,7 @@ export async function convertCommitmentToMission(id: string): Promise<Mission> {
 }
 
 /** The journey a #tag names (see `matchJourney`), created only when nothing matches. */
-async function resolveJourney(name: string): Promise<Journey> {
+export async function resolveJourney(name: string): Promise<Journey> {
   const all = await db.journeys.filter((j) => !j.deleted).toArray();
   const found = matchJourney(all, name);
   if (found) return found;

@@ -11,7 +11,8 @@ import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
 import { usePageHide } from '../../ui/usePageHide';
 import { CaptureChips, QuickDetails } from './CaptureChips';
-import { isCardDraft, isMission, removeSpans, saveCapture, type Captured } from './captureSave';
+import { removeSpans } from './captureModel';
+import { isCardDraft, isMission, saveCapture, type Captured } from './captureSave';
 import './capture.css';
 
 // ------------------------------------------------------------------ global opener

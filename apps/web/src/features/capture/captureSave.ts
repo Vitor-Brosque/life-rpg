@@ -1,33 +1,57 @@
-import type { Commitment, DayKey, Mission, Note } from '@life/shared';
-import { dayKeyToDate, parseCapture } from '@life/shared';
-import { captureLines } from '../../domain/actions';
-import { captureCardDraft, isCardCapture } from '../../domain/studyActions';
+import type { BaseRecord, Commitment, DayKey, ID, Mission, Note } from '@life/shared';
+import { compactTitle, dayKeyToDate, parseCapture, ulid } from '@life/shared';
+import { createAssessment } from '../../domain/facultyActions';
+import { captureLines, createCommitment, createMission, resolveJourney } from '../../domain/missionActions';
+import { captureCardDraft, isCardCapture, saveNote } from '../../domain/studyActions';
+import { removeSpans, type CaptureRequest } from './captureModel';
 
 export type Captured = Mission | Commitment | Note;
 export const isMission = (r: Captured): r is Mission => 'status' in r;
 /** A "? …" line became a card draft (Marco 3). */
 export const isCardDraft = (r: Captured): r is Note => 'front' in r;
 
-interface Span { start: number; end: number }
-
-/** Removes the given spans (offsets in the NFC form of `line`) and tidies the spaces left behind. */
-export function removeSpans(line: string, spans: Span[]): string {
-  const s = line.normalize('NFC');
-  let out = '';
-  let pos = 0;
-  for (const sp of [...spans].sort((a, b) => a.start - b.start)) {
-    out += s.slice(pos, sp.start);
-    pos = Math.max(pos, sp.end);
-  }
-  out += s.slice(pos);
-  return out.replace(/[ \t]+/g, ' ').trim();
-}
-
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 /** A date token the parser understands ("20/11/2026"). */
 function slashDate(day: DayKey): string {
   const d = dayKeyToDate(day);
   return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/**
+ * Saves the requests of the "+" in order. A new journey is created here, once per name (only Salvar
+ * writes). Missions and commitments get strictly increasing timestamps (and ulids), so pasted lines keep
+ * their order in every list sorted by `createdAt`.
+ */
+export async function saveCaptureRequests(requests: readonly CaptureRequest[]): Promise<Captured[]> {
+  const out: Captured[] = [];
+  const newJourneys = new Map<string, ID>();
+  let last = 0;
+  const stamp = (): Pick<BaseRecord, 'id' | 'createdAt' | 'updatedAt'> => {
+    const at = Math.max(Date.now(), last + 1);
+    return { id: ulid(at), createdAt: at, updatedAt: at };
+  };
+  for (const r of requests) {
+    if (r.type === 'mission') {
+      let journeyId = r.fields.journeyId;
+      if (r.newJourneyName !== undefined) {
+        const key = compactTitle(r.newJourneyName);
+        journeyId = newJourneys.get(key) ?? (await resolveJourney(r.newJourneyName)).id;
+        newJourneys.set(key, journeyId);
+      }
+      const m = await createMission({ ...r.fields, ...(journeyId ? { journeyId } : {}), ...stamp() });
+      last = m.createdAt;
+      out.push(m);
+    } else if (r.type === 'commitment') {
+      const c = await createCommitment({ ...r.fields, ...stamp() });
+      last = c.createdAt;
+      out.push(c);
+    } else if (r.type === 'assessment') {
+      out.push(await createAssessment(r.input));
+    } else {
+      out.push(await saveNote({ type: 'basic', front: r.front, back: '', draft: true, ...(r.deckId ? { deckId: r.deckId } : {}) }));
+    }
+  }
+  return out;
 }
 
 export interface SaveOptions {
@@ -39,9 +63,9 @@ export interface SaveOptions {
 }
 
 /**
- * Saves every non-empty line. Reuses `captureLines` (journey/area resolution, events) and only
- * adjusts the text per line: the time is dropped when the user chose "Missão", and lines
- * without a date get `defaultDate`. Lines whose title would be empty are skipped.
+ * Saves every non-empty line of free text (kept for callers outside the "+"). Reuses `captureLines`
+ * (journey/area resolution, events) and only adjusts the text per line: the time is dropped when the user
+ * chose "Missão", and lines without a date get `defaultDate`. Lines whose title would be empty are skipped.
  */
 export async function saveCapture(text: string, opts: SaveOptions): Promise<Captured[]> {
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
