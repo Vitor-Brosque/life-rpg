@@ -349,7 +349,8 @@ describe('Capturar: Compromisso, Prova ou trabalho e Card', () => {
     await user.click(row('Jornada: Nenhuma'));
     await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
     expect(screen.getByLabelText('Nome da nova jornada')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tech News' }));
+    // The journeys come from the database: under load the chip may appear a moment after the panel.
+    await user.click(await screen.findByRole('button', { name: 'Tech News' }));
     expect(screen.queryByLabelText('Nome da nova jornada')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nova jornada…' })).toHaveAttribute('aria-pressed', 'false');
     await user.click(screen.getByRole('button', { name: 'Nova jornada…' }));
