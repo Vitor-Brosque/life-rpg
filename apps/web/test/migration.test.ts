@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Dexie from 'dexie';
-import { newPracticeFields } from '@life/shared';
-import { LifeDB } from '../src/db/db';
+import { newPracticeFields, type SyncRequest } from '@life/shared';
+import { LifeDB, db as appDb } from '../src/db/db';
+import { setMeta } from '../src/db/repo';
+import { syncNow } from '../src/sync/client';
 
 // Frozen copy of the v1 schema that is already in the user's browser: never edit it.
 const V1 = {
@@ -67,7 +69,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -149,7 +151,7 @@ describe('Dexie v2 → v3 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -185,7 +187,7 @@ describe('Dexie v3 → v4 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.decks.get('d1')).toMatchObject({ name: 'SQL' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -214,7 +216,7 @@ describe('Dexie v4 → v5 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'conta' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     // v5 alone keeps the cursor (no synced table), but a v4 database also goes through v6, which restarts it.
@@ -240,7 +242,7 @@ describe('Dexie v4 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista 3' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -274,7 +276,7 @@ describe('Dexie v5 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.mediaInfo.get(hash)).toMatchObject({ mime: 'image/png', size: 3 });
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual({ hash, addedAt: 7 });
@@ -302,7 +304,7 @@ describe('Dexie v4 → v7 migration (Marco 4)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -325,7 +327,7 @@ describe('Dexie v8 (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
     expect(await db.table('monthReviews').count()).toBe(0);
     await db.table('monthReviews').put({ ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 });
@@ -369,7 +371,7 @@ describe('Dexie v7 → v8 migration (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.mediaInfo.get(hash)).toEqual(rows.mediaInfo);
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual(rows.mediaQueue);
@@ -417,7 +419,7 @@ describe('Dexie v8 → v9 (acompanhamento diário)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(9);
+    expect(db.verno).toBe(10);
     expect(await db.table('monthReviews').get('month-2026-10')).toEqual(rows.monthReviews);
     expect(await db.workouts.get('w1')).toEqual(rows.workouts);
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
@@ -432,5 +434,117 @@ describe('Dexie v8 → v9 (acompanhamento diário)', () => {
     expect(await db.problemSets.where('journeyId').equals('j1').count()).toBe(1);
     await db.subjectTopics.put({ ...base, id: 'st1', journeyId: 'j1', name: 'Limites', marks: [] });
     expect(await db.subjectTopics.where('journeyId').equals('j1').count()).toBe(1);
+  });
+});
+
+// Frozen copy of the v9 schema that is already in the user's browser: never edit it.
+const V9_ADDED = { trainingPlans: 'id', trainingLogs: 'id,day', dayPlans: 'id', problemSets: 'id,journeyId,day', subjectTopics: 'id,journeyId' };
+
+function v9Schema(d: Dexie): void {
+  d.version(1).stores(V1);
+  d.version(2).stores(V2_ADDED);
+  d.version(3).stores(V3_ADDED);
+  d.version(4).stores(V4_ADDED);
+  d.version(5).stores(V5_ADDED);
+  d.version(6).stores({ practiceSessions: 'id,status,journeyId,updatedAt' });
+  d.version(7).stores({ sleepLogs: 'id,night', recipes: 'id', menus: 'id', shoppingLists: 'id', freezerMoves: 'id,at,recipeId', workouts: 'id,day,at' });
+  d.version(8).stores({ monthReviews: 'id' });
+  d.version(9).stores(V9_ADDED);
+}
+
+const t = (day: number, h: number, m = 0): number => new Date(2026, 10, day, h, m).getTime();
+/** Day-close notes as v9 wrote them: closed, unclosed, soft-deleted, blank. */
+const NOTE_STATES = [
+  { id: '2026-11-10', createdAt: t(10, 8), updatedAt: t(10, 23, 6), deleted: false, hardDay: false, reviewDone: false, mode: 'normal', startedAt: t(10, 8), closedAt: t(10, 23, 5), tiredness: 'medio', closeNote: 'Dia corrido, mas a aula rendeu.' },
+  { id: '2026-11-11', createdAt: t(11, 8), updatedAt: t(11, 21), deleted: false, hardDay: false, reviewDone: false, closeNote: 'Sem fechar o dia.' },
+  { id: '2026-11-12', createdAt: t(12, 8), updatedAt: t(12, 22), deleted: true, hardDay: false, reviewDone: false, closeNote: 'Apagado.' },
+  { id: '2026-11-13', createdAt: t(13, 8), updatedAt: t(13, 22), deleted: false, hardDay: false, reviewDone: false, closeNote: '   ' },
+];
+const CLOSE_10 = {
+  id: 'diary-close-2026-11-10', createdAt: t(10, 23, 6), updatedAt: t(10, 23, 6), deleted: false, day: '2026-11-10',
+  at: t(10, 23, 5), kind: 'fechamento', text: 'Dia corrido, mas a aula rendeu.', themes: [], links: [], private: false,
+};
+const CLOSE_11 = {
+  id: 'diary-close-2026-11-11', createdAt: t(11, 21), updatedAt: t(11, 21), deleted: false, day: '2026-11-11',
+  at: t(11, 22), kind: 'fechamento', text: 'Sem fechar o dia.', themes: [], links: [], private: false,
+};
+
+async function createV9(name: string): Promise<void> {
+  const v9 = new Dexie(name);
+  v9Schema(v9);
+  await v9.open();
+  for (const [table, rows] of Object.entries(V1_ROWS)) await v9.table(table).bulkPut(rows);
+  await v9.table('dayState').bulkPut(NOTE_STATES);
+  await v9.table('meta').put({ key: 'cursor', value: 42 });
+  v9.close();
+}
+
+describe('Dexie v9 → v10 (diário)', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('turns each live day-close note into its fechamento entry, queues it for sync and restarts the cursor', async () => {
+    await createV9(NAME);
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(10);
+    expect(await db.diaryEntries.toArray()).toEqual([CLOSE_10, CLOSE_11]);
+    expect(await db.outbox.toArray()).toEqual([
+      { key: 'diaryEntries:diary-close-2026-11-10', table: 'diaryEntries', id: 'diary-close-2026-11-10', updatedAt: t(10, 23, 6) },
+      { key: 'diaryEntries:diary-close-2026-11-11', table: 'diaryEntries', id: 'diary-close-2026-11-11', updatedAt: t(11, 21) },
+      ...V1_ROWS.outbox!,
+    ]);
+    expect(await db.dayState.get('2026-11-10')).toEqual(NOTE_STATES[0]);
+    expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    expect(await db.diaryEntries.where('day').equals('2026-11-11').count()).toBe(1);
+    expect(await db.diaryEntries.where('at').above(t(11, 0)).count()).toBe(1);
+  });
+
+  it('two devices that migrate at different times write identical records', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await createV9(`${NAME}-a`);
+    await createV9(`${NAME}-b`);
+    vi.setSystemTime(t(14, 9));
+    const a = new LifeDB(`${NAME}-a`);
+    await a.open();
+    vi.setSystemTime(t(16, 20, 30));
+    const b = new LifeDB(`${NAME}-b`);
+    await b.open();
+    try {
+      expect(await a.diaryEntries.toArray()).toEqual(await b.diaryEntries.toArray());
+      expect(await b.diaryEntries.toArray()).toEqual([CLOSE_10, CLOSE_11]);
+    } finally {
+      a.close();
+      b.close();
+      await Dexie.delete(`${NAME}-a`);
+      await Dexie.delete(`${NAME}-b`);
+    }
+  });
+
+  it('the next sync sends the migrated entries like any write', async () => {
+    appDb.close();
+    await Dexie.delete('life-rpg');
+    await createV9('life-rpg');
+    await appDb.open();
+    await setMeta('syncToken', 'tok');
+    let pushed: SyncRequest | undefined;
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: { body: string }) => {
+      pushed = JSON.parse(init.body) as SyncRequest;
+      return { ok: true, status: 200, json: async () => ({ cursor: 3, changes: [] }) };
+    }));
+    try {
+      expect(await syncNow()).toBe(true);
+      expect(pushed!.cursor).toBe(0);
+      expect(pushed!.changes.filter((c) => c.table === 'diaryEntries')).toEqual([
+        { table: 'diaryEntries', record: CLOSE_10 }, { table: 'diaryEntries', record: CLOSE_11 },
+      ]);
+      expect(await appDb.outbox.count()).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+      appDb.close();
+      await Dexie.delete('life-rpg');
+    }
   });
 });

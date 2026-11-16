@@ -145,7 +145,7 @@ export interface DayState extends BaseRecord {  // id = DayKey
   startedAt?: number;   // when the day actually started
   closedAt?: number;          // Acompanhamento C: "Fechar o dia"
   tiredness?: Tiredness;      // "Cansaço durante o dia" (optional)
-  closeNote?: string;         // the day's free-text note (optional)
+  closeNote?: string;         // until Dexie v10 the day's note; now the `fechamento` diary entry (no longer written)
   closeDismissed?: boolean;   // "Agora não" on the evening card (only when true)
   subjectPicks?: Record<ID, ID>;  // Acompanhamento E: block id → subject journey id chosen with "Usar"
 }
@@ -563,6 +563,24 @@ export interface SubjectTopic extends BaseRecord {
   marks: TopicMark[];    // level history, oldest first: only appended (current level = last mark)
 }
 
+// ------------------------------------------------------------------ diário (2026-11-16)
+
+export type DiaryKind = 'livre' | 'fechamento';
+export type DiaryTheme = 'faculdade' | 'carreira' | 'projetos' | 'estudo' | 'saude' | 'treino' | 'sono'
+  | 'relacionamentos' | 'familia' | 'lazer' | 'sentimentos' | 'ideias';
+export interface DiaryLink { kind: 'mission' | 'journey'; id: ID }
+export interface DiaryEntry extends BaseRecord {   // id: ulid; fechamento: `diary-close-${day}` (diaryCloseId)
+  day: DayKey;           // logical day
+  at: number;            // the moment (the time shown)
+  kind: DiaryKind;
+  text: string;          // exactly as written ('' only after "Apagar de vez")
+  themes: DiaryTheme[];
+  links: DiaryLink[];    // at most DIARY_LINKS_MAX
+  private: boolean;      // out of exports unless included in that export
+  trashedAt?: number;    // in "Apagadas recentemente"
+  editedAt?: number;     // last edit after the editing session that created it
+}
+
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
   'events', 'xpEvents', 'profile', 'settings', 'dayState',
@@ -572,6 +590,7 @@ export const SYNC_TABLES = [
   'practiceSessions',
   'sleepLogs', 'recipes', 'menus', 'shoppingLists', 'freezerMoves', 'workouts',
   'monthReviews', 'trainingPlans', 'trainingLogs', 'dayPlans', 'problemSets', 'subjectTopics',
+  'diaryEntries',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews', 'freezerMoves', 'workouts'];

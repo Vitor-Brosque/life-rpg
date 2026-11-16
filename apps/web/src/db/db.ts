@@ -1,10 +1,10 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  Area, Block, BlockSession, Card, Checkin, Commitment, DayPlan, DayState, Deck, EnergyLog, FocusSession, FreezerMove, Journey,
+  Area, Block, BlockSession, Card, Checkin, Commitment, DayPlan, DayState, Deck, DiaryEntry, EnergyLog, FocusSession, FreezerMove, Journey,
   LifeEvent, MediaType, Menu, Mission, MonthReview, Note, PracticeSession, ProblemSet, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
   SleepLog, SubjectTopic, SyncTable, TrainingLog, TrainingPlan, Week, Workout, XpEvent,
 } from '@life/shared';
-import { weekdayOf } from '@life/shared';
+import { closeNoteEntry, weekdayOf } from '@life/shared';
 
 export interface OutboxEntry { key: string; table: SyncTable; id: string; updatedAt: number } // key = `${table}:${id}`
 export interface MetaEntry { key: string; value: unknown }
@@ -49,6 +49,7 @@ export class LifeDB extends Dexie {
   dayPlans!: Table<DayPlan, string>;
   problemSets!: Table<ProblemSet, string>;
   subjectTopics!: Table<SubjectTopic, string>;
+  diaryEntries!: Table<DiaryEntry, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -155,6 +156,24 @@ export class LifeDB extends Dexie {
       problemSets: 'id,journeyId,day',
       subjectTopics: 'id,journeyId',
     }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v10 (Diário): free-text diary entries. Each live day-close note (DayState.closeNote) becomes that day's
+    // `fechamento` entry, built from the DayState alone (closeNoteEntry: same id, text and timestamps on every
+    // device, so two devices that migrate write identical records), and is queued in the outbox exactly like a
+    // repo write (key `${table}:${id}`, the record's own updatedAt), so the next sync sends it. closeNote stays in
+    // the old records, unused. Same cursor restart as v2–v4 and v6–v9.
+    this.version(10).stores({
+      diaryEntries: 'id,day,at',
+    }).upgrade(async (tx) => {
+      const states = (await tx.table('dayState').toArray()) as DayState[];
+      for (const state of states) {
+        const entry = closeNoteEntry(state);
+        if (!entry) continue;
+        await tx.table('diaryEntries').put(entry);
+        await tx.table('outbox').put({ key: `diaryEntries:${entry.id}`, table: 'diaryEntries', id: entry.id, updatedAt: entry.updatedAt });
+      }
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
   }

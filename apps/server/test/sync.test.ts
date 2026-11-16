@@ -360,4 +360,32 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 'ps2')!.record.deleted).toBe(true);
     expect(changes.find((c) => c.record.id === 'st1')).toMatchObject({ table: 'subjectTopics', record: { marks } });
   });
+
+  it('syncs diary entries (diaryEntries), and an entry deleted for good as an empty marker', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false, themes: [], links: [], private: false };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'diaryEntries', record: { ...r, id: 'diary-close-2026-11-10', day: '2026-11-10', at: 5, kind: 'fechamento', text: 'Dia corrido.', themes: ['familia'], links: [{ kind: 'journey', id: 'j1' }] } },
+        { table: 'diaryEntries', record: { ...r, id: 'd2', deleted: true, day: '2026-11-11', at: 6, kind: 'livre', text: '', trashedAt: 7 } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean; text?: string } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'diary-close-2026-11-10')).toMatchObject({
+      table: 'diaryEntries', record: { kind: 'fechamento', text: 'Dia corrido.', themes: ['familia'], links: [{ kind: 'journey', id: 'j1' }] },
+    });
+    expect(changes.find((c) => c.record.id === 'd2')!.record).toMatchObject({ deleted: true, text: '' });
+  });
+
+  it('the same migrated entry pushed by a second device is not a new revision', async () => {
+    const { app } = await make();
+    const entry = { id: 'diary-close-2026-11-10', createdAt: 9, updatedAt: 9, deleted: false, day: '2026-11-10', at: 5, kind: 'fechamento', text: 'x', themes: [], links: [], private: false };
+    const first = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'a', cursor: 0, changes: [{ table: 'diaryEntries', record: entry }] } });
+    const second = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [{ table: 'diaryEntries', record: entry }] } });
+    expect(second.json().cursor).toBe(first.json().cursor);
+    expect(second.json().changes).toHaveLength(1);
+  });
 });
