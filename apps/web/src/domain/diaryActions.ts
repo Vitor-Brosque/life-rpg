@@ -1,7 +1,7 @@
-import type { DayKey, DiaryEntry, DiaryKind, DiaryLink, DiaryTheme, ID } from '@life/shared';
+import type { DayKey, DayState, DiaryEntry, DiaryKind, DiaryLink, DiaryTheme, ID } from '@life/shared';
 import { DIARY_LINKS_MAX, diaryCloseId, diaryTrashed, diaryVisible } from '@life/shared';
 import { db } from '../db/db';
-import { mutate, upsert } from '../db/repo';
+import { mutate, newRecord, put, upsert } from '../db/repo';
 import { withLock } from './common';
 
 // Diário: every write of an entry. Nothing here gives XP. An entry exists only once its text has more than
@@ -56,34 +56,51 @@ export const restoreDiaryEntry = (id: ID): Promise<void> => withLock(lockOf(id),
 });
 
 /**
+ * A `fechamento` deleted for good takes the day's old DayState.closeNote with it (the note it was migrated
+ * from, still on the server, other devices and JSON exports): one LWW write through the outbox, only when
+ * that day has one. Runs before the entry is emptied, so a failure leaves the entry in the trash to retry.
+ */
+async function dropOldCloseNote(e: DiaryEntry): Promise<void> {
+  if (e.kind !== 'fechamento') return;
+  const ds = await db.dayState.get(e.day);
+  if (ds?.closeNote === undefined) return;
+  await mutate<DayState>('dayState', e.day, (prev) => (prev.closeNote === undefined ? undefined : { closeNote: undefined }));
+}
+
+/**
  * "Apagar de vez" (and the entry born in the editor and emptied before leaving): text, themes and links go
  * and the record is marked deleted. Nothing for a missing or already deleted entry.
  */
 export const purgeDiaryEntry = (id: ID): Promise<void> => withLock(lockOf(id), async () => {
   const e = await db.diaryEntries.get(id);
-  if (e && !e.deleted) await mutate<DiaryEntry>('diaryEntries', id, () => EMPTIED);
+  if (!e || e.deleted) return;
+  await dropOldCloseNote(e);
+  await mutate<DiaryEntry>('diaryEntries', id, () => EMPTIED);
 });
 
 /**
  * "Esvaziar": every entry in "Apagadas recentemente" is deleted for good. Each one is re-checked under its own
- * lock at write time, so an entry restored or re-saved meanwhile is left alone. Resolves with how many were deleted.
+ * lock at write time, so an entry restored or re-saved meanwhile is left alone. Resolves with the ids deleted.
  */
-export async function emptyDiaryTrash(): Promise<number> {
+export async function emptyDiaryTrash(): Promise<ID[]> {
   const ids = (await db.diaryEntries.toArray()).filter(diaryTrashed).map((e) => e.id);
   const done = await Promise.all(ids.map((id) => withLock(lockOf(id), async () => {
     const e = await db.diaryEntries.get(id);
-    if (!e || !diaryTrashed(e)) return false;
+    if (!e || !diaryTrashed(e)) return undefined;
+    await dropOldCloseNote(e);
     await mutate<DiaryEntry>('diaryEntries', id, () => EMPTIED);
-    return true;
+    return id;
   })));
-  return done.filter(Boolean).length;
+  return done.filter((id): id is ID => id !== undefined);
 }
 
 /**
  * The "Como foi hoje?" observation is the day's `fechamento` entry (id `diary-close-<day>`). A note with
  * more than spaces is written trimmed: created at `Date.now()` the first time (or revived when it had been
- * deleted), otherwise its text replaced (marking `editedAt`) and brought back from "Apagadas recentemente".
- * A blank note moves an existing visible entry to "Apagadas recentemente" (nothing is deleted for good).
+ * deleted), otherwise its text replaced (marking `editedAt`). A fechamento in "Apagadas recentemente" with the
+ * same text comes back; with a different text, that text is first kept there as a `livre` entry of the same
+ * day (restorable), and the fechamento becomes the new note. A blank note moves an existing visible entry to
+ * "Apagadas recentemente" (nothing is deleted for good).
  */
 export const saveCloseNote = (day: DayKey, note: string): Promise<void> => withLock(lockOf(diaryCloseId(day)), async () => {
   const id = diaryCloseId(day);
@@ -91,6 +108,16 @@ export const saveCloseNote = (day: DayKey, note: string): Promise<void> => withL
   const text = note.trim();
   if (!text) {
     if (prev && diaryVisible(prev)) await mutate<DiaryEntry>('diaryEntries', id, () => ({ trashedAt: Date.now() }));
+    return;
+  }
+  if (prev && diaryTrashed(prev) && prev.text.trim() !== text) {
+    await put('diaryEntries', newRecord<DiaryEntry>({
+      day: prev.day, at: prev.at, kind: 'livre', text: prev.text, themes: [...prev.themes], links: prev.links.map((l) => ({ ...l })),
+      private: prev.private, trashedAt: prev.trashedAt,
+    }));
+    await mutate<DiaryEntry>('diaryEntries', id, () => ({
+      text, at: Date.now(), themes: [], links: [], private: false, trashedAt: undefined, editedAt: undefined,
+    }));
     return;
   }
   if (prev && !prev.deleted) {

@@ -247,6 +247,9 @@ A folha mostra:
   apagá-la (com Desfazer).
 
 **Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar cansaço e nota.
+A observação só é gravada se você mexeu nela: um texto mais novo (de outro aparelho ou do diário) nunca é trocado
+pela cópia que a folha mostrou ao abrir. Se o fechamento estava em Apagadas recentemente com outro texto, esse
+texto continua lá, como uma entrada comum do dia, e a observação nova vira o fechamento.
 
 ### Diário
 
@@ -267,8 +270,8 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   por tema, por vínculo e **Só privadas**.
 - **Apagar** (dentro da entrada) leva para **Apagadas recentemente**, com **Desfazer** na hora. Lá, **Restaurar**
   devolve a entrada; **Apagar de vez** (numa entrada) e **Esvaziar** (todas) pedem confirmação e não têm volta:
-  o texto sai do aparelho e, na sincronização, do servidor. Os backups diários do servidor ainda guardam o texto
-  antigo até girarem (14 dias).
+  o texto sai do aparelho e, na sincronização, do servidor (num fechamento do dia, a nota antiga daquele dia sai
+  junto). Os backups diários do servidor ainda guardam o texto antigo até girarem (14 dias).
 - **Exportar semana** gera um arquivo `.md` com as suas palavras, sem alteração, para guardar ou levar a uma
   conversa com uma IA. Na folha: **Período** (setas para trocar a semana), **Incluir entradas privadas**
   (desligado), **Registrado pelo app** (ligado: tipo do dia, blocos iniciados, treino, sono e cansaço, só o que

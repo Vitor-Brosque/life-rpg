@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
-import type { BlockSession, FocusSession } from '@life/shared';
+import type { BlockSession, DiaryEntry, FocusSession } from '@life/shared';
 import { db } from '../src/db/db';
 import { refreshNow, useNow, useToday } from '../src/db/hooks';
-import { newRecord, put } from '../src/db/repo';
+import { newRecord, patch, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, setDayMode } from '../src/domain/actions';
 import { saveCloseNote } from '../src/domain/diaryActions';
@@ -230,6 +230,60 @@ describe('sheet "Como foi hoje"', () => {
     await waitFor(async () => expect((await db.diaryEntries.get(`diary-close-${TODAY}`))?.text).toBe('Dia corrido'));
     expect((await db.dayState.get(TODAY))?.closedAt).toBeUndefined();
     expect(await db.diaryEntries.count()).toBe(1);
+  });
+
+  it('a fechamento updated while the sheet is open (sync) is kept by Fechar o dia when the field was not touched', async () => {
+    await saveCloseNote(TODAY, 'Versão antiga');
+    const user = userEvent.setup();
+    render(view());
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    expect(await within(s).findByLabelText('Observação (opcional)')).toHaveValue('Versão antiga');
+    await patch<DiaryEntry>('diaryEntries', `diary-close-${TODAY}`, { text: 'Versão mais nova, de outro aparelho' });
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    const kept = await db.diaryEntries.get(`diary-close-${TODAY}`);
+    expect(kept).toMatchObject({ text: 'Versão mais nova, de outro aparelho', deleted: false });
+    expect(kept!.trashedAt).toBeUndefined();
+    expect((await db.dayState.get(TODAY))?.closedAt).toBe(at(11, 23, 10));
+  });
+
+  it('an entry that arrives while the sheet is open with an empty field is not trashed by Fechar o dia', async () => {
+    const user = userEvent.setup();
+    render(view());
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    expect(await within(s).findByLabelText('Observação (opcional)')).toHaveValue('');
+    await saveCloseNote(TODAY, 'Escrito no PC');
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    const kept = await db.diaryEntries.get(`diary-close-${TODAY}`);
+    expect(kept).toMatchObject({ text: 'Escrito no PC', deleted: false });
+    expect(kept!.trashedAt).toBeUndefined();
+  });
+
+  it('a changed field is saved over the newer version (his new words), and Escrever no diário keeps an untouched newer one', async () => {
+    await saveCloseNote(TODAY, 'Versão antiga');
+    const user = userEvent.setup();
+    const loc = memoryLocation({ path: '/', record: true });
+    render(<Router hook={loc.hook}>{view()}</Router>);
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    let s = await sheet();
+    await within(s).findByLabelText('Observação (opcional)');
+    await patch<DiaryEntry>('diaryEntries', `diary-close-${TODAY}`, { text: 'Versão nova' });
+    await user.click(within(s).getByRole('button', { name: 'Escrever no diário' }));
+    await waitFor(() => expect(loc.history!.at(-1)).toMatch(/^\/diario\/[0-9A-Z]{26}$/));
+    expect((await db.diaryEntries.get(`diary-close-${TODAY}`))?.text).toBe('Versão nova');
+
+    await user.click(screen.getByRole('button', { name: 'Como foi hoje' }));
+    s = await sheet();
+    const field = await within(s).findByLabelText('Observação (opcional)');
+    expect(field).toHaveValue('Versão nova');
+    await patch<DiaryEntry>('diaryEntries', `diary-close-${TODAY}`, { text: 'Versão ainda mais nova' });
+    await user.clear(field);
+    await user.type(field, 'O que eu escrevi agora');
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(async () => expect((await db.diaryEntries.get(`diary-close-${TODAY}`))?.text).toBe('O que eu escrevi agora'));
   });
 
   it('"Fiz, mas não registrei" registers the block as done later, without XP', async () => {

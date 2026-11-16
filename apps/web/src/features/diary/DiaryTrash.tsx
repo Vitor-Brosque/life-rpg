@@ -49,7 +49,7 @@ export function DiaryTrashScreen() {
                   toHeading(e);
                   setConfirmAll(false);
                   safeRun(async () => {
-                    const n = await emptyDiaryTrash();
+                    const n = (await emptyDiaryTrash()).length;
                     if (n > 0) toast(n === 1 ? 'Entrada apagada de vez.' : 'Entradas apagadas de vez.');
                   });
                 }}>Esvaziar</Button>

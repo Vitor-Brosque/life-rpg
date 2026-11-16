@@ -160,7 +160,11 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
 }) {
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
   const [tiredness, setTiredness] = useState<Tiredness | undefined>(state?.tiredness);
-  const [note, setNote] = useState(closeEntry?.text ?? '');
+  // The text shown when the sheet opened: the observation is written only when he changed it, so a newer
+  // version (another device, the diary) is never replaced by this copy, nor trashed by an untouched empty field.
+  const [initialNote] = useState(closeEntry?.text ?? '');
+  const [note, setNote] = useState(initialNote);
+  const noteChanged = note !== initialNote;
   const [busy, setBusy] = useState(false);
   const noteId = useId();
   const [, navigate] = useLocation();
@@ -177,7 +181,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
     setBusy(true);
     safeRun(async () => {
       try {
-        await closeDay(today, { tiredness, note });
+        await closeDay(today, { tiredness, ...(noteChanged ? { note } : {}) });
         toast(closed === undefined ? 'Dia fechado.' : 'Fechamento atualizado.');
         onClose();
       } finally {
@@ -215,7 +219,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       <div className="cluster">
         <Button size="sm" variant="ghost" icon="diary" onClick={() => safeRun(async () => {
           // What was typed is never lost: it is saved as the fechamento (the day is not closed by this).
-          if (note.trim() !== (closeEntry?.text ?? '').trim()) await saveCloseNote(today, note);
+          if (noteChanged) await saveCloseNote(today, note);
           onClose();
           navigate(`/diario/${ulid()}`);
         })}>Escrever no diário</Button>

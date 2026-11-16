@@ -74,7 +74,7 @@ describe('trash', () => {
     await saveDiaryEntry('e3', draft({ text: 'Fica' }));
     await trashDiaryEntry('e1');
     await trashDiaryEntry('e2');
-    expect(await emptyDiaryTrash()).toBe(2);
+    expect(await emptyDiaryTrash()).toEqual(['e1', 'e2']);
     expect((await db.diaryEntries.toArray()).map((e) => [e.id, e.deleted, e.text])).toEqual([
       ['e1', true, ''], ['e2', true, ''], ['e3', false, 'Fica'],
     ]);
@@ -92,7 +92,7 @@ describe('trash edge cases', () => {
       await restoreDiaryEntry('e1');
       return snap;
     }) as never);
-    expect(await emptyDiaryTrash()).toBe(1);
+    expect(await emptyDiaryTrash()).toEqual(['e2']);
     expect(await entry('e1')).toMatchObject({ text: 'Hoje rendeu.', deleted: false, trashedAt: undefined });
     expect(await entry('e2')).toMatchObject({ text: '', deleted: true });
     expect(await db.outbox.get('diaryEntries:e2')).toBeDefined();
@@ -133,6 +133,85 @@ describe('saveCloseNote', () => {
     await saveCloseNote('2026-11-11', 'Dia corrido');
     expect((await entry('diary-close-2026-11-11')).editedAt).toBeUndefined();
     expect(await db.outbox.count()).toBe(0);
+  });
+});
+
+describe('final fix wave', () => {
+  const CLOSE = 'diary-close-2026-11-11';
+  const oldNoteDay = () => put('dayState', newRecord<DayState>({
+    id: '2026-11-11', hardDay: false, reviewDone: false, closedAt: at(11, 22), tiredness: 'medio', closeNote: 'Dia corrido',
+  }));
+
+  it('Apagar de vez on a fechamento also clears that day\'s old DayState.closeNote, through the outbox', async () => {
+    await oldNoteDay();
+    await saveCloseNote('2026-11-11', 'Dia corrido');
+    await trashDiaryEntry(CLOSE);
+    await db.outbox.clear();
+    vi.setSystemTime(at(11, 23));
+    await purgeDiaryEntry(CLOSE);
+    const ds = (await db.dayState.get('2026-11-11'))!;
+    expect(ds.closeNote).toBeUndefined();
+    expect(ds).toMatchObject({ closedAt: at(11, 22), tiredness: 'medio', deleted: false, updatedAt: at(11, 23) });
+    expect(await db.outbox.get('dayState:2026-11-11')).toMatchObject({ updatedAt: ds.updatedAt });
+    expect(await entry(CLOSE)).toMatchObject({ text: '', deleted: true });
+  });
+
+  it('Esvaziar does the same for a fechamento, and resolves with the ids it deleted', async () => {
+    await oldNoteDay();
+    await saveCloseNote('2026-11-11', 'Dia corrido');
+    await saveDiaryEntry('e1', draft());
+    await trashDiaryEntry(CLOSE);
+    await trashDiaryEntry('e1');
+    expect((await emptyDiaryTrash()).sort()).toEqual([CLOSE, 'e1']);
+    expect((await db.dayState.get('2026-11-11'))!.closeNote).toBeUndefined();
+    expect(await db.outbox.get('dayState:2026-11-11')).toBeDefined();
+  });
+
+  it('DayState is left alone by a livre purge, by Apagar on a fechamento, and when it has no closeNote', async () => {
+    await oldNoteDay();
+    await saveCloseNote('2026-11-11', 'Dia corrido');
+    await saveDiaryEntry('e1', draft());
+    await db.outbox.clear();
+    const before = await db.dayState.get('2026-11-11');
+    await trashDiaryEntry('e1');
+    await purgeDiaryEntry('e1');
+    await trashDiaryEntry(CLOSE);
+    expect(await db.dayState.get('2026-11-11')).toEqual(before);
+    expect(await db.outbox.get('dayState:2026-11-11')).toBeUndefined();
+    await saveCloseNote('2026-11-12', 'Outro dia');
+    await put('dayState', newRecord<DayState>({ id: '2026-11-12', hardDay: false, reviewDone: false, closedAt: at(12, 22) }));
+    await db.outbox.clear();
+    await purgeDiaryEntry('diary-close-2026-11-12');
+    expect(await db.outbox.get('dayState:2026-11-12')).toBeUndefined();
+  });
+
+  it('a new observation keeps the different text of a trashed fechamento as a trashed, restorable livre entry', async () => {
+    await saveCloseNote('2026-11-11', 'Primeira versão');
+    await saveDiaryEntry(CLOSE, draft({ text: 'Primeira versão', at: at(11, 21, 10), themes: ['familia'], private: true }), { kind: 'fechamento' });
+    vi.setSystemTime(at(11, 21, 30));
+    await saveCloseNote('2026-11-11', '');
+    vi.setSystemTime(at(11, 22));
+    await saveCloseNote('2026-11-11', 'Segunda versão');
+    expect(await entry(CLOSE)).toMatchObject({
+      kind: 'fechamento', text: 'Segunda versão', trashedAt: undefined, deleted: false, at: at(11, 22), themes: [], links: [], private: false,
+    });
+    const kept = (await db.diaryEntries.toArray()).filter((e) => e.id !== CLOSE);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatchObject({
+      kind: 'livre', day: '2026-11-11', at: at(11, 21, 10), text: 'Primeira versão', themes: ['familia'], private: true,
+      trashedAt: at(11, 21, 30), deleted: false,
+    });
+    expect(await db.outbox.get(`diaryEntries:${kept[0]!.id}`)).toBeDefined();
+    await restoreDiaryEntry(kept[0]!.id);
+    expect((await entry(kept[0]!.id)).trashedAt).toBeUndefined();
+  });
+
+  it('the same text as the trashed fechamento just brings it back (no copy)', async () => {
+    await saveCloseNote('2026-11-11', 'Dia corrido');
+    await saveCloseNote('2026-11-11', '');
+    await saveCloseNote('2026-11-11', ' Dia corrido ');
+    expect(await db.diaryEntries.count()).toBe(1);
+    expect(await entry(CLOSE)).toMatchObject({ text: 'Dia corrido', trashedAt: undefined });
   });
 });
 
