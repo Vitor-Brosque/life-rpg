@@ -10,6 +10,7 @@ import { useDiaryEntries, useDiaryTrash, useDiaryWeek, useLinkNames } from '../.
 import { useToday } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
+import { DiaryExportSheet } from './DiaryExportSheet';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { formatDay, plural } from '../../ui/format';
 import './diary.css';
@@ -28,6 +29,7 @@ export function DiaryScreen() {
   const [monday, setMonday] = useState<DayKey | undefined>(() => weekFromSearch(search));
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<DiaryFilters>({});
+  const [exporting, setExporting] = useState(false);
   const current = today ? weekOfDay(today) : undefined;
   const shown = monday ?? current;
 
@@ -48,6 +50,7 @@ export function DiaryScreen() {
       <p className="muted">Escreva livremente sobre o seu dia. Nada aqui é obrigatório.</p>
       <div className="diary__bar">
         <Button variant="primary" icon="pen" onClick={() => navigate(`/diario/${ulid()}`)}>Escrever</Button>
+        <Button disabled={!shown} onClick={() => setExporting(true)}>Exportar semana</Button>
         <input type="search" aria-label="Buscar no diário" placeholder="Buscar no diário" value={query}
           id="diary-search" onChange={(e) => setQuery(e.target.value)} />
       </div>
@@ -56,6 +59,7 @@ export function DiaryScreen() {
         ? <DiaryResults query={query} filters={filters} today={today} onClear={() => { setQuery(''); setFilters({}); document.getElementById('diary-search')?.focus(); }} />
         : shown && current && <DiaryWeekView monday={shown} current={current} onWeek={goTo} />}
       <TrashLink />
+      {shown && <DiaryExportSheet open={exporting} monday={shown} onClose={() => setExporting(false)} />}
     </section>
   );
 }

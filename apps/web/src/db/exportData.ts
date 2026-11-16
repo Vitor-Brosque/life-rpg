@@ -66,14 +66,14 @@ export async function prepareExport(): Promise<PreparedExport> {
 export const canShareFiles = (): boolean => typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
 
 /**
- * Hands the file over: the share sheet ("Salvar em Arquivos"…) where the device can share it,
+ * Hands the file over (the JSON backup, or the diary's week with its own `title`): the share sheet ("Salvar em Arquivos"…) where the device can share it,
  * otherwise a download through a Blob URL. Call it straight from a tap: share() needs the tap's
  * user activation, which a long preparation would have used up. Closing the share sheet is not an error.
  */
-export async function deliverExport(file: File): Promise<void> {
+export async function deliverExport(file: File, title = 'LIFE RPG — backup'): Promise<void> {
   if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'LIFE RPG — backup' });
+      await navigator.share({ files: [file], title });
       return;
     } catch (e) {
       if (isDomError(e, 'AbortError')) return;

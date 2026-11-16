@@ -269,6 +269,11 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   devolve a entrada; **Apagar de vez** (numa entrada) e **Esvaziar** (todas) pedem confirmação e não têm volta:
   o texto sai do aparelho e, na sincronização, do servidor. Os backups diários do servidor ainda guardam o texto
   antigo até girarem (14 dias).
+- **Exportar semana** gera um arquivo `.md` com as suas palavras, sem alteração, para guardar ou levar a uma
+  conversa com uma IA. Na folha: **Período** (setas para trocar a semana), **Incluir entradas privadas**
+  (desligado), **Registrado pelo app** (ligado: tipo do dia, blocos iniciados, treino, sono e cansaço, só o que
+  existe) e **Revisões da semana e do mês** (ligado). A **Prévia** mostra o texto exato. No iPhone,
+  **Compartilhar** abre a folha de compartilhar (Salvar em Arquivos, enviar); no PC, **Baixar** salva o arquivo.
 
 ---
 
@@ -835,6 +840,9 @@ resumo fica só no aparelho.
 - **Exportar:** em **Ajustes → Dados**, **Exportar JSON** (no iPhone, **Preparar exportação** e depois
   **Compartilhar arquivo**, para salvar em Arquivos). Imagens e áudios entram até 25 MB. Se passar, as que
   ainda esperam envio ao servidor têm prioridade, e Ajustes avisa antes.
+- **Diário:** a exportação JSON leva todas as entradas, inclusive as privadas e as de Apagadas recentemente.
+  **Apagar de vez** troca o texto por vazio no aparelho e, ao sincronizar, no servidor; os backups diários do
+  servidor guardam o texto antigo até girarem (14 dias).
 - **Importar:** **Importar JSON** lê o arquivo, e cada registro só substitui o do aparelho se for mais novo.
   Importar nunca apaga o que você tem de mais recente.
 - **Quando o servidor está fora do ar:** o iPhone guarda tudo, mas sem sincronizar não há cópia no servidor.
