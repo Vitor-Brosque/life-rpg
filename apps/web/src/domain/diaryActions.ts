@@ -1,7 +1,7 @@
 import type { DayKey, DiaryEntry, DiaryKind, DiaryLink, DiaryTheme, ID } from '@life/shared';
 import { DIARY_LINKS_MAX, diaryCloseId, diaryTrashed, diaryVisible } from '@life/shared';
 import { db } from '../db/db';
-import { mutate, patchMany, upsert } from '../db/repo';
+import { mutate, upsert } from '../db/repo';
 import { withLock } from './common';
 
 // Diário: every write of an entry. Nothing here gives XP. An entry exists only once its text has more than
@@ -64,11 +64,19 @@ export const purgeDiaryEntry = (id: ID): Promise<void> => withLock(lockOf(id), a
   if (e && !e.deleted) await mutate<DiaryEntry>('diaryEntries', id, () => EMPTIED);
 });
 
-/** "Esvaziar": every entry in "Apagadas recentemente" is deleted for good, in one transaction. Resolves with how many. */
+/**
+ * "Esvaziar": every entry in "Apagadas recentemente" is deleted for good. Each one is re-checked under its own
+ * lock at write time, so an entry restored or re-saved meanwhile is left alone. Resolves with how many were deleted.
+ */
 export async function emptyDiaryTrash(): Promise<number> {
-  const trashed = (await db.diaryEntries.toArray()).filter(diaryTrashed);
-  await patchMany<DiaryEntry>('diaryEntries', trashed.map((e) => ({ id: e.id, changes: EMPTIED })));
-  return trashed.length;
+  const ids = (await db.diaryEntries.toArray()).filter(diaryTrashed).map((e) => e.id);
+  const done = await Promise.all(ids.map((id) => withLock(lockOf(id), async () => {
+    const e = await db.diaryEntries.get(id);
+    if (!e || !diaryTrashed(e)) return false;
+    await mutate<DiaryEntry>('diaryEntries', id, () => EMPTIED);
+    return true;
+  })));
+  return done.filter(Boolean).length;
 }
 
 /**
@@ -86,7 +94,7 @@ export const saveCloseNote = (day: DayKey, note: string): Promise<void> => withL
     return;
   }
   if (prev && !prev.deleted) {
-    if (prev.text === text && prev.trashedAt === undefined) return;
+    if (prev.text.trim() === text && prev.trashedAt === undefined) return;
     await mutate<DiaryEntry>('diaryEntries', id, () => ({ text, trashedAt: undefined, editedAt: Date.now() }));
     return;
   }

@@ -81,6 +81,38 @@ describe('trash', () => {
   });
 });
 
+describe('trash edge cases', () => {
+  it('Esvaziar re-checks each entry: one restored at the same time keeps its text', async () => {
+    await saveDiaryEntry('e1', draft());
+    await saveDiaryEntry('e2', draft({ text: 'Outra' }));
+    await trashDiaryEntry('e1');
+    await trashDiaryEntry('e2');
+    const snap = await db.diaryEntries.toArray();
+    vi.spyOn(db.diaryEntries, 'toArray').mockImplementationOnce((async () => {
+      await restoreDiaryEntry('e1');
+      return snap;
+    }) as never);
+    expect(await emptyDiaryTrash()).toBe(1);
+    expect(await entry('e1')).toMatchObject({ text: 'Hoje rendeu.', deleted: false, trashedAt: undefined });
+    expect(await entry('e2')).toMatchObject({ text: '', deleted: true });
+    expect(await db.outbox.get('diaryEntries:e2')).toBeDefined();
+  });
+
+  it('trashing a trashed entry and restoring a visible one write nothing', async () => {
+    await saveDiaryEntry('e1', draft());
+    await db.outbox.clear();
+    await restoreDiaryEntry('e1');
+    expect(await db.outbox.count()).toBe(0);
+    await trashDiaryEntry('e1');
+    const trashed = await entry('e1');
+    await db.outbox.clear();
+    vi.setSystemTime(at(11, 22));
+    await trashDiaryEntry('e1');
+    expect(await entry('e1')).toEqual(trashed);
+    expect(await db.outbox.count()).toBe(0);
+  });
+});
+
 describe('saveCloseNote', () => {
   it('creates, edits, trashes on a blank note and revives a deleted one', async () => {
     await saveCloseNote('2026-11-11', '  Dia corrido  ');
@@ -92,6 +124,15 @@ describe('saveCloseNote', () => {
     vi.setSystemTime(at(11, 22));
     await saveCloseNote('2026-11-11', 'De novo');
     expect(await entry('diary-close-2026-11-11')).toMatchObject({ text: 'De novo', deleted: false, createdAt: at(11, 22), at: at(11, 22) });
+  });
+
+  it('the same text again writes nothing (no editedAt, no outbox), even when the entry was saved untrimmed', async () => {
+    await saveDiaryEntry('diary-close-2026-11-11', draft({ text: 'Dia corrido \n' }), { kind: 'fechamento' });
+    await db.outbox.clear();
+    vi.setSystemTime(at(11, 22));
+    await saveCloseNote('2026-11-11', 'Dia corrido');
+    expect((await entry('diary-close-2026-11-11')).editedAt).toBeUndefined();
+    expect(await db.outbox.count()).toBe(0);
   });
 });
 
