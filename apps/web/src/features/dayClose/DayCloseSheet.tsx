@@ -7,6 +7,7 @@ import {
 import { useToday } from '../../db/hooks';
 import { rescheduleMission } from '../../domain/actions';
 import { closeDay } from '../../domain/dayCloseActions';
+import { saveCloseNote } from '../../domain/diaryActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { focusWhenGone } from '../../ui/focusAfter';
@@ -212,10 +213,12 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
         aria-describedby={`${noteId}-hint`} onChange={(e) => setNote(e.target.value)} />
       <p id={`${noteId}-hint`} className="day-close__hint">Fica no diário como o fechamento do dia.</p>
       <div className="cluster">
-        <Button size="sm" variant="ghost" icon="diary" onClick={() => {
+        <Button size="sm" variant="ghost" icon="diary" onClick={() => safeRun(async () => {
+          // What was typed is never lost: it is saved as the fechamento (the day is not closed by this).
+          if (note.trim() !== (closeEntry?.text ?? '').trim()) await saveCloseNote(today, note);
           onClose();
           navigate(`/diario/${ulid()}`);
-        }}>Escrever no diário</Button>
+        })}>Escrever no diário</Button>
       </div>
       <DayCloseCorrections blocks={summary.blocks} focus={summary.focus} />
       <div className="day-close__footer">

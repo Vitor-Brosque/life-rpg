@@ -30,6 +30,7 @@ export function useDiaryAutosave(id: ID, initial: DiaryDraft, isNew: boolean, re
   const [savedAt, setSavedAt] = useState<number>();
   const draftRef = useRef(initial);
   const dirty = useRef(restored);
+  const unsavedRestore = useRef(restored);
   const gone = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -39,8 +40,19 @@ export function useDiaryAutosave(id: ID, initial: DiaryDraft, isNew: boolean, re
     const d = draftRef.current;
     if (!dirty.current || gone.current || !d.text.trim()) return;
     dirty.current = false;
-    const saved = await saveDiaryEntry(id, d, { edited: !isNew });
+    let saved;
+    try {
+      saved = await saveDiaryEntry(id, d, { edited: !isNew });
+    } catch (e) {
+      dirty.current = true; // the next pause or leaving tries again
+      throw e;
+    }
     if (saved) setSavedAt(saved.updatedAt);
+    if (unsavedRestore.current) {
+      // The kept draft is forgotten only once its text is in the database.
+      unsavedRestore.current = false;
+      clearDiaryDraft(id);
+    }
   }, [id, isNew]);
 
   const schedule = useCallback((ms: number) => {
@@ -63,9 +75,9 @@ export function useDiaryAutosave(id: ID, initial: DiaryDraft, isNew: boolean, re
   });
 
   useEffect(() => {
-    // A restored draft now lives in the field; back in the foreground, the field holds it again.
-    clearDiaryDraft(id);
-    const onVisible = () => { if (document.visibilityState === 'visible') clearDiaryDraft(id); };
+    // A draft that was not restored is stale; a restored one is cleared after it is saved (see flush).
+    if (!unsavedRestore.current) clearDiaryDraft(id);
+    const onVisible = () => { if (document.visibilityState === 'visible' && !dirty.current) clearDiaryDraft(id); };
     document.addEventListener('visibilitychange', onVisible);
     if (dirty.current) schedule(DIARY_SAVE_MS);
     return () => {

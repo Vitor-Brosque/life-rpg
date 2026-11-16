@@ -218,6 +218,20 @@ describe('sheet "Como foi hoje"', () => {
     expect(await db.diaryEntries.count()).toBe(0);
   });
 
+  it('"Escrever no diário" keeps the note being typed as the fechamento, without closing the day', async () => {
+    const user = userEvent.setup();
+    const loc = memoryLocation({ path: '/', record: true });
+    render(<Router hook={loc.hook}>{view()}</Router>);
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    await user.type(await within(s).findByLabelText('Observação (opcional)'), 'Dia corrido');
+    await user.click(within(s).getByRole('button', { name: 'Escrever no diário' }));
+    await waitFor(() => expect(loc.history!.at(-1)).toMatch(/^\/diario\/[0-9A-Z]{26}$/));
+    await waitFor(async () => expect((await db.diaryEntries.get(`diary-close-${TODAY}`))?.text).toBe('Dia corrido'));
+    expect((await db.dayState.get(TODAY))?.closedAt).toBeUndefined();
+    expect(await db.diaryEntries.count()).toBe(1);
+  });
+
   it('"Fiz, mas não registrei" registers the block as done later, without XP', async () => {
     const user = userEvent.setup();
     render(view());

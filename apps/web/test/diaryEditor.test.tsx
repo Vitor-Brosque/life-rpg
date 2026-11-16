@@ -1,16 +1,18 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Router } from 'wouter';
+import { Route, Router, Switch } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import type { DiaryEntry, Journey } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission } from '../src/domain/actions';
-import { saveDiaryEntry, trashDiaryEntry } from '../src/domain/diaryActions';
+import { restoreDiaryEntry, saveDiaryEntry, trashDiaryEntry } from '../src/domain/diaryActions';
 import { DiaryEditorScreen } from '../src/features/diary/DiaryEditor';
 import { DiaryTrashScreen } from '../src/features/diary/DiaryTrash';
+import { FOCUS_PAGE } from '../src/ui/focusAfter';
+import { FAILURE_TOAST } from '../src/ui/safeRun';
 import { ToastHost, useToast } from '../src/ui/Toast';
 import { at } from './blockFixture';
 
@@ -114,8 +116,8 @@ describe('writing', () => {
     }));
     renderEditor('e9');
     expect(await screen.findByLabelText('Texto da entrada')).toHaveValue('Meio escrito');
-    expect(localStorage.getItem(DRAFT_KEY)).toBeNull();
     await waitFor(async () => expect(await entry('e9')).toMatchObject({ text: 'Meio escrito', at: at(11, 20), themes: ['sono'] }));
+    await waitFor(() => expect(localStorage.getItem(DRAFT_KEY)).toBeNull());
   });
 
   it('hiding the page keeps the draft locally and saves it', async () => {
@@ -207,5 +209,116 @@ describe('Apagar and Apagadas recentemente', () => {
     expect(await screen.findByText('Esta entrada está em Apagadas recentemente.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Restaurar' }));
     expect(await screen.findByLabelText('Texto da entrada')).toHaveValue('Hoje rendeu.');
+  });
+});
+
+const draftOf = (id: string) => JSON.stringify({
+  id, text: 'Meio escrito', day: '2026-11-11', at: at(11, 20), themes: [], links: [], private: false,
+});
+
+function failNextTransaction() {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(db, 'transaction').mockImplementationOnce((() => Promise.reject(new Error('disk'))) as never);
+}
+
+describe('fix round 1', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('a newborn entry stays new for the whole session: emptied after the first autosave it is removed, no editedAt', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderEditor('e1');
+    const box = await screen.findByLabelText('Texto da entrada');
+    await user.type(box, 'abc');
+    expect(await screen.findByText('Salvo às 21:05.')).toBeInTheDocument();
+    await user.type(box, 'd');
+    await waitFor(async () => expect((await entry('e1')).text).toBe('abcd'));
+    expect((await entry('e1')).editedAt).toBeUndefined();
+    expect(screen.getByRole('heading', { name: 'Nova entrada' })).toBeInTheDocument();
+    await user.clear(box);
+    unmount();
+    await waitFor(async () => expect(await entry('e1')).toMatchObject({ deleted: true, text: '' }));
+    expect((await entry('e1')).editedAt).toBeUndefined();
+  });
+
+  it('a failed save keeps the text pending: leaving retries it', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderEditor('e1');
+    failNextTransaction();
+    await user.type(await screen.findByLabelText('Texto da entrada'), 'abc');
+    expect(await screen.findByText(FAILURE_TOAST, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await db.diaryEntries.count()).toBe(0);
+    unmount();
+    await waitFor(async () => expect((await entry('e1'))?.text).toBe('abc'));
+  });
+
+  it('a restored draft stays on the device until its text is really saved', async () => {
+    localStorage.setItem(DRAFT_KEY, draftOf('e9'));
+    failNextTransaction();
+    renderEditor('e9');
+    expect(await screen.findByLabelText('Texto da entrada')).toHaveValue('Meio escrito');
+    expect(localStorage.getItem(DRAFT_KEY)).not.toBeNull();
+    expect(await screen.findByText(FAILURE_TOAST, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(localStorage.getItem(DRAFT_KEY)).not.toBeNull();
+  });
+
+  it('Restaurar on the trashed-entry screen moves focus to the editor heading', async () => {
+    const user = userEvent.setup();
+    await seed('e1');
+    await trashDiaryEntry('e1');
+    renderEditor('e1');
+    await user.click(await screen.findByRole('button', { name: 'Restaurar' }));
+    await screen.findByLabelText('Texto da entrada');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Entrada do diário' })).toHaveFocus());
+  });
+
+  it('Pronto and Apagar leave focus on the next screen heading', async () => {
+    const user = userEvent.setup();
+    await seed('e1');
+    const loc = memoryLocation({ path: '/diario/e1' });
+    render(<Router hook={loc.hook}><Switch>
+      <Route path="/diario/:id">{(p) => <DiaryEditorScreen id={p.id} />}</Route>
+      <Route path="/diario"><h1 tabIndex={-1} data-focus-target={FOCUS_PAGE}>Diário</h1></Route>
+    </Switch><ToastHost /></Router>);
+    await user.click(await screen.findByRole('button', { name: 'Pronto' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Diário' })).toHaveFocus());
+    act(() => loc.navigate('/diario/e1'));
+    await user.click(await screen.findByRole('button', { name: 'Apagar' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Diário' })).toHaveFocus());
+  });
+
+  it('the trash confirmations take focus when opened and give it back on Cancelar', async () => {
+    const user = userEvent.setup();
+    await seed('e1');
+    await trashDiaryEntry('e1');
+    const loc = memoryLocation({ path: '/diario/apagadas' });
+    render(<Router hook={loc.hook}><DiaryTrashScreen /><ToastHost /></Router>);
+    const when = 'Quarta-feira, 11/11 · 21:05';
+    await user.click(await screen.findByRole('button', { name: `Apagar de vez a entrada de ${when}` }));
+    const row = screen.getByRole('group', { name: `Confirmar apagar de vez a entrada de ${when}` });
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'Apagar de vez' })).toHaveFocus());
+    await user.click(within(row).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: `Apagar de vez a entrada de ${when}` })).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: 'Esvaziar' }));
+    const all = screen.getByRole('group', { name: 'Confirmar esvaziar' });
+    await waitFor(() => expect(within(all).getByRole('button', { name: 'Esvaziar' })).toHaveFocus());
+    await user.click(within(all).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Esvaziar' })).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: 'Esvaziar' }));
+    await user.click(within(screen.getByRole('group', { name: 'Confirmar esvaziar' })).getByRole('button', { name: 'Esvaziar' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Apagadas recentemente' })).toHaveFocus());
+  });
+
+  it('Esvaziar that emptied nothing says nothing', async () => {
+    const user = userEvent.setup();
+    await seed('e1');
+    await trashDiaryEntry('e1');
+    const loc = memoryLocation({ path: '/diario/apagadas' });
+    render(<Router hook={loc.hook}><DiaryTrashScreen /><ToastHost /></Router>);
+    await user.click(await screen.findByRole('button', { name: 'Esvaziar' }));
+    const confirm = within(screen.getByRole('group', { name: 'Confirmar esvaziar' })).getByRole('button', { name: 'Esvaziar' });
+    await restoreDiaryEntry('e1');
+    fireEvent.click(confirm);
+    await pause(300);
+    expect(screen.queryByText(/apagadas? de vez/)).not.toBeInTheDocument();
   });
 });

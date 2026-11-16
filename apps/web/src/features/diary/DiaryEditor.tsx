@@ -41,11 +41,16 @@ export function DiaryEditorScreen({ id }: { id: ID }) {
         <Link href="/diario/apagadas" className="settings__back">‹ Apagadas recentemente</Link>
         <h1 tabIndex={-1} data-focus-target={FOCUS_PAGE}>Entrada do diário</h1>
         <p className="muted">Esta entrada está em Apagadas recentemente.</p>
-        <div className="cluster"><Button onClick={() => safeRun(restoreDiaryEntry(id))}>Restaurar</Button></div>
+        <div className="cluster">
+          <Button onClick={(e) => {
+            focusWhenGone(e.currentTarget);
+            safeRun(restoreDiaryEntry(id));
+          }}>Restaurar</Button>
+        </div>
       </section>
     );
   }
-  return <DiaryEditorForm key={id} id={id} entry={entry ?? undefined} dayStartHour={settings.dayStartHour} />;
+  return <DiaryEditorForm id={id} entry={entry ?? undefined} dayStartHour={settings.dayStartHour} />;
 }
 
 function startDraft(id: ID, entry: DiaryEntry | undefined, dayStartHour: number): { draft: DiaryDraft; restored: boolean } {
@@ -59,7 +64,7 @@ function startDraft(id: ID, entry: DiaryEntry | undefined, dayStartHour: number)
 
 function DiaryEditorForm({ id, entry, dayStartHour }: { id: ID; entry?: DiaryEntry; dayStartHour: number }) {
   const [start] = useState(() => startDraft(id, entry, dayStartHour));
-  const isNew = entry === undefined;
+  const [isNew] = useState(() => entry === undefined); // frozen: this session created the entry or did not
   const auto = useDiaryAutosave(id, start.draft, isNew, start.restored);
   const { draft } = auto;
   const live = useDiaryEntry(id);

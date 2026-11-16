@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'wouter';
 import type { DiaryEntry } from '@life/shared';
 import { diaryClock, diaryDayTitle, diaryPreview } from '@life/shared';
@@ -18,6 +18,16 @@ export function DiaryTrashScreen() {
   const trashed = useDiaryTrash();
   const heading = useRef<HTMLHeadingElement>(null);
   const [confirmAll, setConfirmAll] = useState(false);
+  const openAll = useRef<HTMLButtonElement>(null);
+  const confirmAllBtn = useRef<HTMLButtonElement>(null);
+  const cameFromAll = useRef(false);
+  useEffect(() => {
+    if (confirmAll) confirmAllBtn.current?.focus();
+    else if (cameFromAll.current) {
+      cameFromAll.current = false;
+      openAll.current?.focus();
+    }
+  }, [confirmAll]);
   const toHeading = (e: MouseEvent<HTMLElement>) => focusWhenGone(e.currentTarget, () => heading.current);
 
   return (
@@ -35,19 +45,19 @@ export function DiaryTrashScreen() {
             <div className="stack" role="group" aria-label="Confirmar esvaziar">
               <p>{`Apagar de vez ${plural(trashed.length, 'entrada', 'entradas')}? Não dá para desfazer.`}</p>
               <div className="cluster">
-                <Button variant="primary" onClick={(e) => {
+                <Button ref={confirmAllBtn} variant="primary" onClick={(e) => {
                   toHeading(e);
                   setConfirmAll(false);
                   safeRun(async () => {
                     const n = await emptyDiaryTrash();
-                    toast(n === 1 ? 'Entrada apagada de vez.' : 'Entradas apagadas de vez.');
+                    if (n > 0) toast(n === 1 ? 'Entrada apagada de vez.' : 'Entradas apagadas de vez.');
                   });
                 }}>Esvaziar</Button>
-                <Button variant="ghost" onClick={() => setConfirmAll(false)}>Cancelar</Button>
+                <Button variant="ghost" onClick={() => { cameFromAll.current = true; setConfirmAll(false); }}>Cancelar</Button>
               </div>
             </div>
           ) : (
-            <div className="cluster"><Button variant="ghost" icon="trash" onClick={() => setConfirmAll(true)}>Esvaziar</Button></div>
+            <div className="cluster"><Button ref={openAll} variant="ghost" icon="trash" onClick={() => setConfirmAll(true)}>Esvaziar</Button></div>
           )}
           <ul className="diary__list" aria-label="Entradas apagadas">
             {trashed.map((e) => <TrashRow key={e.id} entry={e} toHeading={toHeading} />)}
@@ -60,6 +70,16 @@ export function DiaryTrashScreen() {
 
 function TrashRow({ entry, toHeading }: { entry: DiaryEntry; toHeading(e: MouseEvent<HTMLElement>): void }) {
   const [confirm, setConfirm] = useState(false);
+  const openBtn = useRef<HTMLButtonElement>(null);
+  const confirmBtn = useRef<HTMLButtonElement>(null);
+  const cancelled = useRef(false);
+  useEffect(() => {
+    if (confirm) confirmBtn.current?.focus();
+    else if (cancelled.current) {
+      cancelled.current = false;
+      openBtn.current?.focus();
+    }
+  }, [confirm]);
   const when = `${diaryDayTitle(entry.day)} · ${diaryClock(entry.at)}`;
   return (
     <li className="diary-entry diary-trash__row">
@@ -69,14 +89,14 @@ function TrashRow({ entry, toHeading }: { entry: DiaryEntry; toHeading(e: MouseE
         <div className="stack" role="group" aria-label={`Confirmar apagar de vez a entrada de ${when}`}>
           <p>Apagar de vez? Não dá para desfazer.</p>
           <div className="cluster">
-            <Button size="sm" variant="primary" onClick={(e) => {
+            <Button ref={confirmBtn} size="sm" variant="primary" onClick={(e) => {
               toHeading(e);
               safeRun(async () => {
                 await purgeDiaryEntry(entry.id);
                 toast('Entrada apagada de vez.');
               });
             }}>Apagar de vez</Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>Cancelar</Button>
+            <Button size="sm" variant="ghost" onClick={() => { cancelled.current = true; setConfirm(false); }}>Cancelar</Button>
           </div>
         </div>
       ) : (
@@ -88,7 +108,7 @@ function TrashRow({ entry, toHeading }: { entry: DiaryEntry; toHeading(e: MouseE
               toast('Entrada restaurada.');
             });
           }}>Restaurar</Button>
-          <Button size="sm" variant="ghost" aria-label={`Apagar de vez a entrada de ${when}`} onClick={() => setConfirm(true)}>
+          <Button ref={openBtn} size="sm" variant="ghost" aria-label={`Apagar de vez a entrada de ${when}`} onClick={() => setConfirm(true)}>
             Apagar de vez
           </Button>
         </div>
