@@ -4,6 +4,8 @@ import type { DayCloseSummary, DayKey, DayState, DiaryEntry, Mission, Tiredness 
 import {
   BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays, ulid,
 } from '@life/shared';
+import { diaryCloseId } from '@life/shared';
+import { db } from '../../db/db';
 import { useToday } from '../../db/hooks';
 import { rescheduleMission } from '../../domain/actions';
 import { closeDay } from '../../domain/dayCloseActions';
@@ -178,12 +180,23 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
     next.delete(id);
     return next;
   });
+  // His changed note goes over a version that changed while the sheet was open: saveCloseNote keeps that newer
+  // version in Apagadas recentemente, and the toast says so (same condition as saveCloseNote's).
+  // Read from the database at save time, so the check never depends on when the screen last re-rendered.
+  const keepsNewer = async (): Promise<boolean> => {
+    if (!noteChanged) return false;
+    const fresh = await db.diaryEntries.get(diaryCloseId(today));
+    return fresh !== undefined && fresh.trashedAt === undefined && !fresh.deleted
+      && fresh.text !== initialNote && fresh.text.trim() !== note.trim();
+  };
+  const KEPT_NEWER = ' A versão mais nova da observação ficou em Apagadas recentemente.';
   const save = () => {
     setBusy(true);
     safeRun(async () => {
       try {
+        const kept = await keepsNewer();
         await closeDay(today, { tiredness, ...(noteChanged ? { note, noteShown: initialNote } : {}) });
-        toast(closed === undefined ? 'Dia fechado.' : 'Fechamento atualizado.');
+        toast(`${closed === undefined ? 'Dia fechado.' : 'Fechamento atualizado.'}${kept ? KEPT_NEWER : ''}`);
         onClose();
       } finally {
         setBusy(false);
@@ -220,7 +233,9 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       <div className="cluster">
         <Button size="sm" variant="ghost" icon="diary" onClick={() => safeRun(async () => {
           // What was typed is never lost: it is saved as the fechamento (the day is not closed by this).
+          const kept = await keepsNewer();
           if (noteChanged) await saveCloseNote(today, note, { shown: initialNote });
+          if (kept) toast(KEPT_NEWER.trim());
           onClose();
           navigate(`/diario/${ulid()}`);
         })}>Escrever no diário</Button>

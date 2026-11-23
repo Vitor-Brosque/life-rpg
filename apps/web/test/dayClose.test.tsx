@@ -300,7 +300,7 @@ describe('sheet "Como foi hoje"', () => {
     await user.clear(field);
     await user.type(field, 'O que eu escrevi agora');
     await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado. A versão mais nova da observação ficou em Apagadas recentemente.'));
     expect(await db.diaryEntries.get(CLOSE)).toMatchObject({ kind: 'fechamento', text: 'O que eu escrevi agora', deleted: false });
     expect(await copies()).toEqual([expect.objectContaining({
       id: `${CLOSE}-copia-${newer.updatedAt}`, kind: 'livre', text: 'Versão nova, de outro aparelho', trashedAt: at(11, 23, 10), deleted: false,
