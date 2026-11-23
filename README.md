@@ -34,9 +34,7 @@ Sistema pessoal de vida, produtividade e aprendizagem com visual de RPG medieval
 > spaced repetition (FSRS-6) and tracking training, sleep and routines, wrapped in a pixel-art RPG.
 > It is a TypeScript monorepo: React 19 + Vite + IndexedDB (Dexie) on the client; Fastify 5 + Node's
 > built-in SQLite on the server, with cursor-based sync, Server-Sent Events, Web Push and daily backups;
-> deployed with Docker behind Tailscale HTTPS. About 40k lines of TypeScript and ~1,960 automated tests.
-> It was built with Claude Code, an AI coding agent: I owned the product vision, requirements, decisions
-> and daily use; the agent wrote most of the code under a spec → plan → test-first → review process.
+> deployed with Docker behind Tailscale HTTPS.
 > The UI is in Brazilian Portuguese.
 
 ## Por que existe
@@ -130,34 +128,6 @@ packages/shared  regras de domínio puras, compartilhadas pelos dois lados
 deploy/          deploy em Docker no servidor de casa, com HTTPS via Tailscale
 docs/            guia de uso e análise da pesquisa científica
 ```
-
-## Números
-
-- Cerca de 40 mil linhas de TypeScript, sem contar os testes.
-- 1.961 testes automatizados (Vitest) em 159 arquivos, todos passando.
-- Mais de 200 commits entre 11 e 23/11/2026: os 7 marcos da versão 1.0.0 nos três primeiros dias, depois
-  ajustes vindos do uso diário.
-
-## Como foi construído
-
-Este projeto foi desenvolvido com o [Claude Code](https://claude.com/claude-code), um agente de IA para
-programação. Por isso, todo commit tem o Claude como coautor.
-
-**Minha parte:** a visão do produto, os requisitos a partir da minha rotina real, as prioridades, as
-decisões entre as alternativas propostas, o uso diário e o feedback que virou correção. Um exemplo: a
-captura rápida usava comandos digitados (`#`, `@`); achei pouco intuitivo e ela virou uma escolha por
-botões.
-
-**A parte do agente:** a maior parte do código, das especificações e dos testes, sempre no mesmo processo:
-
-1. conversa de descoberta sobre o problema;
-2. especificação escrita do marco, aprovada antes de qualquer código;
-3. plano de implementação em tarefas pequenas;
-4. implementação com testes escritos primeiro;
-5. revisão de código antes do merge.
-
-As especificações e os planos de cada marco existem, mas ficaram fora deste repositório porque descrevem
-minha rotina pessoal em detalhe.
 
 ## Rodar localmente
 
