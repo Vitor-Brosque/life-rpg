@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Router, Switch } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
@@ -8,7 +9,10 @@ import { db } from '../src/db/db';
 import { applyRemote, newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission } from '../src/domain/actions';
-import { restoreDiaryEntry, saveCloseNote, saveDiaryEntry, trashDiaryEntry, type DiaryDraft } from '../src/domain/diaryActions';
+import { withLock } from '../src/domain/common';
+import {
+  diaryLockKey, restoreDiaryEntry, saveCloseNote, saveDiaryEntry, trashDiaryEntry, type DiaryDraft,
+} from '../src/domain/diaryActions';
 import { DiaryEditorScreen } from '../src/features/diary/DiaryEditor';
 import { readDiaryDraft, writeDiaryDraft } from '../src/features/diary/diaryDraft';
 import { DiaryScreen } from '../src/features/diary/DiaryScreen';
@@ -20,8 +24,8 @@ import { at } from './blockFixture';
 
 const entry = (id: string) => db.diaryEntries.get(id) as Promise<DiaryEntry>;
 const pause = (ms: number) => new Promise((res) => setTimeout(res, ms));
-/** A no-op through the entry's lock: resolves once every write already queued on that entry has finished. */
-const queuedWritesDone = (id: string) => restoreDiaryEntry(id);
+/** An empty task on the entry's lock (writes nothing): resolves once every write already queued on that entry has finished. */
+const queuedWritesDone = (id: string) => withLock(diaryLockKey(id), async () => undefined);
 const keptDraft = (text = 'Meio escrito', themes: DiaryTheme[] = []): DiaryDraft => ({
   text, day: '2026-11-11', at: at(11, 20), themes, links: [], private: false,
 });
@@ -326,10 +330,9 @@ describe('fix round 1', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(scan).toHaveBeenCalled());
     await waitFor(async () => expect((await entry('e1')).trashedAt).toBeUndefined());
-    await queuedWritesDone('e1');   // resolves after Esvaziar's re-check of e1
-    await pause(0);
+    await queuedWritesDone('e1');   // resolves after Esvaziar's re-check of e1 and its answer
+    expect(useToast.getState().toast).toBeUndefined();
     expect(await entry('e1')).toMatchObject({ text: 'Hoje rendeu.', deleted: false });
-    expect(screen.queryByText(/apagadas? de vez/)).not.toBeInTheDocument();
   });
 });
 
@@ -356,6 +359,7 @@ describe('final fix wave', () => {
     const { box, before, queued } = await keptThenNewer();
     expect(box).toHaveValue('Versão do celular');
     expect(box).toHaveAttribute('readonly');
+    expect(screen.getByText('Escolha um dos textos acima para continuar.')).toBeInTheDocument();
     const group = screen.getByRole('group', { name: 'Há um texto não salvo deste aparelho, de 11/11 21:30.' });
     expect(within(group).getByText('Meio escrito neste aparelho')).toBeInTheDocument();
     expect(within(group).getByRole('button', { name: 'Usar este texto' })).toBeInTheDocument();
@@ -425,7 +429,7 @@ describe('final fix wave', () => {
     const loc = memoryLocation({ path: '/diario' });
     render(<Router hook={loc.hook}><DiaryScreen /></Router>);
     expect(await screen.findByText('Texto não salvo de 11/11 21:05')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Continuar' })).toHaveAttribute('href', '/diario/e1');
+    expect(screen.getByRole('link', { name: 'Continuar o texto de 11/11 21:05' })).toHaveAttribute('href', '/diario/e1');
   });
 
   it('Apagar de vez and Esvaziar forget the kept drafts of the entries they delete', async () => {
@@ -484,5 +488,181 @@ describe('final fix wave', () => {
     const e = await entry(CLOSE);
     await applyRemote({ table: 'diaryEntries', record: { ...e, text: '', themes: [], links: [], deleted: true, updatedAt: e.updatedAt + 60_000 } });
     await waitFor(async () => expect(await entry(CLOSE)).toMatchObject({ deleted: false, kind: 'fechamento', text: 'Fechei o dia. E mais.' }));
+  });
+});
+
+/** Releases what holdSaves still holds (a failed test must not leave the entry's lock taken for the next ones). */
+let releaseHeld: (() => void) | undefined;
+
+/** Holds each save's transaction until released, in order (the transactions nested in it go through). */
+function holdSaves(): Array<() => void> {
+  const real = db.transaction.bind(db) as unknown as (...args: unknown[]) => Promise<unknown>;
+  const held: Array<() => void> = [];
+  releaseHeld = () => { for (const release of held) release(); };
+  vi.spyOn(db, 'transaction').mockImplementation(((...args: unknown[]) => {
+    if (Dexie.currentTransaction) return real(...args);
+    return new Promise<void>((release) => { held.push(release); }).then(() => real(...args));
+  }) as never);
+  return held;
+}
+
+describe('fix round 2', () => {
+  afterEach(() => {
+    releaseHeld?.();
+    releaseHeld = undefined;
+    vi.restoreAllMocks();
+  });
+  const notice = () => screen.queryByText(/Há um texto não salvo/);
+  const purged = (e: DiaryEntry) => ({ ...e, text: '', themes: [], links: [], deleted: true, updatedAt: e.updatedAt + 60_000 });
+
+  it('a save still on its way is not "saved" for the page-hide net: the newer text stays kept until it is saved too', async () => {
+    const held = holdSaves();
+    renderEditor('e1');
+    const box = await screen.findByLabelText('Texto da entrada');
+    fireEvent.change(box, { target: { value: 'Primeiro' } });
+    await waitFor(() => expect(held).toHaveLength(1), { timeout: 3000 });
+    fireEvent.change(box, { target: { value: 'Primeiro e mais' } });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(readDiaryDraft('e1')?.draft.text).toBe('Primeiro e mais');
+    held[0]!();
+    expect(await screen.findByText('Salvo às 21:05.')).toBeInTheDocument();   // the first save came back
+    expect((await entry('e1')).text).toBe('Primeiro');
+    expect(readDiaryDraft('e1')?.draft.text).toBe('Primeiro e mais');
+    await waitFor(() => expect(held).toHaveLength(2));
+    held[1]!();
+    await waitFor(async () => expect((await entry('e1')).text).toBe('Primeiro e mais'));
+    await waitFor(() => expect(readDiaryDraft('e1')).toBeUndefined());
+  });
+
+  it('hiding the page while a save is on its way keeps that text until the save lands', async () => {
+    const held = holdSaves();
+    renderEditor('e1');
+    fireEvent.change(await screen.findByLabelText('Texto da entrada'), { target: { value: 'A caminho' } });
+    await waitFor(() => expect(held).toHaveLength(1), { timeout: 3000 });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(readDiaryDraft('e1')).toMatchObject({ draft: { text: 'A caminho' } });
+    expect(readDiaryDraft('e1')!.base).toBeUndefined();
+    held[0]!();
+    await waitFor(async () => expect((await entry('e1'))?.text).toBe('A caminho'));
+    await waitFor(() => expect(readDiaryDraft('e1')).toBeUndefined());
+    expect(held).toHaveLength(1);
+  });
+
+  /** e1 open with "Texto A"; then "Texto B" arrives by sync (12/11 08:00). */
+  async function newerWhileOpen() {
+    const user = userEvent.setup();
+    const a = (await seed('e1', 'Texto A'))!;
+    const view = renderEditor('e1');
+    const box = await screen.findByLabelText('Texto da entrada');
+    vi.setSystemTime(at(12, 8));
+    await applyRemote({ table: 'diaryEntries', record: { ...a, text: 'Texto B', updatedAt: a.updatedAt + 60_000 } });
+    const b = await entry('e1');
+    return { user, a, b, box, view };
+  }
+  const NOTICE_12_08 = 'Há um texto não salvo deste aparelho, de 12/11 08:00.';
+
+  it('a copy left open never saves over a newer synced text: the field shows it and the notice offers his text', async () => {
+    const { user, a, b, box } = await newerWhileOpen();
+    await user.type(box, ' e mais');
+    const group = await screen.findByRole('group', { name: NOTICE_12_08 }, { timeout: 3000 });
+    expect(within(group).getByText('Texto A e mais')).toBeInTheDocument();
+    expect(box).toHaveValue('Texto B');
+    expect(box).toHaveAttribute('readonly');
+    expect(screen.getByText('Escolha um dos textos acima para continuar.')).toBeInTheDocument();
+    await queuedWritesDone('e1');
+    expect(await entry('e1')).toEqual(b);
+    expect(readDiaryDraft('e1')).toMatchObject({ draft: { text: 'Texto A e mais' }, base: a.updatedAt });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(readDiaryDraft('e1')?.draft.text).toBe('Texto A e mais');
+  });
+
+  it('Usar este texto then saves his text over the newer one, deliberately', async () => {
+    const { user, box } = await newerWhileOpen();
+    await user.type(box, ' e mais');
+    await user.click(await screen.findByRole('button', { name: 'Usar este texto' }, { timeout: 3000 }));
+    expect(box).toHaveValue('Texto A e mais');
+    expect(box).not.toHaveAttribute('readonly');
+    expect(notice()).not.toBeInTheDocument();
+    await waitFor(async () => expect(await entry('e1')).toMatchObject({ text: 'Texto A e mais', editedAt: at(12, 8) }));
+    await waitFor(() => expect(readDiaryDraft('e1')).toBeUndefined());
+  });
+
+  it('Descartar keeps the newer text, and typing then continues from it', async () => {
+    const { user, b, box } = await newerWhileOpen();
+    await user.type(box, ' e mais');
+    await user.click(await screen.findByRole('button', { name: 'Descartar' }, { timeout: 3000 }));
+    expect(readDiaryDraft('e1')).toBeUndefined();
+    expect(box).toHaveValue('Texto B');
+    await queuedWritesDone('e1');
+    expect(await entry('e1')).toEqual(b);
+    await user.type(box, '!');
+    await waitFor(async () => expect((await entry('e1')).text).toBe('Texto B!'));
+    expect(notice()).not.toBeInTheDocument();
+  });
+
+  it('leaving with a change over a newer synced text keeps his text on the device, and opening again asks', async () => {
+    const { a, box, view } = await newerWhileOpen();
+    fireEvent.change(box, { target: { value: 'Texto A, saindo' } });
+    view.unmount();
+    await waitFor(() => expect(readDiaryDraft('e1')).toMatchObject({ draft: { text: 'Texto A, saindo' }, base: a.updatedAt }));
+    await queuedWritesDone('e1');
+    expect((await entry('e1')).text).toBe('Texto B');
+    renderEditor('e1');
+    expect(await screen.findByLabelText('Texto da entrada')).toHaveValue('Texto B');
+    expect(screen.getByRole('group', { name: NOTICE_12_08 })).toBeInTheDocument();
+  });
+
+  it('an entry deleted for good shows a draft kept after the screen opened, without leaving it', async () => {
+    const v1 = (await seed('e1', 'Versão 1'))!;
+    await applyRemote({ table: 'diaryEntries', record: purged(v1) });
+    renderEditor('e1');
+    expect(await screen.findByText('Esta entrada foi apagada.')).toBeInTheDocument();
+    expect(notice()).not.toBeInTheDocument();
+    act(() => { writeDiaryDraft('e1', keptDraft('Escrito aqui'), v1.updatedAt); });
+    expect(await screen.findByRole('group', { name: 'Há um texto não salvo deste aparelho, de 11/11 21:05.' })).toBeInTheDocument();
+  });
+
+  it('a revival that fails after a remote Apagar de vez keeps his text, offered on the same screen', async () => {
+    const v1 = (await seed('e1', 'Versão 1'))!;
+    renderEditor('e1');
+    fireEvent.change(await screen.findByLabelText('Texto da entrada'), { target: { value: 'Versão 1 e o que escrevi' } });
+    await applyRemote({ table: 'diaryEntries', record: purged(v1) });
+    failNextTransaction();   // the save made on leaving the form (it would revive the entry)
+    expect(await screen.findByText('Esta entrada foi apagada.')).toBeInTheDocument();
+    const group = await screen.findByRole('group', { name: 'Há um texto não salvo deste aparelho, de 11/11 21:05.' });
+    expect(within(group).getByText('Versão 1 e o que escrevi')).toBeInTheDocument();
+    expect(await screen.findByText(FAILURE_TOAST)).toBeInTheDocument();
+  });
+
+  it('an entry deleted for good elsewhere forgets a kept draft holding the very text it had', async () => {
+    const v1 = (await seed('e1', 'Versão 1'))!;
+    renderEditor('e1');
+    await screen.findByLabelText('Texto da entrada');
+    act(() => { writeDiaryDraft('e1', keptDraft('Versão 1'), v1.updatedAt); });   // kept while a save was on its way
+    await applyRemote({ table: 'diaryEntries', record: purged(v1) });
+    expect(await screen.findByText('Esta entrada foi apagada.')).toBeInTheDocument();
+    await waitFor(() => expect(readDiaryDraft('e1')).toBeUndefined());
+    expect(notice()).not.toBeInTheDocument();
+  });
+
+  it('Esvaziar that stops partway forgets the drafts of the entries it did delete, and keeps the others', async () => {
+    const user = userEvent.setup();
+    for (const id of ['e1', 'e2']) {
+      await seed(id, `Texto ${id}`);
+      await trashDiaryEntry(id);
+      writeDiaryDraft(id, keptDraft(`rascunho ${id}`), 1);
+    }
+    const loc = memoryLocation({ path: '/diario/apagadas' });
+    render(<Router hook={loc.hook}><DiaryTrashScreen /><ToastHost /></Router>);
+    await user.click(await screen.findByRole('button', { name: 'Esvaziar' }));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const get = db.diaryEntries.get.bind(db.diaryEntries);
+    vi.spyOn(db.diaryEntries, 'get').mockImplementation(((key: string) =>
+      key === 'e2' ? Promise.reject(new Error('disk')) : get(key)) as never);
+    await user.click(within(screen.getByRole('group', { name: 'Confirmar esvaziar' })).getByRole('button', { name: 'Esvaziar' }));
+    expect(await screen.findByText(FAILURE_TOAST)).toBeInTheDocument();
+    expect(await entry('e1')).toMatchObject({ deleted: true, text: '' });
+    expect(readDiaryDraft('e1')).toBeUndefined();
+    expect(readDiaryDraft('e2')?.draft.text).toBe('rascunho e2');
   });
 });

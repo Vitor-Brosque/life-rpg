@@ -6,7 +6,7 @@ import { memoryLocation } from 'wouter/memory-location';
 import type { DiaryEntry, DiaryLink, DiaryTheme, Journey, Profile, Week } from '@life/shared';
 import { App } from '../src/app/App';
 import { db } from '../src/db/db';
-import { newRecord, patch, put } from '../src/db/repo';
+import { applyRemote, newRecord, patch, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { saveDiaryEntry, trashDiaryEntry } from '../src/domain/diaryActions';
 import { writeDiaryDraft } from '../src/features/diary/diaryDraft';
@@ -161,23 +161,35 @@ describe('search and filters', () => {
 describe('texts kept on this device', () => {
   const kept = (text: string) => ({ text, day: '2026-11-12', at: at(12, 9), themes: [], links: [], private: false });
 
-  it('one line per kept draft whose entry is missing or older than it, newest first; Continuar opens it', async () => {
+  it('one line per kept draft whose words are not in its entry (missing, deleted, changed since or not), newest first', async () => {
     vi.setSystemTime(at(13, 8));
-    await write('older', 12, 9, 'Salvo antes');
+    const same = (await write('same', 12, 9, 'Salvo antes'))!;
+    const deleted = (await write('deleted', 12, 9, 'Apagado em outro aparelho'))!;
     vi.setSystemTime(at(13, 9));
     writeDiaryDraft('gone', kept('Nunca salvo'));
+    vi.setSystemTime(at(13, 9, 10));
+    writeDiaryDraft('same', kept('Salvo antes e mais'), same.updatedAt);   // the app closed before it was saved
+    vi.setSystemTime(at(13, 9, 20));
+    writeDiaryDraft('deleted', kept('Apagado, e mais'), deleted.updatedAt);
     vi.setSystemTime(at(13, 9, 30));
-    writeDiaryDraft('older', kept('Salvo antes e mais'), 1);
     writeDiaryDraft('newer', kept('Velho'));
-    vi.setSystemTime(at(13, 10));
+    writeDiaryDraft('equal', kept('Já salvo'));
+    vi.setSystemTime(at(13, 9, 40));
     await write('newer', 12, 10, 'Editado depois, em outro aparelho');
+    await write('equal', 12, 10, 'Já salvo');
+    await applyRemote({ table: 'diaryEntries', record: { ...deleted, text: '', themes: [], links: [], deleted: true, updatedAt: at(13, 9, 50) } });
     const queued = await db.outbox.count();
     renderDiary();
     const list = await screen.findByRole('list', { name: 'Textos não salvos' });
     expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Texto não salvo de 13/11 09:30Continuar', 'Texto não salvo de 13/11 09:00Continuar',
+      'Texto não salvo de 13/11 09:30Continuar', 'Texto não salvo de 13/11 09:20Continuar',
+      'Texto não salvo de 13/11 09:10Continuar', 'Texto não salvo de 13/11 09:00Continuar',
     ]);
-    expect(within(list).getAllByRole('link', { name: 'Continuar' }).map((l) => l.getAttribute('href'))).toEqual(['/diario/older', '/diario/gone']);
+    expect(within(list).getAllByRole('link').map((l) => [l.getAttribute('href'), l.getAttribute('aria-label')])).toEqual([
+      ['/diario/newer', 'Continuar o texto de 13/11 09:30'], ['/diario/deleted', 'Continuar o texto de 13/11 09:20'],
+      ['/diario/same', 'Continuar o texto de 13/11 09:10'], ['/diario/gone', 'Continuar o texto de 13/11 09:00'],
+    ]);
+    expect(within(list).getByRole('link', { name: 'Continuar o texto de 13/11 09:30' })).toBeInTheDocument();
     expect(await db.outbox.count()).toBe(queued);
   });
 

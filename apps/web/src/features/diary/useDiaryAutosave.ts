@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DiaryKind, ID } from '@life/shared';
-import { DIARY_SAVE_MS, purgeDiaryEntry, saveDiaryEntry, type DiaryDraft } from '../../domain/diaryActions';
+import type { DiaryEntry, DiaryKind, ID } from '@life/shared';
+import {
+  DIARY_SAVE_MS, NewerDiaryText, diaryDraftOf, purgeDiaryEntry, saveDiaryEntry, type DiaryBase, type DiaryDraft,
+} from '../../domain/diaryActions';
 import { safeRun } from '../../ui/safeRun';
 import { usePageHide } from '../../ui/usePageHide';
-import { clearDiaryDraft, writeDiaryDraft, type KeptDiaryDraft } from './diaryDraft';
+import { clearDiaryDraft, readDiaryDraft, writeDiaryDraft, type KeptDiaryDraft } from './diaryDraft';
 
 /** How the editor opens an entry (decided once, when it opens). */
 export interface DiaryStart {
@@ -13,8 +15,8 @@ export interface DiaryStart {
   isNew: boolean;
   /** The entry's kind, kept when a save has to create the record again (after "Apagar de vez" elsewhere). */
   kind: DiaryKind;
-  /** updatedAt of the record the editor opened (absent when there is none). */
-  base?: number;
+  /** The version of the record the editor opened (`{ text: '' }` when there is none): saves never replace a newer text. */
+  base: DiaryBase;
   /** `draft` is a kept draft brought back: saved after the usual pause, forgotten once saved. */
   restored: boolean;
   /** A kept draft of a record changed since: it waits for "Usar este texto" or "Descartar". */
@@ -44,9 +46,11 @@ export interface DiaryAutosave {
 /**
  * The editor's draft of entry `id` and when it is written (spec decision 2). Nothing is written while the
  * text is only spaces. Leaving the editor saves what is pending; an entry born in this editor (`isNew`) and
- * emptied before leaving is deleted (it never existed). Unsaved changes are kept on this device (with the
- * updatedAt they are based on) when the page is hidden and when a save fails, and forgotten once saved.
- * A kept draft waiting for a choice (`conflict`) is never overwritten or forgotten without that choice.
+ * emptied before leaving is deleted (it never existed). Unsaved changes, and a save still on its way, are
+ * kept on this device (with the updatedAt they are based on) when the page is hidden and when a save fails,
+ * and forgotten once that very text is saved. A save never replaces a newer text written elsewhere: his text
+ * is kept instead and waits for a choice (`conflict`), with the newer text in the field. A kept draft waiting
+ * for a choice is never overwritten or forgotten without that choice.
  */
 export function useDiaryAutosave(id: ID, start: DiaryStart): DiaryAutosave {
   const { isNew, kind } = start;
@@ -55,7 +59,10 @@ export function useDiaryAutosave(id: ID, start: DiaryStart): DiaryAutosave {
   const [conflict, setConflict] = useState(start.conflict);
   const draftRef = useRef(start.draft);
   const dirty = useRef(start.restored);
-  const base = useRef(start.base);
+  // The version the field is based on. saveDiaryEntry moves it as it saves; a newer text found elsewhere
+  // replaces it with a new object, so saves queued before that are checked against the old one.
+  const base = useRef<DiaryBase>({ ...start.base });
+  const saving = useRef<DiaryDraft | undefined>(undefined); // the draft of the save on its way, if any
   const kept = useRef(start.restored); // the stored draft of this entry is this editor's
   const waiting = useRef(start.conflict !== undefined);
   const gone = useRef(false);
@@ -63,7 +70,7 @@ export function useDiaryAutosave(id: ID, start: DiaryStart): DiaryAutosave {
 
   const keep = useCallback(() => {
     if (waiting.current) return;
-    writeDiaryDraft(id, draftRef.current, base.current);
+    writeDiaryDraft(id, draftRef.current, base.current.updatedAt);
     kept.current = true;
   }, [id]);
 
@@ -73,26 +80,51 @@ export function useDiaryAutosave(id: ID, start: DiaryStart): DiaryAutosave {
     clearDiaryDraft(id);
   }, [id]);
 
+  /** A save found a newer text from elsewhere: his text stays on this device and waits for a choice; the field shows the newer one. */
+  const newer = useCallback((live: DiaryEntry, from: DiaryBase, d: DiaryDraft) => {
+    if (waiting.current) return; // a choice is already waiting; his text was kept then
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    dirty.current = false;
+    const mine = draftRef.current.text.trim() ? draftRef.current : d;
+    // Based on the version he wrote over, so opening the entry again asks too (never restored over the newer text).
+    writeDiaryDraft(id, mine, from.updatedAt);
+    kept.current = false;
+    waiting.current = true;
+    base.current = { updatedAt: live.updatedAt, text: live.text };
+    const shown = diaryDraftOf(live);
+    draftRef.current = shown;
+    setDraft(shown);
+    setConflict(readDiaryDraft(id) ?? { id, draft: mine, ...(from.updatedAt !== undefined ? { base: from.updatedAt } : {}), keptAt: Date.now() });
+  }, [id]);
+
   const flush = useCallback(async (): Promise<void> => {
     clearTimeout(timer.current);
     timer.current = undefined;
     const d = draftRef.current;
     if (!dirty.current || gone.current || !d.text.trim()) return;
     dirty.current = false;
+    const from = base.current;
+    saving.current = d;
     let saved;
     try {
-      saved = await saveDiaryEntry(id, d, { kind, edited: !isNew });
+      saved = await saveDiaryEntry(id, d, { kind, edited: !isNew, base: from });
     } catch (e) {
+      if (e instanceof NewerDiaryText) {
+        newer(e.entry, from, d);
+        return;
+      }
       dirty.current = true; // the next pause or leaving tries again
       keep(); // meanwhile the text stays on this device (the Diário offers it back)
       throw e;
+    } finally {
+      if (saving.current === d) saving.current = undefined;
     }
-    if (saved) {
-      base.current = saved.updatedAt;
-      setSavedAt(saved.updatedAt);
-    }
-    if (!dirty.current) forget(); // the kept text is in the database now
-  }, [id, isNew, kind, keep, forget]);
+    if (saved) setSavedAt(saved.updatedAt);
+    // The kept text is in the database now, unless it is newer than this save (typed while it was on its way).
+    const stored = readDiaryDraft(id);
+    if (!dirty.current && (!stored || stored.draft.text === d.text)) forget();
+  }, [id, isNew, kind, keep, forget, newer]);
 
   const schedule = useCallback((ms: number) => {
     clearTimeout(timer.current);
@@ -109,7 +141,8 @@ export function useDiaryAutosave(id: ID, start: DiaryStart): DiaryAutosave {
   };
 
   usePageHide(() => {
-    if (dirty.current) keep();
+    // A save on its way is not saved yet: if the app is closed now, the kept text is all that is left.
+    if (dirty.current || saving.current) keep();
     safeRun(flush());
   });
 

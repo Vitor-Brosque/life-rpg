@@ -7,13 +7,13 @@ import {
 } from '@life/shared';
 import { useLinkNames, useDiaryEntry } from '../../db/diaryData';
 import { useJourneys, useMissions, useSettings } from '../../db/hooks';
-import { restoreDiaryEntry, saveDiaryEntry, trashDiaryEntry, type DiaryDraft } from '../../domain/diaryActions';
+import { diaryDraftOf, restoreDiaryEntry, saveDiaryEntry, trashDiaryEntry, type DiaryDraft } from '../../domain/diaryActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { FOCUS_PAGE, focusIfLost, focusWhenGone } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
-import { clearDiaryDraft, keptStamp, readDiaryDraft, type KeptDiaryDraft } from './diaryDraft';
+import { clearDiaryDraft, keptStamp, readDiaryDraft, useDiaryDrafts, type KeptDiaryDraft } from './diaryDraft';
 import { useDiaryAutosave, type DiaryStart } from './useDiaryAutosave';
 import '../plan/plan.css';
 import './diary.css';
@@ -25,6 +25,11 @@ const weekHref = (day: string) => `/diario?semana=${weekOfDay(day)}`;
 export function DiaryEditorScreen({ id }: { id: ID }) {
   const entry = useDiaryEntry(id);
   const settings = useSettings();
+  // The text this screen last saw the entry with, for when it is then deleted for good (elsewhere).
+  const seen = useRef<{ id: ID; text: string }>(undefined);
+  useEffect(() => {
+    if (entry && !entry.deleted) seen.current = { id, text: entry.text };
+  }, [id, entry]);
   if (entry === undefined || !settings) return <section className="screen diary" aria-busy="true" />;
   if (entry?.deleted) {
     return (
@@ -32,7 +37,7 @@ export function DiaryEditorScreen({ id }: { id: ID }) {
         <Link href="/diario" className="settings__back">‹ Diário</Link>
         <h1 tabIndex={-1} data-focus-target={FOCUS_PAGE}>Entrada do diário</h1>
         <p className="muted">Esta entrada foi apagada.</p>
-        <KeptOnDeleted id={id} kind={entry.kind} />
+        <KeptOnDeleted id={id} kind={entry.kind} formerText={seen.current?.id === id ? seen.current.text : undefined} />
       </section>
     );
   }
@@ -65,9 +70,12 @@ const draftKey = (d: DiaryDraft): string =>
 function startOf(id: ID, entry: DiaryEntry | undefined, dayStartHour: number): DiaryStart {
   const now = Date.now();
   const shown: DiaryDraft = entry
-    ? { text: entry.text, day: entry.day, at: entry.at, themes: entry.themes, links: entry.links, private: entry.private }
+    ? diaryDraftOf(entry)
     : { text: '', day: dayKeyOf(now, dayStartHour), at: now, themes: [], links: [], private: false };
-  const common = { isNew: entry === undefined, kind: entry?.kind ?? 'livre', ...(entry ? { base: entry.updatedAt } : {}) } as const;
+  const common = {
+    isNew: entry === undefined, kind: entry?.kind ?? 'livre',
+    base: entry ? { updatedAt: entry.updatedAt, text: entry.text } : { text: '' },
+  } as const;
   const kept = readDiaryDraft(id);
   if (kept && (!entry || kept.base === entry.updatedAt)) {
     if (draftKey(kept.draft) !== draftKey(shown)) return { ...common, draft: kept.draft, restored: true };
@@ -93,11 +101,20 @@ function KeptNotice({ kept, labelId, onTake, onDrop }: {
   );
 }
 
-/** An entry deleted for good elsewhere while this device kept a draft of it: the draft can bring it back. */
-function KeptOnDeleted({ id, kind }: { id: ID; kind: DiaryKind }) {
-  const [kept, setKept] = useState(() => readDiaryDraft(id));
+/**
+ * An entry deleted for good elsewhere while this device kept a draft of it: the draft can bring it back. The
+ * drafts are read live (one kept by a save that did not go through on leaving the form shows at once). A draft
+ * holding the very text the entry had when this screen last saw it is no unsaved text: it is forgotten, so
+ * the words deleted for good leave this device too.
+ */
+function KeptOnDeleted({ id, kind, formerText }: { id: ID; kind: DiaryKind; formerText?: string }) {
+  const kept = useDiaryDrafts().find((k) => k.id === id);
   const labelId = useId();
-  if (!kept) return null;
+  const stale = kept !== undefined && formerText !== undefined && kept.draft.text === formerText;
+  useEffect(() => {
+    if (stale) clearDiaryDraft(id);
+  }, [stale, id]);
+  if (!kept || stale) return null;
   return (
     <KeptNotice kept={kept} labelId={labelId}
       onTake={(e) => {
@@ -110,7 +127,6 @@ function KeptOnDeleted({ id, kind }: { id: ID; kind: DiaryKind }) {
       onDrop={(e) => {
         focusWhenGone(e.currentTarget);
         clearDiaryDraft(id);
-        setKept(undefined);
       }} />
   );
 }
@@ -166,9 +182,10 @@ function DiaryEditorForm({ id, entry, dayStartHour }: { id: ID; entry?: DiaryEnt
         readOnly={auto.conflict !== undefined} aria-describedby={auto.conflict ? keptId : undefined}
         placeholder="Escreva livremente." onChange={(e) => auto.type(e.target.value)} />
       <p className="diary-editor__status">
-        {!draft.text.trim() && !isNew ? 'Texto vazio não é salvo. Para tirar a entrada, use Apagar.'
-          : auto.savedAt !== undefined ? `Salvo às ${diaryClock(auto.savedAt)}.`
-            : 'A entrada é salva sozinha enquanto você escreve.'}
+        {auto.conflict ? 'Escolha um dos textos acima para continuar.'
+          : !draft.text.trim() && !isNew ? 'Texto vazio não é salvo. Para tirar a entrada, use Apagar.'
+            : auto.savedAt !== undefined ? `Salvo às ${diaryClock(auto.savedAt)}.`
+              : 'A entrada é salva sozinha enquanto você escreve.'}
       </p>
 
       <div className="diary-editor__options stack">

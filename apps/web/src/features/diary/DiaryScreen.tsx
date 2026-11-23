@@ -197,9 +197,10 @@ function DiaryResults({ query, filters, today, onClear }: {
 }
 
 /**
- * Texts kept on this device that did not reach the database (a save that did not go through): one line per
- * kept draft whose entry is missing or older than it. Continuar opens the entry, where the editor decides
- * whether the text comes back or waits for a choice.
+ * Texts kept on this device that did not reach the database (the app closed first, a save that did not go
+ * through, a newer text written elsewhere): one line per kept draft whose words are not its entry's text,
+ * whatever the entry's version (missing, deleted for good, changed since or not), so none is ever out of
+ * reach. Continuar opens the entry, where the editor decides whether the text comes back or waits for a choice.
  */
 function KeptDrafts() {
   const drafts = useDiaryDrafts();
@@ -207,20 +208,20 @@ function KeptDrafts() {
   const shown = useMemo(() => {
     if (!entries) return [];
     const byId = new Map(entries.map((e) => [e.id, e]));
-    return drafts.filter((k) => {
-      const e = byId.get(k.id);
-      return !e || e.updatedAt < k.keptAt;
-    });
+    return drafts.filter((k) => byId.get(k.id)?.text !== k.draft.text);
   }, [drafts, entries]);
   if (shown.length === 0) return null;
   return (
     <ul className="diary__list diary__kept" aria-label="Textos não salvos">
-      {shown.map((k) => (
-        <li key={k.id} className="diary__kept-row">
-          <span id={`diary-kept-${k.id}`}>{`Texto não salvo de ${keptStamp(k.keptAt)}`}</span>
-          <Link href={`/diario/${k.id}`} className="btn btn--secondary btn--sm" aria-describedby={`diary-kept-${k.id}`}>Continuar</Link>
-        </li>
-      ))}
+      {shown.map((k) => {
+        const stamp = keptStamp(k.keptAt);
+        return (
+          <li key={k.id} className="diary__kept-row">
+            <span>{`Texto não salvo de ${stamp}`}</span>
+            <Link href={`/diario/${k.id}`} className="btn btn--secondary btn--sm" aria-label={`Continuar o texto de ${stamp}`}>Continuar</Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

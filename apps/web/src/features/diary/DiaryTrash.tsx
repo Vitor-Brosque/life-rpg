@@ -50,9 +50,8 @@ export function DiaryTrashScreen() {
                   toHeading(e);
                   setConfirmAll(false);
                   safeRun(async () => {
-                    const ids = await emptyDiaryTrash();
-                    for (const id of ids) clearDiaryDraft(id); // its text leaves this device too
-                    const n = ids.length;
+                    // Each entry's kept text leaves this device too, as soon as that entry is emptied.
+                    const n = (await emptyDiaryTrash(clearDiaryDraft)).length;
                     if (n > 0) toast(n === 1 ? 'Entrada apagada de vez.' : 'Entradas apagadas de vez.');
                   });
                 }}>Esvaziar</Button>
