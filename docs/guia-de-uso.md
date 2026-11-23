@@ -248,8 +248,9 @@ A folha mostra:
 
 **Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar cansaço e nota.
 A observação só é gravada se você mexeu nela: um texto mais novo (de outro aparelho ou do diário) nunca é trocado
-pela cópia que a folha mostrou ao abrir. Se o fechamento estava em Apagadas recentemente com outro texto, esse
-texto continua lá, como uma entrada comum do dia, e a observação nova vira o fechamento.
+pela cópia que a folha mostrou ao abrir. Se o fechamento estava em Apagadas recentemente com outro texto, ou mudou
+enquanto a folha estava aberta e você escreveu outra observação, esse texto fica em Apagadas recentemente, como uma
+entrada comum do dia (dá para restaurar), e a observação nova vira o fechamento.
 
 ### Diário
 
@@ -260,9 +261,11 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   sozinha a cada pausa. Texto só com espaços não vira entrada, e uma entrada nova esvaziada antes de sair some.
   Se o iPhone fechar o app em segundo plano, ou se um salvamento não passar, o que você digitou fica guardado no
   aparelho e volta ao abrir a entrada. Se a entrada mudou depois disso (em outro aparelho ou no "Como foi hoje?"),
-  o campo mostra o texto salvo e um aviso, "Há um texto não salvo deste aparelho, de …", oferece **Usar este
-  texto** ou **Descartar**: nenhum dos dois textos some sem você escolher. No topo do Diário, "Texto não salvo
-  de …" com **Continuar** leva a um texto que ficou só no aparelho.
+  ou mudou enquanto estava aberta e você continuou escrevendo, o campo mostra o texto salvo e um aviso, "Há um
+  texto não salvo deste aparelho, de …", oferece **Usar este texto** ou **Descartar**: nenhum dos dois textos some
+  sem você escolher. No topo do Diário, "Texto não salvo de …" com **Continuar** leva a um texto que ficou só no
+  aparelho. Se você editar a mesma entrada em dois aparelhos sem internet, vale a última versão salva; o app guarda
+  a outra como texto não salvo quando consegue perceber o conflito.
 - **Mudar data e hora** troca o dia e a hora (o dia segue o início do seu dia: 01:30 conta para o dia anterior).
 - Opcionais: **Ligar a…** uma missão ou uma jornada (as disciplinas são jornadas), até 3; **Temas** (Faculdade,
   Carreira, Projetos, Estudo, Saúde, Treino, Sono, Relacionamentos, Família, Lazer, Sentimentos, Ideias); e
@@ -274,8 +277,8 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   por tema, por vínculo e **Só privadas**.
 - **Apagar** (dentro da entrada) leva para **Apagadas recentemente**, com **Desfazer** na hora. Lá, **Restaurar**
   devolve a entrada; **Apagar de vez** (numa entrada) e **Esvaziar** (todas) pedem confirmação e não têm volta:
-  o texto sai do aparelho e, na sincronização, do servidor (num fechamento do dia, a nota antiga daquele dia sai
-  junto). Os backups diários do servidor ainda guardam o texto antigo até girarem (14 dias).
+  o texto sai do aparelho e, na sincronização, do servidor (num fechamento do dia, ou numa cópia dele, a nota antiga
+  daquele dia sai junto). Os backups diários do servidor ainda guardam o texto antigo até girarem (14 dias).
 - **Exportar semana** gera um arquivo `.md` com as suas palavras, sem alteração, para guardar ou levar a uma
   conversa com uma IA. Na folha: **Período** (setas para trocar a semana), **Incluir entradas privadas**
   (desligado), **Registrado pelo app** (ligado: tipo do dia, blocos iniciados, treino, sono e cansaço, só o que
