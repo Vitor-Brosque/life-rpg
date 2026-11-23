@@ -162,6 +162,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
   const [tiredness, setTiredness] = useState<Tiredness | undefined>(state?.tiredness);
   // The text shown when the sheet opened: the observation is written only when he changed it, so a newer
   // version (another device, the diary) is never replaced by this copy, nor trashed by an untouched empty field.
+  // When he did change it, a version newer than this one is kept in Apagadas recentemente (saveCloseNote).
   const [initialNote] = useState(closeEntry?.text ?? '');
   const [note, setNote] = useState(initialNote);
   const noteChanged = note !== initialNote;
@@ -181,7 +182,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
     setBusy(true);
     safeRun(async () => {
       try {
-        await closeDay(today, { tiredness, ...(noteChanged ? { note } : {}) });
+        await closeDay(today, { tiredness, ...(noteChanged ? { note, noteShown: initialNote } : {}) });
         toast(closed === undefined ? 'Dia fechado.' : 'Fechamento atualizado.');
         onClose();
       } finally {
@@ -219,7 +220,7 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       <div className="cluster">
         <Button size="sm" variant="ghost" icon="diary" onClick={() => safeRun(async () => {
           // What was typed is never lost: it is saved as the fechamento (the day is not closed by this).
-          if (noteChanged) await saveCloseNote(today, note);
+          if (noteChanged) await saveCloseNote(today, note, { shown: initialNote });
           onClose();
           navigate(`/diario/${ulid()}`);
         })}>Escrever no diário</Button>

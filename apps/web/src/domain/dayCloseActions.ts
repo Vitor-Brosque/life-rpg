@@ -16,10 +16,15 @@ const startHour = async (): Promise<number> => (await db.settings.get('settings'
 
 /**
  * "Fechar o dia": the first close time stays and tiredness is replaced (absent = removed). The observation,
- * when given, is the day's `fechamento` diary entry (saveCloseNote); DayState.closeNote is no longer written.
+ * when given, is the day's `fechamento` diary entry (saveCloseNote, with `noteShown`: the text it was written
+ * over); DayState.closeNote is no longer written.
  */
-export async function closeDay(day: DayKey, input: { tiredness?: Tiredness; note?: string }): Promise<DayState> {
-  if (input.note !== undefined) await saveCloseNote(day, input.note);
+export async function closeDay(
+  day: DayKey, input: { tiredness?: Tiredness; note?: string; noteShown?: string },
+): Promise<DayState> {
+  if (input.note !== undefined) {
+    await saveCloseNote(day, input.note, input.noteShown !== undefined ? { shown: input.noteShown } : {});
+  }
   const prev = await db.dayState.get(day);
   return upsertDayState(day, {
     closedAt: (prev && !prev.deleted ? prev.closedAt : undefined) ?? Date.now(),

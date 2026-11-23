@@ -286,6 +286,44 @@ describe('sheet "Como foi hoje"', () => {
     await waitFor(async () => expect((await db.diaryEntries.get(`diary-close-${TODAY}`))?.text).toBe('O que eu escrevi agora'));
   });
 
+  it('his changed observation over a text that changed while the sheet was open keeps that text in Apagadas recentemente', async () => {
+    const CLOSE = `diary-close-${TODAY}`;
+    const copies = async () => (await db.diaryEntries.toArray()).filter((e) => e.id !== CLOSE);
+    await saveCloseNote(TODAY, 'Versão antiga');
+    const user = userEvent.setup();
+    const loc = memoryLocation({ path: '/', record: true });
+    render(<Router hook={loc.hook}>{view()}</Router>);
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    let s = await sheet();
+    let field = await within(s).findByLabelText('Observação (opcional)');
+    let newer = await patch<DiaryEntry>('diaryEntries', CLOSE, { text: 'Versão nova, de outro aparelho' });
+    await user.clear(field);
+    await user.type(field, 'O que eu escrevi agora');
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    expect(await db.diaryEntries.get(CLOSE)).toMatchObject({ kind: 'fechamento', text: 'O que eu escrevi agora', deleted: false });
+    expect(await copies()).toEqual([expect.objectContaining({
+      id: `${CLOSE}-copia-${newer.updatedAt}`, kind: 'livre', text: 'Versão nova, de outro aparelho', trashedAt: at(11, 23, 10), deleted: false,
+    })]);
+
+    // Escrever no diário does the same.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Como foi hoje' })).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Como foi hoje' }));
+    s = await sheet();
+    field = await within(s).findByLabelText('Observação (opcional)');
+    expect(field).toHaveValue('O que eu escrevi agora');
+    vi.setSystemTime(at(11, 23, 20));
+    newer = await patch<DiaryEntry>('diaryEntries', CLOSE, { text: 'Escrito no PC enquanto isso' });
+    await user.type(field, ' e mais');
+    await user.click(within(s).getByRole('button', { name: 'Escrever no diário' }));
+    await waitFor(() => expect(loc.history!.at(-1)).toMatch(/^\/diario\/[0-9A-Z]{26}$/));
+    await waitFor(async () => expect((await db.diaryEntries.get(CLOSE))?.text).toBe('O que eu escrevi agora e mais'));
+    expect((await copies()).map((e) => [e.text, e.trashedAt])).toEqual([
+      ['Versão nova, de outro aparelho', at(11, 23, 10)], ['Escrito no PC enquanto isso', at(11, 23, 20)],
+    ]);
+    expect((await copies())[1]!.id).toBe(`${CLOSE}-copia-${newer.updatedAt}`);
+  });
+
   it('"Fiz, mas não registrei" registers the block as done later, without XP', async () => {
     const user = userEvent.setup();
     render(view());
