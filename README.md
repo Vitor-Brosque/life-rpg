@@ -3,7 +3,32 @@
 Sistema pessoal de vida, produtividade e aprendizagem com visual de RPG medieval em pixel art.
 É um app web instalável (PWA), *offline-first*, feito para uma pessoa só: eu.
 
-<!-- SCREENSHOTS -->
+<p align="center">
+  <img src="docs/img/painel.png" alt="Painel no computador: missão atual, linha do tempo do dia, cronômetro de foco, companheiro e captura rápida" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="25%"><img src="docs/img/agora.png" alt="Tela Agora: bloco atual, uma missão por vez e o que mais cabe agora"><br><sub>Agora</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/img/revisao.png" alt="Revisão de um card de código SQL: a resposta escrita ao lado da resposta certa"><br><sub>Revisão de card de código</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/img/mapa.png" alt="Mapa do mundo em pixel art com territórios, acampamentos e NPCs"><br><sub>Mapa do mundo</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/img/personagem.png" alt="Ficha do personagem com nível, XP e atributos por área da vida"><br><sub>Personagem</sub></td>
+  </tr>
+</table>
+
+<details>
+<summary>Mais telas</summary>
+<br>
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="docs/img/estudo.png" alt="Tela Estudo: revisões do dia, baralhos, prática técnica e lousas"><br><sub>Estudo</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/img/semana.png" alt="Planejar: semana com a rotina em blocos de um dia"><br><sub>Semana</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/img/territorio.png" alt="Território Intelecto: NPC comentando os cards do dia e as últimas ações com XP"><br><sub>Território e NPC</sub></td>
+  </tr>
+</table>
+</details>
+
+<sub>Capturas feitas com dados fictícios.</sub>
 
 > **English summary.** LIFE RPG is a personal, offline-first PWA for planning the day, studying with
 > spaced repetition (FSRS-6) and tracking training, sleep and routines, wrapped in a pixel-art RPG.
