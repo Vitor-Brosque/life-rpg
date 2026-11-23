@@ -43,9 +43,16 @@ export function PlanScreen() {
     if (asked) setTab(asked);
   }, [search]);
   // Five views do not fit at 375 px: the selected one is scrolled into view (on opening and on each change).
+  // Again once the pixel font has loaded: it widens the tabs, which can push the selected one past the edge.
   useEffect(() => {
-    const el = document.getElementById(`plan-tab-${tab}`);
-    if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    let live = true;
+    const reveal = () => {
+      const el = document.getElementById(`plan-tab-${tab}`);
+      if (live && typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    };
+    reveal();
+    void document.fonts?.ready.then(reveal);
+    return () => { live = false; };
   }, [tab]);
   const choose = (t: Tab) => {
     setTab(t);
