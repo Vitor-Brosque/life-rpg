@@ -88,17 +88,21 @@ function existsAlready(p: Proposal, item: ProposalItem, ex: NonNullable<ReturnTy
   }
 }
 
+/** Where "back" goes: the subject of "Colar resposta do chat", the Agora or Painel card, or else Ajustes. */
+function backLink(from: string): { href: string; label: string; className: string } {
+  if (/^\/estudo\/materias\/[A-Za-z0-9_-]+$/.test(from)) return { href: from, label: '← Disciplina', className: 'deck__back' };
+  if (from === '/') return { href: '/', label: '‹ Agora', className: 'settings__back' };
+  if (from === '/painel') return { href: '/painel', label: '‹ Painel', className: 'settings__back' };
+  return { href: '/ajustes', label: '‹ Ajustes', className: 'settings__back' };
+}
+
 /** "/propostas/:id": review and apply a proposal from an assistant (spec 2026-11-25 §7.2). */
 export function ProposalScreen({ id }: { id: string }) {
   const p = useProposal(id);
-  // Opened from a subject's "Colar resposta do chat": back goes to that subject. Anything else keeps "Ajustes".
-  const from = new URLSearchParams(useSearch()).get('from') ?? '';
-  const subjectPath = /^\/estudo\/materias\/[A-Za-z0-9_-]+$/.test(from) ? from : undefined;
+  const back = backLink(new URLSearchParams(useSearch()).get('from') ?? '');
   return (
     <section className="screen proposal stack" aria-labelledby="proposal-title">
-      {subjectPath
-        ? <Link href={subjectPath} className="deck__back">← Disciplina</Link>
-        : <Link href="/ajustes" className="settings__back">‹ Ajustes</Link>}
+      <Link href={back.href} className={back.className}>{back.label}</Link>
       <h1 id="proposal-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Proposta do assistente</h1>
       {p === null && <p className="muted">Esta proposta não existe mais.</p>}
       {p && <ProposalView key={p.id} p={p} />}

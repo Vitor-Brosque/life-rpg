@@ -287,10 +287,27 @@ describe('review screen: back link', () => {
     expect(screen.queryByRole('link', { name: '‹ Ajustes' })).toBeNull();
   });
 
-  it('accepts only a subject path; anything else falls back to Ajustes', async () => {
+  it('returns to the Agora when opened from its card', async () => {
+    await open('/propostas/p1?from=%2F');
+    expect(await screen.findByRole('link', { name: '‹ Agora' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('link', { name: '‹ Ajustes' })).toBeNull();
+  });
+
+  it('returns to the Painel when opened from its card', async () => {
+    await open('/propostas/p1?from=%2Fpainel');
+    expect(await screen.findByRole('link', { name: '‹ Painel' })).toHaveAttribute('href', '/painel');
+  });
+
+  it('accepts only a subject path, the Agora or the Painel; anything else falls back to Ajustes', async () => {
     await open('/propostas/p1?from=https%3A%2F%2Fevil.example%2Festudo%2Fmaterias%2F1');
     expect(await screen.findByRole('link', { name: '‹ Ajustes' })).toHaveAttribute('href', '/ajustes');
     expect(screen.queryByRole('link', { name: '← Disciplina' })).toBeNull();
+  });
+
+  it('a look-alike of the Agora path falls back to Ajustes', async () => {
+    await open('/propostas/p1?from=%2F%2Fevil.example');
+    expect(await screen.findByRole('link', { name: '‹ Ajustes' })).toHaveAttribute('href', '/ajustes');
+    expect(screen.queryByRole('link', { name: '‹ Agora' })).toBeNull();
   });
 
   it('without the parameter the link is Ajustes', async () => {
@@ -306,7 +323,8 @@ describe('review screen and Agora card', () => {
     renderAt('/', <ProposalCard today="2026-11-25" />);
     const card = await screen.findByRole('region', { name: 'Proposta do assistente · 13 itens' });
     expect(within(card).getByText('ChatGPT: Semestre')).toBeInTheDocument();
-    expect(within(card).getByRole('link', { name: 'Revisar' })).toHaveAttribute('href', '/propostas/p1');
+    // The review's back link returns to the screen the card is on.
+    expect(within(card).getByRole('link', { name: 'Revisar' })).toHaveAttribute('href', '/propostas/p1?from=%2F');
     await user.click(within(card).getByRole('button', { name: 'Agora não' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: /Proposta do assistente/ })).not.toBeInTheDocument());
   });
