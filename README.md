@@ -1,5 +1,7 @@
 # LIFE RPG
 
+![CI](https://github.com/Vitor-Brosque/life-rpg/actions/workflows/ci.yml/badge.svg)
+
 App em pixel art que transforma rotina e estudo num jogo, feito para ajudar nos dias difíceis.
 É um app web instalável (PWA), *offline-first*, feito para uma pessoa só: eu.
 
