@@ -1,5 +1,7 @@
 # LIFE RPG
 
+![CI](https://github.com/Vitor-Brosque/life-rpg/actions/workflows/ci.yml/badge.svg)
+
 A pixel-art app that turns routine and study into a game, built to help on the hard days.
 It is an installable, offline-first web app (PWA), built for a single person: me.
 
