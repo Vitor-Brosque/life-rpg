@@ -33,6 +33,7 @@ export const XP_REASON_LABEL: Record<XpReason, string> = {
   sleep: 'Noite registrada',
   mealprep: 'Preparo em lote',
   workout: 'Treino',
+  speech: 'Prática de fala',
 };
 
 const xpLabel = (into: number, needed: number) => `${into} / ${needed} XP`;

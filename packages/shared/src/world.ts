@@ -343,9 +343,15 @@ export const CELEBRATE_WINDOW_MS = 30 * 60_000;
 export const NEWS_TTL_MS = 3 * 86_400_000;
 export const NEWS_MAX = 6;
 
+/**
+ * Stages and total level from all the XP. The "last XP" times only count XP in `earnedHere` when
+ * given (XP this device wrote): XP that arrived by sync was celebrated on the device that earned
+ * it, so here it grows the world silently, however recent it is.
+ */
 export function worldSnapshot(
   areas: readonly Pick<Area, 'id'>[],
-  xp: readonly Pick<XpEvent, 'areaId' | 'amount' | 'at' | 'deleted'>[],
+  xp: readonly Pick<XpEvent, 'id' | 'areaId' | 'amount' | 'at' | 'deleted'>[],
+  earnedHere?: ReadonlySet<ID>,
 ): WorldSnapshot {
   const sums = new Map<ID, number>();
   const last = new Map<ID, number>();
@@ -354,10 +360,11 @@ export function worldSnapshot(
   for (const x of xp) {
     if (x.deleted) continue;
     total += x.amount;
-    lastAll = lastAll === undefined ? x.at : Math.max(lastAll, x.at);
+    const here = !earnedHere || earnedHere.has(x.id);
+    if (here) lastAll = lastAll === undefined ? x.at : Math.max(lastAll, x.at);
     if (!x.areaId) continue;
     sums.set(x.areaId, (sums.get(x.areaId) ?? 0) + x.amount);
-    last.set(x.areaId, Math.max(last.get(x.areaId) ?? -Infinity, x.at));
+    if (here) last.set(x.areaId, Math.max(last.get(x.areaId) ?? -Infinity, x.at));
   }
   const out: WorldSnapshot['areas'] = {};
   for (const a of areas) {

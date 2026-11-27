@@ -44,3 +44,15 @@
 .subject-suggestion__title { margin: 0; font-size: 1.0625rem; }
 .subject-suggestion__line { margin: 0; }
 .subject-suggestion__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Caderno da disciplina e apostilas (spec 2026-11-26). */
+.notebook__section { gap: var(--space-2); }
+.notebook__title { margin: 0; font-size: 1rem; }
+.notebook__note { margin: 0; }
+.notebook__text { min-width: 0; }
+.notebook__text--cut { max-height: 14em; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.notebook__input { min-height: 12rem; font-family: inherit; line-height: 1.45; resize: vertical; }
+.notebook__count { margin: 0; font-size: 0.8125rem; }
+.notebook__book-note { display: block; color: var(--text-dim); font-size: 0.875rem; }
+.notebook__book-form { padding: var(--space-2); background: var(--bg-2); }
+.studydocs__link { display: block; width: 100%; padding: 8px 12px; text-decoration: none; }

@@ -1,12 +1,14 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BlockSession, Checkin, DayPlan, DayState, Week, XpEvent } from '@life/shared';
+import type { BlockSession, Checkin, DayPlan, DayState, Strategy, Week, XpEvent } from '@life/shared';
 import { addDays, takeDayPlan, timestampAt, weekdayOf } from '@life/shared';
 import { db } from '../src/db/db';
+import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { createMission, saveWeekReview, setDayMode, setObjectives } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
+import { useMomentSession } from '../src/features/agora/MomentCards';
 import { useAgoraSession } from '../src/features/agora/useAgora';
 import { PHRASES, renderPhrase } from '../src/features/companion/phrases';
 import { useCompanion } from '../src/features/companion/store';
@@ -31,6 +33,7 @@ beforeEach(async () => {
   await ensureSeed();
   await seedBlocks();
   useAgoraSession.setState({ reviewDismissedDay: undefined, greetedDay: WEEK, emptyDay: undefined });
+  useMomentSession.setState({ day: undefined, chosen: undefined });
   useWeekSession.setState({ dismissed: undefined, opened: undefined, started: undefined });
   useCompanion.getState().clear();
 });
@@ -103,10 +106,13 @@ describe('Nova semana card', () => {
     await waitFor(async () => expect((await db.weeks.get(WEEK))?.review).toMatchObject({
       worked: 'Começar pelo bloco 1', obstacle: 'Celular', adjustment: 'Celular em outro cômodo',
     }));
-    expect((await db.weeks.get(WEEK))?.experiment).toBe('Celular em outro cômodo');
-    // The card stays for step 2, and the experiment shows on the Agora.
-    expect(await within(await weekCard()).findByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
-    expect(await screen.findByText('Experimento da semana: Celular em outro cômodo')).toBeInTheDocument();
+    expect((await db.weeks.get(WEEK))?.experiment).toBeUndefined();
+    expect(await db.strategies.toArray()).toEqual([
+      expect.objectContaining({ title: 'Celular em outro cômodo', source: 'ideia', status: 'testando', startDay: WEEK }),
+    ]);
+    // The card stays for step 2, and the strategy shows on the Agora.
+    expect(await within(await weekCard()).findByRole('heading', { name: 'Objetivos da semana' })).toBeInTheDocument();
+    expect(await screen.findByText('Estratégia em teste: Celular em outro cômodo')).toBeInTheDocument();
   }, 15_000);
 
   it('a day of last week with a plan (foto do plano) is counted from it, as in Padrões', async () => {
@@ -159,7 +165,7 @@ describe('Nova semana card', () => {
     // No activity last week: nothing to observe, the card opens on the objectives.
     const card = await weekCard();
     await user.click(within(card).getByRole('button', { name: 'Começar' }));
-    expect(within(card).getByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
+    expect(within(card).getByRole('heading', { name: 'Objetivos da semana' })).toBeInTheDocument();
     expect(within(card).queryByRole('heading', { name: 'Observado' })).not.toBeInTheDocument();
 
     expect(within(card).getAllByRole('group', { name: 'Tech' })).toHaveLength(1);
@@ -266,6 +272,24 @@ describe('Nova semana card', () => {
     expect(noWeekCard()).not.toBeInTheDocument();
   });
 
+  it('"Fazer depois" holds while moving between Agora and Painel in the same app session', async () => {
+    const user = userEvent.setup();
+    await setDayMode('normal');
+    const agora = renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Fazer depois' }));
+    await waitFor(() => expect(noWeekCard()).not.toBeInTheDocument());
+    agora.unmount();
+
+    const painel = render(<PainelScreen />);
+    expect(await screen.findByRole('button', { name: 'Nova semana' })).toBeInTheDocument();
+    expect(noWeekCard()).not.toBeInTheDocument();
+    painel.unmount();
+
+    renderAgora();
+    expect(await screen.findByRole('button', { name: 'Nova semana' })).toBeInTheDocument();
+    expect(noWeekCard()).not.toBeInTheDocument();
+  });
+
   it('shows on the Painel too, in the Agora column', async () => {
     await setDayMode('normal');
     render(<PainelScreen />);
@@ -281,8 +305,8 @@ describe('week experiment and objectives during the week', () => {
     await saveWeekReview(WEEK, { worked: '', obstacle: '', adjustment: 'Começar pelo teste' });
     renderAgora();
     const banner = await screen.findByRole('region', { name: 'Bloco atual' });
-    expect(await screen.findByText('Experimento da semana: Começar pelo teste')).toBeInTheDocument();
-    expect(within(banner).queryByText(/Experimento da semana/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Estratégia em teste: Começar pelo teste')).toBeInTheDocument();
+    expect(within(banner).queryByText(/Estratégia em teste/)).not.toBeInTheDocument();
   });
 
   it('a block with the same name on another day shows the objectives too', async () => {
@@ -374,7 +398,7 @@ describe('week objectives stay reachable', () => {
     expect(noWeekCard()).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Nova semana' }));
     const card = await weekCard();
-    expect(within(card).getByRole('heading', { name: 'Objetivos' })).toBeInTheDocument();
+    expect(within(card).getByRole('heading', { name: 'Objetivos da semana' })).toBeInTheDocument();
     await user.click(within(card).getByRole('button', { name: 'Fazer depois' }));
     await waitFor(() => expect(noWeekCard()).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Nova semana' })).toBeInTheDocument();
@@ -445,8 +469,72 @@ describe('Nova semana and Padrões', () => {
     expect(within(note).getByRole('link', { name: 'Ver em Padrões' })).toHaveAttribute('href', '/padroes');
     await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
     expect(within(await weekCard()).getByLabelText('Que ajuste você quer testar?'))
-      .toHaveValue('Nesta semana, a meta de Tech é só a versão mínima (45 min).');
+      .toHaveValue('Nesta semana, a meta de Tech é só a versão mínima (40 min).');
     expect((await db.weeks.get(WEEK))?.experiment).toBeUndefined();
+  });
+
+  it('"Usar no ajuste" and Salvar: that line becomes a strategy from Padrões', async () => {
+    const user = userEvent.setup();
+    const sessions: BlockSession[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = addDays('2026-10-05', i);
+      const wd = weekdayOf(d);
+      if (wd === 0 || wd === 6 || (i >= 28 && wd > 2)) continue;
+      sessions.push({ ...base, id: `bs-b1-${d}`, blockId: 'b1', day: d, version: 'normal', startedAt: timestampAt(d, '09:00'), endedAt: timestampAt(d, '10:00') });
+    }
+    await db.blockSessions.bulkPut(sessions);
+    await db.xpEvents.bulkPut([xp('x1', '2026-11-09'), xp('x2', '2026-11-10')]);
+    await setDayMode('normal');
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    const note = await within(await weekCard()).findByRole('group', { name: 'Semanas 5–8: Tech' });
+    await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
+    await user.type(within(await weekCard()).getByLabelText('Que ajuste você quer testar?'), '\nCelular longe');
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Salvar e continuar' }));
+    await waitFor(async () => expect(await db.strategies.count()).toBe(2));
+    expect((await db.strategies.toArray()).map((s) => [s.title, s.source]).sort()).toEqual([
+      ['Celular longe', 'ideia'], ['Nesta semana, a meta de Tech é só a versão mínima (40 min).', 'padroes'],
+    ]);
+  }, 15_000);
+
+  it('a line from "Usar no ajuste" is still from Padrões when the card is left and reopened before Salvar', async () => {
+    const user = userEvent.setup();
+    const sessions: BlockSession[] = [];
+    for (let i = 0; i < 42; i++) {
+      const d = addDays('2026-10-05', i);
+      const wd = weekdayOf(d);
+      if (wd === 0 || wd === 6 || (i >= 28 && wd > 2)) continue;
+      sessions.push({ ...base, id: `bs-b1-${d}`, blockId: 'b1', day: d, version: 'normal', startedAt: timestampAt(d, '09:00'), endedAt: timestampAt(d, '10:00') });
+    }
+    await db.blockSessions.bulkPut(sessions);
+    await db.xpEvents.bulkPut([xp('x1', '2026-11-09'), xp('x2', '2026-11-10')]);
+    await setDayMode('normal');
+    const first = renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    const note = await within(await weekCard()).findByRole('group', { name: 'Semanas 5–8: Tech' });
+    await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
+    first.unmount();
+    useWeekSession.setState({ dismissed: undefined, opened: undefined, started: undefined });
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    expect(await within(await weekCard()).findByLabelText('Que ajuste você quer testar?')).toHaveValue('Nesta semana, a meta de Tech é só a versão mínima (40 min).');
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Salvar e continuar' }));
+    await waitFor(async () => expect(await db.strategies.count()).toBe(1));
+    expect((await db.strategies.toArray())[0]).toMatchObject({ source: 'padroes' });
+  }, 15_000);
+
+  it('a strategy whose decision day came shows "Hora de decidir" in the card, with a link to Estratégias', async () => {
+    const user = userEvent.setup();
+    await put('strategies', newRecord<Strategy>({ title: 'Celular longe', source: 'ideia', startDay: '2026-11-01', reviewDay: '2026-11-15', status: 'testando' }));
+    await put('strategies', newRecord<Strategy>({ title: 'Biblioteca', source: 'ideia', startDay: '2026-11-10', reviewDay: '2026-11-24', status: 'testando' }));
+    await seedLastWeek();
+    await setDayMode('normal');
+    renderAgora();
+    await user.click(within(await weekCard()).getByRole('button', { name: 'Começar' }));
+    const card = await weekCard();
+    expect(await within(card).findByText('Hora de decidir: “Celular longe”. Decidir é opcional.')).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Decidir em Estratégias' })).toHaveAttribute('href', '/diario/estrategias');
+    expect(within(card).queryByText(/Biblioteca/)).not.toBeInTheDocument();
   });
 
   it('"Usar no ajuste" adds under the typed text, focuses the field and never duplicates', async () => {
@@ -467,9 +555,9 @@ describe('Nova semana and Padrões', () => {
     await user.type(field, 'Deitar 23h30');
     const note = await within(await weekCard()).findByRole('group', { name: 'Semanas 5–8: Tech' });
     await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
-    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (45 min).');
+    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (40 min).');
     expect(field).toHaveFocus();
     await user.click(within(note).getByRole('button', { name: 'Usar no ajuste' }));
-    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (45 min).');
+    expect(field).toHaveValue('Deitar 23h30\nNesta semana, a meta de Tech é só a versão mínima (40 min).');
   });
 });

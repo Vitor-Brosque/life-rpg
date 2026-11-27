@@ -2,7 +2,7 @@ import type {
   Area, AssessmentKind, DayKey, ID, Journey, Mission, ProblemSet, SubjectTemplate, SubjectTopic, TopicLevel,
 } from '@life/shared';
 import {
-  PROBLEM_ISSUE_TEXT, SUBJECT_TITLE_MAX, TOPIC_NAME_MAX, assessmentTitle, classOf, dayKeyToDate, facultyAreaOf,
+  PROBLEM_ISSUE_TEXT, SUBJECT_TITLE_MAX, TOPIC_NAME_MAX, assessmentTitle, chatUrlIssue, classOf, dayKeyToDate, facultyAreaOf,
   journeyByTitle, problemSetIssue, withTopicLevel,
 } from '@life/shared';
 import { db } from '../db/db';
@@ -111,6 +111,16 @@ export async function createAssessment(
     assessment: input.kind,
     ...(content ? { notes: content } : {}),
   });
+}
+
+/** "Chat da disciplina": saves the subject's chat link (https://, up to 500 characters); an empty link removes it. */
+export async function setSubjectChatUrl(journeyId: ID, url: string): Promise<Journey> {
+  const issue = chatUrlIssue(url);
+  if (issue) throw new FacultyValidationError(issue);
+  const journey = await db.journeys.get(journeyId);
+  if (!journey || journey.deleted || journey.subject !== true) throw new FacultyValidationError('Escolha a disciplina.');
+  const u = url.trim();
+  return patch<Journey>('journeys', journeyId, { chatUrl: u === '' ? undefined : u });
 }
 
 export interface ProblemSetFields {

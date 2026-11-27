@@ -1,5 +1,5 @@
 import type {
-  Card, CodeLang, Deck, ID, Journey, Note, NoteErrors, NoteType, Rating, Review, Settings, StudySettings, XpEvent,
+  Card, CodeLang, Deck, ID, Journey, Note, NoteErrors, NoteSource, NoteType, Rating, Review, Settings, StudySettings, XpEvent,
 } from '@life/shared';
 import {
   GOAL_MIN_REVIEWS, STUDY_GOAL_XP, STUDY_START_XP, dayKeyOf, defaultDayMode, newSchedule, normalizeNote, rate,
@@ -37,6 +37,16 @@ export async function saveDeck(input: { id?: ID; name: string; journeyId?: ID; a
   }));
 }
 
+/** A subject's own deck without creating one: its first active deck (lowest order), if any. */
+export async function findSubjectDeck(journeyId: ID): Promise<Deck | undefined> {
+  return live(await db.decks.toArray()).filter((d) => !d.archived && d.journeyId === journeyId).sort((a, b) => a.order - b.order)[0];
+}
+
+/** The subject's deck: its first active deck, else a new one with the subject's name (proposals, PDFs da aula). */
+export async function subjectDeck(subject: Pick<Journey, 'id' | 'title'>): Promise<Deck> {
+  return (await findSubjectDeck(subject.id)) ?? saveDeck({ name: subject.title, journeyId: subject.id });
+}
+
 export async function setDeckArchived(id: ID, archived: boolean): Promise<void> {
   await patch<Deck>('decks', id, { archived });
 }
@@ -56,6 +66,8 @@ export async function restoreDeck(id: ID): Promise<void> {
 
 export interface NoteInput {
   id?: ID; deckId?: ID; type: NoteType; front: string; back: string; extra?: string; language?: CodeLang; draft?: boolean;
+  /** A new note made from a PDF page (PDFs da aula); an edited note keeps the source it has. */
+  source?: NoteSource;
 }
 
 export class NoteValidationError extends Error {
@@ -73,6 +85,7 @@ export async function saveNote(input: NoteInput): Promise<Note> {
   const note: Note = {
     ...base, ...fields, type: input.type, deckId: input.deckId, draft, deleted: false,
     language: input.type === 'code' ? (input.language ?? 'python') : undefined,
+    ...(!prev && input.source ? { source: { fileId: input.source.fileId, page: input.source.page } } : {}),
   };
   const { create, remove, update } = syncNoteCards(note, await db.cards.where('noteId').equals(note.id).toArray(), Date.now());
   await putAll([

@@ -120,12 +120,16 @@ describe('week experiment', () => {
     await setWeekExperiment('Celular em outro cômodo');
     expect((await db.weeks.get(WEEK))!.experiment).toBe('Celular em outro cômodo');
   });
-  it('the weekly review keeps the chosen experiment when its adjustment is empty', async () => {
+  it('the weekly review leaves the week experiment alone; each adjustment line becomes a strategy (Padrões when suggested)', async () => {
     await setWeekExperiment('Versão mínima do Bloco 1');
     await saveWeekReview(WEEK, { worked: '', obstacle: '', adjustment: '  ' });
     expect((await db.weeks.get(WEEK))!.experiment).toBe('Versão mínima do Bloco 1');
-    await saveWeekReview(WEEK, { worked: '', obstacle: '', adjustment: 'Outro ajuste' });
-    expect((await db.weeks.get(WEEK))!.experiment).toBe('Outro ajuste');
+    expect(await db.strategies.count()).toBe(0);
+    await saveWeekReview(WEEK, { worked: '', obstacle: '', adjustment: 'Outro ajuste\nVersão mínima do Bloco 1' }, { suggested: ['Versão mínima do Bloco 1'] });
+    expect((await db.weeks.get(WEEK))!.experiment).toBe('Versão mínima do Bloco 1');
+    expect((await db.strategies.toArray()).map((s) => [s.title, s.source]).sort()).toEqual([
+      ['Outro ajuste', 'ideia'], ['Versão mínima do Bloco 1', 'padroes'],
+    ]);
   });
   it('a week that only has an experiment still gets the "Nova semana" card', async () => {
     vi.setSystemTime(new Date(2026, 10, 9, 10, 0));   // Monday

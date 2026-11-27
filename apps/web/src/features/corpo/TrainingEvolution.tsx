@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import type { DayKey } from '@life/shared';
-import { cardioWeeks, exerciseHistory, setsText } from '@life/shared';
+import { cardioWeeks, discomfortText, exerciseHistory, setsRirText, setsText } from '@life/shared';
 import { useTrainingLogs, useWorkouts } from '../../db/corpoData';
 import { useToday } from '../../db/hooks';
 import { formatDuration, plural } from '../../ui/format';
@@ -42,6 +42,8 @@ export function TrainingEvolution() {
                         {s.best
                           ? `${ddmm(s.day)}: melhor ${kgText(s.best.kg)} kg × ${s.best.reps} · volume ${s.volume.toLocaleString('pt-BR')} kg`
                           : `${ddmm(s.day)}: ${setsText(s.sets)} (sem carga)`}
+                        {setsRirText(s.sets) && ` · ${setsRirText(s.sets)}`}
+                        {s.discomfort && <span className="training-evo__discomfort">{` · ${discomfortText(s.discomfort)}`}</span>}
                       </span>
                       {' '}
                       <Link href={`/corpo/treino?dia=${s.day}`} className="body-card__link" aria-label={`Ver o treino de ${ddmm(s.day)}`}>Ver dia</Link>

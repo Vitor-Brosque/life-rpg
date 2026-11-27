@@ -1,8 +1,9 @@
 import type { BaseRecord, SyncChange, SyncRequest, SyncResponse } from '@life/shared';
 import { SYNC_TABLES, ulid } from '@life/shared';
 import { db, tableOf, type OutboxEntry } from '../db/db';
-import { applyRemote, getMeta, onLocalChange, setMeta } from '../db/repo';
-import { prefetchMedia, resetMediaRetries, uploadPendingMedia } from './media';
+import { applyRemoteChange, getMeta, onLocalChange, setMeta } from '../db/repo';
+import { freeUnusedPdfCopies } from '../domain/studyFileActions';
+import { prefetchMedia, resetMediaRetries, uploadBigMedia, uploadPendingMedia } from './media';
 import { useSyncStatus } from './status';
 
 const PAGE_LIMIT = 5000;
@@ -84,7 +85,7 @@ async function requeueEverything(): Promise<void> {
   });
 }
 
-/** One push + pull round. Resolves true when the outbox had more entries than one request carries. */
+/** One push + pull round. Resolves true when the outbox had more entries than one request carries, or a merge was queued. */
 async function performSync(token: string): Promise<boolean> {
   const deviceId = await getDeviceId();
   let limit = PUSH_LIMIT; // halved on 413 for this round only
@@ -115,8 +116,12 @@ async function performSync(token: string): Promise<boolean> {
         if (cur && cur.updatedAt === entry.updatedAt) await db.outbox.delete(entry.key);
       }
     });
+    // A merge queued while applying (speech session recordings) goes out in another round right away.
+    let merged = false;
     for (let page = 1; ; page++) {
-      for (const change of res.changes) await applyRemote(change);
+      for (const change of res.changes) {
+        if ((await applyRemoteChange(change)).queued) merged = true;
+      }
       if (res.changes.some((c) => c.table === 'notes')) notesPulled = true;
       cursor = res.cursor;
       await setMeta('cursor', cursor);
@@ -124,7 +129,7 @@ async function performSync(token: string): Promise<boolean> {
       res = await post(token, { deviceId, cursor, changes: [] });
       if (res.reset) return true; // the server was rolled back meanwhile: run another round
     }
-    return snapshot.length === limit;
+    return snapshot.length === limit || merged;
   }
 }
 
@@ -146,14 +151,17 @@ async function syncOnce(): Promise<boolean> {
       return true;
     }
     setStatus({ state: 'syncing' });
-    // Media first: a device that receives a note finds the files it references on the server.
-    if ((await uploadPendingMedia(token)) === 'more') rerun = true;
+    // Media first: a device that receives a note finds the files it references on the server. PDFs over 8 MB go after
+    // the records, in background, so a 50 MB upload never holds them (no note references a PDF).
+    if ((await uploadPendingMedia(token, 'small')) === 'more') rerun = true;
     // A big outbox (e.g. after "Importar JSON") goes out over several rounds of the runSync loop.
     if (await performSync(token)) rerun = true;
+    void uploadBigMedia(token);
     const force = notesPulled;
     notesPulled = false;
     resetMediaRetries();
     void prefetchMedia(token, force); // background: the status does not wait for downloads
+    void freeUnusedPdfCopies(token); // deleted PDFs leave this device once the PC confirms it has them
     setStatus({ state: 'idle', lastSync: Date.now(), error: undefined });
     return true;
   } catch (e) {
@@ -273,10 +281,15 @@ export function startSync(): () => void {
   };
   const onToken = (): void => { void ensureStream(); };
   const onOnline = (): void => { void trigger(); };
+  // The browser says the network is gone: show it now instead of waiting for the next attempt to fail.
+  const onOffline = (): void => {
+    if (useSyncStatus.getState().state !== 'disabled') setStatus({ state: 'offline', error: undefined });
+  };
   const onVisible = (): void => { if (document.visibilityState === 'visible') void trigger(); };
 
   const offLocal = onLocalChange(onLocal);
   window.addEventListener('online', onOnline);
+  window.addEventListener('offline', onOffline);
   window.addEventListener(TOKEN_EVENT, onToken);
   document.addEventListener('visibilitychange', onVisible);
   const interval = setInterval(() => { void trigger(); }, 60_000);
@@ -287,6 +300,7 @@ export function startSync(): () => void {
     stopped = true;
     offLocal();
     window.removeEventListener('online', onOnline);
+    window.removeEventListener('offline', onOffline);
     window.removeEventListener(TOKEN_EVENT, onToken);
     document.removeEventListener('visibilitychange', onVisible);
     clearInterval(interval);

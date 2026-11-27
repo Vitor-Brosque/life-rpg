@@ -131,7 +131,9 @@ export function NoteEditor({ id }: { id?: string }) {
   return (
     <section className="screen note-editor" aria-labelledby="note-title">
       <h1 id="note-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>{isNew ? 'Novo card' : isDraft ? 'Completar rascunho' : 'Editar card'}</h1>
-      {isDraft && <p className="muted">Rascunho capturado. Complete a resposta e escolha o baralho para ele entrar na revisão.</p>}
+      {isDraft && (existing?.back.trim() && existing.deckId
+        ? <p className="muted">Rascunho. Confira a frente e o verso e salve para ele entrar na revisão.</p>
+        : <p className="muted">Rascunho capturado. Complete a resposta e escolha o baralho para ele entrar na revisão.</p>)}
       <div className="note-editor__grid">
         <form className="stack note-editor__form" onSubmit={(e) => { e.preventDefault(); void save(false); }} onKeyDown={onKeyDown}>
           <fieldset className="field">

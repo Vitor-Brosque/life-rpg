@@ -8,6 +8,7 @@ import { addDays, timestampAt, weekdayOf } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
+import { testStrategy } from '../src/domain/strategyActions';
 import { PatternsScreen } from '../src/features/patterns/PatternsScreen';
 import { ToastHost } from '../src/ui/Toast';
 
@@ -91,7 +92,7 @@ describe('Padrões', () => {
     expect(screen.queryByRole('region', { name: 'Blocos' })).not.toBeInTheDocument();
   });
 
-  it('weeks 5–8: observed numbers, context and the suggested experiment', async () => {
+  it('weeks 5–8: observed numbers, context and the suggested experiment, tested as a strategy by one tap', async () => {
     const user = userEvent.setup();
     await seedRoutine();
     renderScreen();
@@ -100,43 +101,36 @@ describe('Padrões', () => {
     expect(within(notice).getByText('Nas 4 primeiras semanas, você começou 20 de 20 (100%). Nas últimas 2 semanas, 4 de 10 (40%).')).toBeInTheDocument();
     expect(within(notice).getByText(/Não é falha, e pode ser só variação/)).toBeInTheDocument();
     expect(within(notice).getByRole('link', { name: 'Ajustar a rotina' })).toHaveAttribute('href', '/planejar?aba=rotina');
-    await user.click(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    await waitFor(async () => expect((await db.weeks.get('2026-11-09'))?.experiment)
-      .toBe('Nesta semana, a meta de Tech é só a versão mínima (30 min).'));
-    expect(await screen.findByText('Experimento da semana salvo. Ele aparece no Agora.')).toBeInTheDocument();
-    expect(await within(notice).findByRole('button', { name: 'Já é o experimento da semana' })).toBeDisabled();
+    await user.click(within(notice).getByRole('button', { name: 'Testar como estratégia' }));
+    await waitFor(async () => expect(await db.strategies.toArray()).toEqual([expect.objectContaining({
+      title: 'Nesta semana, a meta de Tech é só a versão mínima (30 min).', source: 'padroes', status: 'testando', startDay: '2026-11-13',
+    })]));
+    expect(await screen.findByText('Estratégia em teste. Ela aparece no Agora e em Diário → Estratégias.')).toBeInTheDocument();
+    expect(await within(notice).findByRole('button', { name: 'Já está em teste' })).toBeDisabled();
+    expect((await db.weeks.get('2026-11-09'))?.experiment).toBeUndefined();
   });
 
-  it('replacing the week\'s experiment asks first', async () => {
+  it('another strategy in test does not stop a new one: no "Trocar" any more', async () => {
     const user = userEvent.setup();
     await seedRoutine();
     await db.weeks.put({ ...base, id: '2026-11-09', objectives: [], experiment: 'Celular longe' } satisfies Week);
+    await testStrategy('Biblioteca à tarde', 'ideia');
     renderScreen();
     const notice = await region('Semanas 5–8: Tech');
-    await user.click(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    const ask = within(notice).getByRole('group', { name: 'Trocar experimento' });
-    expect(within(ask).getByText('Esta semana já tem o experimento “Celular longe”. Trocar por este?')).toBeInTheDocument();
-    await user.click(within(ask).getByRole('button', { name: 'Manter o atual' }));
+    await user.click(within(notice).getByRole('button', { name: 'Testar como estratégia' }));
+    await waitFor(async () => expect(await db.strategies.count()).toBe(2));
+    expect(within(notice).queryByRole('group', { name: 'Trocar experimento' })).not.toBeInTheDocument();
     expect((await db.weeks.get('2026-11-09'))!.experiment).toBe('Celular longe');
-    await user.click(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    await user.click(within(notice).getByRole('button', { name: 'Trocar' }));
-    await waitFor(async () => expect((await db.weeks.get('2026-11-09'))!.experiment).toMatch(/^Nesta semana, a meta de Tech/));
   });
 
-  it('keeps keyboard focus off <body> after the experiment buttons', async () => {
+  it('keeps keyboard focus off <body> after "Testar como estratégia"', async () => {
     const user = userEvent.setup();
     await seedRoutine();
-    await db.weeks.put({ ...base, id: '2026-11-09', objectives: [], experiment: 'Celular longe' } satisfies Week);
     renderScreen();
     const notice = await region('Semanas 5–8: Tech');
-    await user.click(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    expect(document.activeElement).toBe(within(notice).getByRole('button', { name: 'Trocar' }));
-    await user.click(within(notice).getByRole('button', { name: 'Manter o atual' }));
-    expect(document.activeElement).toBe(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    await user.click(within(notice).getByRole('button', { name: 'Usar como experimento da semana' }));
-    await user.click(within(notice).getByRole('button', { name: 'Trocar' }));
+    await user.click(within(notice).getByRole('button', { name: 'Testar como estratégia' }));
+    await within(notice).findByRole('button', { name: 'Já está em teste' });
     expect(document.activeElement).not.toBe(document.body);
-    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
   });
 
   it('"Está tudo bem assim" dismisses that beginning for good', async () => {

@@ -2,11 +2,12 @@ import { useId, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { create } from 'zustand';
 import type { DayKey, Mission } from '@life/shared';
-import { addDays, dayKeyOf, RESULT_MAX } from '@life/shared';
+import { addDays, dayKeyOf, INVESTIGATED_HINT, RESULT_MAX } from '@life/shared';
 import { db } from '../../db/db';
 import { useToday } from '../../db/hooks';
 import { FIRST_STEP_MAX, type PartialWhen } from '../../domain/missionActions';
 import { Button } from '../../ui/Button';
+import { Chip } from '../../ui/Chip';
 import { focusWhenGone } from '../../ui/focusAfter';
 import { formatDay } from '../../ui/format';
 import { Sheet } from '../../ui/Sheet';
@@ -42,6 +43,7 @@ function PartialForm({ mission, today, onDone }: { mission: Mission; today: DayK
   const [next, setNext] = useState(mission.firstStep ?? firstOpenStep(mission));
   const [picking, setPicking] = useState(false);
   const [date, setDate] = useState(addDays(today, 2));
+  const [investigated, setInvestigated] = useState(false);
   const [busy, setBusy] = useState(false);
   const resultId = useId();
   const nextId = useId();
@@ -52,7 +54,7 @@ function PartialForm({ mission, today, onDone }: { mission: Mission; today: DayK
     setBusy(true);
     try {
       await finishTimerFor(mission.id); // the focus is recorded first, as in "Encerrar bloco"
-      await partialWithFeedback(mission.id, { result, next, when }, today);
+      await partialWithFeedback(mission.id, { result, next, when, investigated }, today);
       onDone();
     } catch (e) {
       console.error('partial failed', e);
@@ -69,6 +71,13 @@ function PartialForm({ mission, today, onDone }: { mission: Mission; today: DayK
         <input id={resultId} type="text" value={result} maxLength={RESULT_MAX} enterKeyHint="next" autoComplete="off"
           placeholder="ex.: dedupe por URL feito, falta o teste" onChange={(e) => setResult(e.target.value)} />
       </label>
+      <fieldset className="opt-group">
+        <legend className="field__label">Foi investigação? (opcional)</legend>
+        <div className="cluster">
+          <Chip selected={investigated} onClick={() => setInvestigated((v) => !v)}>Investiguei</Chip>
+        </div>
+        {investigated && <p className="resume-form__hint">{INVESTIGATED_HINT}</p>}
+      </fieldset>
       <label className="field" htmlFor={nextId}>
         <span className="field__label">Próxima ação (opcional)</span>
         <input id={nextId} type="text" value={next} maxLength={FIRST_STEP_MAX} enterKeyHint="done" autoComplete="off"

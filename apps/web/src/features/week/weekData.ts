@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Block, DayKey, ID, Week, WeekAtypical, WeekObjective, WeekReview, WeekStats } from '@life/shared';
-import { addDays, formatHHmm, timestampAt, weekStats } from '@life/shared';
+import type { Block, DayKey, Goal, GoalCounts, ID, Week, WeekAtypical, WeekObjective, WeekReview, WeekStats } from '@life/shared';
+import { activeGoals, addDays, formatHHmm, goalCounts, timestampAt, weekStats } from '@life/shared';
 import { db } from '../../db/db';
 
 // What the "Nova semana" card (§8) shows: last week's observed numbers, the main blocks to set
@@ -84,18 +84,24 @@ export interface WeekCardData {
   atypical?: WeekAtypical;
   /** The mark on last week: the card welcomes the user back. */
   lastAtypical?: WeekAtypical;
+  /** Active objectives with last week's links ("Avançou nos seus objetivos?"). */
+  goals: WeekGoal[];
 }
+
+/** An active objective of the "Avançou?" section, with what was linked to it last week (absent: nothing). */
+export interface WeekGoal { goal: Goal; counts?: GoalCounts }
 
 const live = <T extends { deleted: boolean }>(r: T | undefined): T | undefined => (r && !r.deleted ? r : undefined);
 
 /** Everything the card needs for the week `weekId` (its Monday); undefined while loading. */
-export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | undefined {
+export function useWeekCardData(today: DayKey, weekId: DayKey | undefined): WeekCardData | undefined {
   return useLiveQuery(async () => {
+    if (!weekId) return undefined;
     const settings = live(await db.settings.get('settings'));
     if (!settings) return undefined;
     const lastId = addDays(weekId, -7);
     const weekStartTs = timestampAt(weekId, formatHHmm(settings.dayStartHour * 60));
-    const [blocks, commitments, dayStates, sessions, checkins, xpEvents, last, current, dayPlans] = await Promise.all([
+    const [blocks, commitments, dayStates, sessions, checkins, xpEvents, last, current, dayPlans, goals, journeys, missions] = await Promise.all([
       db.blocks.filter((b) => !b.deleted).toArray(),
       db.commitments.filter((c) => !c.deleted).toArray(),
       db.dayState.toArray(),
@@ -105,12 +111,18 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
       db.weeks.get(lastId),
       db.weeks.get(weekId),
       db.dayPlans.where('id').between(lastId, weekId).toArray(),
+      db.goals.toArray(),
+      db.journeys.toArray(),
+      db.missions.toArray(),
     ]);
     const stats = weekStats({
       weekStart: lastId, today, dayStates, sessions, checkins, xpEvents, commitments, dayPlans,
       // A block created after last week was not part of its plan.
       blocks: blocks.filter((b) => b.createdAt < weekStartTs),
       dayStartHour: settings.dayStartHour, dayEndHour: settings.dayEndHour,
+    });
+    const linked = goalCounts({
+      goals, journeys, missions, sessions, blocks, dayStates, from: lastId, to: addDays(weekId, -1), dayStartHour: settings.dayStartHour,
     });
     const groups = mainBlockGroups(blocks);
     return {
@@ -121,6 +133,7 @@ export function useWeekCardData(today: DayKey, weekId: DayKey): WeekCardData | u
       experiment: live(current)?.experiment,
       atypical: live(current)?.atypical,
       lastAtypical: live(last)?.atypical,
+      goals: activeGoals(goals).map((goal) => ({ goal, ...(linked.has(goal.id) ? { counts: linked.get(goal.id)! } : {}) })),
     } satisfies WeekCardData;
   }, [today, weekId]);
 }

@@ -1,0 +1,118 @@
+/* Nutrição (2026-11-25): the Corpo summary, /corpo/nutricao, foods and recipes, targets and weight.
+   No alarm colours: passing a target is a sentence ("passou 12 g"), never red. Actions sit at the left or full width,
+   so the floating "+" at the bottom-right corner of phones never covers them. */
+
+.nutri__links { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.nutri h1:focus, .nutri h2:focus, .nutri-item__text:focus { outline: none; }
+.nutri-summary { margin: 0; font-variant-numeric: tabular-nums; }
+
+.nutri-tag {
+  display: inline-block; margin-left: var(--space-2); padding: 0 6px;
+  border: 2px solid var(--stone-light); color: var(--text-dim);
+  font-size: 0.8125rem; font-weight: 600; line-height: 1.5; vertical-align: middle;
+}
+.nutri-top__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.nutri-top__head .section-title { margin: 0; }
+
+.nutri-error { margin: 0; font-weight: 600; color: var(--text); padding-left: var(--space-2); border-left: var(--px) solid var(--gold); }
+.nutri-warning { margin: var(--space-2) 0 0; color: var(--text); padding-left: var(--space-2); border-left: var(--px) solid var(--stone-light); }
+.nutri-hint { margin: 0; font-size: 0.875rem; }
+.nutri-computed { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* The top: one row per value, with a bar of eaten (solid) and planned (hatched). */
+.nutri-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.nutri-total { display: flex; flex-direction: column; gap: var(--space-1); }
+.nutri-total__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.nutri-total__name { font-weight: 700; }
+.nutri-total__detail { margin: 0; color: var(--text-dim); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.nutri-bar { overflow: hidden; }
+.nutri-bar__eaten, .nutri-bar__planned { position: absolute; top: 0; bottom: 0; transition: width 400ms steps(8), left 400ms steps(8); }
+.nutri-bar__eaten {
+  left: 0;
+  background-color: var(--gold);
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(0, 0, 0, 0.16) 10px 12px);
+}
+.nutri-bar__planned { background-image: repeating-linear-gradient(45deg, var(--sky) 0 3px, transparent 3px 7px); opacity: 0.8; }
+
+.nutri-plan { padding: var(--space-3); border: 2px dashed var(--stone-light); gap: var(--space-2); }
+.nutri-plan p { margin: 0; font-variant-numeric: tabular-nums; }
+.nutri-notes { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--space-1); }
+.nutri-notes__suggestion { color: var(--text-dim); }
+
+/* Meals and their items. */
+.nutri-meal { padding-top: var(--space-3); border-top: 2px solid var(--stone); gap: var(--space-2); }
+.nutri-meal__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.nutri-meal__title { margin: 0; color: var(--gold); font-size: 1.125rem; }
+.nutri-meal__totals { margin: 0; color: var(--text-dim); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+.nutri-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.nutri-item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); background: var(--bg-2); }
+.nutri-item--planned { background: transparent; border: 2px dashed var(--stone-light); }
+.nutri-item--planned .nutri-item__name { color: var(--text-dim); }
+.nutri-item__main {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; min-height: var(--touch); padding: 4px 0; text-align: left;
+  background: none; border: 0; color: inherit; font: inherit; cursor: pointer;
+}
+.nutri-item__text { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.nutri-item__name { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.nutri-item__meta { color: var(--text-dim); font-size: 0.875rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.nutri-item__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.nutri-item__form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); width: 100%; }
+.nutri-item__form .btn { min-height: var(--touch); }
+/* Width, not flex-basis: the same field sits in rows and in column stacks (a basis there became 192px of height). */
+.nutri-grams { flex: 0 1 auto; width: 12em; max-width: 100%; min-width: 7.5em; }
+/* A planned item's last line: a narrow grams field, "Comi" and "Tirar" in one row at the left (it wraps only when it
+   must, at 375 px it fits); the field's wrapper steps aside so a sentence under the field takes its own full line. */
+.nutri-item__form--row { align-items: flex-start; }
+.nutri-item__form--row .nutri-grams--compact { display: contents; }
+.nutri-item__form--row .nutri-grams--compact input { flex: 0 0 auto; width: 6em; }
+.nutri-item__form--row .nutri-grams--compact .nutri-error { order: 1; flex-basis: 100%; }
+
+/* Choices as buttons (taps over typing). */
+.nutri-choice { display: flex; flex-direction: column; gap: 6px; }
+.nutri-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nutri-chips .chip__main { min-height: var(--touch); }
+
+/* Food picker. */
+.nutri-picker { display: flex; flex-direction: column; gap: var(--space-2); }
+.nutri-picker__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.nutri-picker__option {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+  width: 100%; min-height: var(--touch); padding: 6px var(--space-3); text-align: left;
+  background: var(--bg-2); border: 0; color: inherit; font: inherit; cursor: pointer;
+}
+@media (hover: hover) { .nutri-picker__option:hover, .nutri-food:hover { background: var(--stone-light); } }
+.nutri-picker__name { overflow-wrap: anywhere; }
+.nutri-picker__option .nutri-tag, .nutri-food__name .nutri-tag { margin-left: 0; }
+.nutri-picked { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.nutri-picked .field__label { flex-basis: 100%; }
+.nutri-picked__name { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* Foods and recipes. */
+.nutri-foods { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.nutri-food {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; min-height: var(--touch); padding: var(--space-2) var(--space-3); text-align: left;
+  background: var(--bg-2); border: 0; color: inherit; font: inherit; cursor: pointer;
+}
+.nutri-food__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); font-weight: 700; overflow-wrap: anywhere; }
+.nutri-food__meta { color: var(--text-dim); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.nutri-form { gap: var(--space-4); }
+.nutri-form__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.nutri-fieldset { display: flex; flex-direction: column; gap: var(--space-2); }
+.nutri-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5em, 1fr)); gap: var(--space-2); }
+.nutri-ingredients { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.nutri-ingredient { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); padding: var(--space-2); background: var(--bg-2); }
+.nutri-ingredient__name { flex-basis: 100%; font-weight: 600; overflow-wrap: anywhere; }
+
+/* Targets and weight. */
+.nutri-history { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--space-1); font-variant-numeric: tabular-nums; }
+.nutri-weight { display: grid; grid-template-columns: 1fr; gap: var(--space-2); margin: 0; }
+.nutri-weight dt { color: var(--text-dim); }
+.nutri-weight dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (min-width: 600px) { .nutri-weight { grid-template-columns: repeat(3, 1fr); } }
+.nutri-weigh-in { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-height: var(--touch); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nutri-bar__eaten, .nutri-bar__planned { transition: none; }
+}

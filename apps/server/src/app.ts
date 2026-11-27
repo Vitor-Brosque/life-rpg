@@ -15,6 +15,7 @@ import { AiService } from './ai/service';
 import { MediaStore, registerMediaRoutes } from './media';
 import { PushService } from './push';
 import { RecordStore } from './store';
+import type { AssistService } from './assist/service';
 
 export interface BuildDeps {
   store?: RecordStore;
@@ -23,6 +24,8 @@ export interface BuildDeps {
   media?: MediaStore;
   /** Optional AI (Marco 7). Absent: built from cfg.ai; no cfg.ai either → AI off. */
   ai?: AiService;
+  /** Assistentes pelo MCP: Ajustes reads and changes it through /api/assist. Absent: those routes answer 404. */
+  assist?: AssistService;
   now?: () => number;
 }
 
@@ -104,6 +107,7 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
     });
     api.setNotFoundHandler((_req, reply) => reply.code(404).send({ error: 'not_found' }));
     registerApiRoutes(api, { store, hub, push, streams, media });
+    if (deps.assist) registerAssistRoutes(api, deps.assist);
     registerAiRoutes(api, ai);
   }, { prefix: '/api' });
 
@@ -126,6 +130,24 @@ export async function buildApp(cfg: ServerConfig, deps: BuildDeps = {}): Promise
   }
 
   return app;
+}
+
+const assistBody = z.object({ enabled: z.boolean(), publicUrl: z.string().max(300).optional() });
+
+/** Ajustes → Assistentes (with the app's access code): on/off, the public address, connected assistants. */
+function registerAssistRoutes(app: FastifyInstance, assist: AssistService): void {
+  app.get('/assist', async () => assist.status());
+  app.put('/assist', async (request, reply) => {
+    const parsed = assistBody.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_body' });
+    const error = assist.configure(parsed.data.enabled, parsed.data.publicUrl);
+    if (error) return reply.code(400).send({ error: 'invalid', message: error });
+    return assist.status();
+  });
+  app.delete('/assist/clients/:id', async (request) => {
+    assist.revokeClient((request.params as { id: string }).id);
+    return assist.status();
+  });
 }
 
 /** Authenticated routes; paths are relative to the '/api' prefix. */

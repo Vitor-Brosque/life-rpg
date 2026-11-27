@@ -109,18 +109,18 @@ describe('block banner', () => {
     renderAgora();
     const b = await banner();
     expect(within(b).getByRole('heading', { name: 'Tech' })).toBeInTheDocument();
-    expect(within(b).getByText('até 12:00')).toBeInTheDocument();
-    expect(within(b).getByText('2h30 restantes')).toBeInTheDocument();
+    expect(within(b).getByText('até 11:15')).toBeInTheDocument();
+    expect(within(b).getByText('1h45 restantes')).toBeInTheDocument();
     expect(within(b).queryByText(/Bloco encolhido/)).not.toBeInTheDocument();
   });
 
   it('a late start keeps the end and says the block shrank', async () => {
-    vi.setSystemTime(at(11, 10, 30));
+    vi.setSystemTime(at(11, 10, 0));
     await startBlock('b1');
     renderAgora();
     const b = await banner();
-    expect(within(b).getByText('até 12:00')).toBeInTheDocument();
-    expect(within(b).getByText('Bloco encolhido: 1h30 de 3h')).toBeInTheDocument();
+    expect(within(b).getByText('até 11:15')).toBeInTheDocument();
+    expect(within(b).getByText('Bloco encolhido: 1h15 de 2h45')).toBeInTheDocument();
   });
 
   it('"Começar bloco" awards +5 XP once and then hides', async () => {
@@ -155,6 +155,7 @@ describe('block banner', () => {
 
   it('"Versão mínima" switches the version of today\'s session', async () => {
     const user = userEvent.setup();
+    vi.setSystemTime(at(11, 8, 45)); // inside the 40-minute minimum window anchored at 08:30
     renderAgora();
     const toggle = within(await banner()).getByRole('button', { name: 'Versão mínima' });
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
@@ -172,8 +173,8 @@ describe('block banner', () => {
     await saveWeekReview('2026-11-09', { worked: '', obstacle: '', adjustment: 'Começar pelo teste' });
     renderAgora();
     const b = await banner();
-    expect(await screen.findByText('Experimento da semana: Começar pelo teste')).toBeInTheDocument();
-    expect(within(b).queryByText(/Experimento da semana/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Estratégia em teste: Começar pelo teste')).toBeInTheDocument();
+    expect(within(b).queryByText(/Estratégia em teste/)).not.toBeInTheDocument();
     expect(await within(b).findByRole('checkbox', { name: 'Fechar a ingestão' })).toBeInTheDocument();
     expect(within(b).queryByText('Treinar 4×')).not.toBeInTheDocument();
     await user.click(within(b).getByRole('checkbox', { name: 'Fechar a ingestão' }));
@@ -184,33 +185,33 @@ describe('block banner', () => {
   it('a routine block shows its checklist instead of a mission, ticks kept for the day', async () => {
     const user = userEvent.setup();
     await db.blocks.put(block({
-      id: 'b0', name: 'Início do dia', order: -1, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine',
-      checklist: [{ id: 'c1', text: 'Higiene', done: false }, { id: 'c2', text: 'Café', done: false }],
+      id: 'b0', name: 'Início do dia', order: -1, targetStart: '08:00', durationMin: 30, minimumMin: 15, kind: 'routine',
+      checklist: [{ id: 'c1', text: 'Beber água', done: false }, { id: 'c2', text: 'Separar o material', done: false }],
     }));
     await createMission({ title: 'Ler um capítulo' });
-    vi.setSystemTime(at(11, 8, 40));
+    vi.setSystemTime(at(11, 8, 10));
     const first = renderAgora();
     const b = await banner();
     expect(within(b).getByRole('heading', { name: 'Início do dia' })).toBeInTheDocument();
-    await user.click(within(b).getByRole('checkbox', { name: 'Higiene' }));
-    expect(within(b).getByRole('checkbox', { name: 'Higiene' })).toBeChecked();
+    await user.click(within(b).getByRole('checkbox', { name: 'Beber água' }));
+    expect(within(b).getByRole('checkbox', { name: 'Beber água' })).toBeChecked();
     expect(screen.queryByRole('region', { name: 'Missão agora' })).not.toBeInTheDocument();
     first.unmount();
 
     renderAgora();
-    expect(within(await banner()).getByRole('checkbox', { name: 'Higiene' })).toBeChecked();
-    expect(within(await banner()).getByRole('checkbox', { name: 'Café' })).not.toBeChecked();
+    expect(within(await banner()).getByRole('checkbox', { name: 'Beber água' })).toBeChecked();
+    expect(within(await banner()).getByRole('checkbox', { name: 'Separar o material' })).not.toBeChecked();
   });
 
   it('between blocks shows the next one, the free minutes and only missions that fit', async () => {
-    // No day start recorded: Tech (09:00–12:00) is over, Treino is next. (Answering the day card
-    // now would start the day at 12:15 and shrink Tech into the next 45 minutes instead.)
-    vi.setSystemTime(at(11, 12, 15));
+    // No day start recorded: Tech (08:30–11:15) is over, Treino is next. (Answering the day card
+    // now would start the day at 11:30 and shrink Tech to its 40-minute minimum instead.)
+    vi.setSystemTime(at(11, 11, 30));
     await createMission({ title: 'Responder e-mail', durationMin: 10 });
     await createMission({ title: 'Estudar SQL', durationMin: 60 });
     renderAgora();
     const between = await screen.findByRole('region', { name: 'Entre blocos' });
-    expect(within(between).getByText('Próximo: Treino às 12:30 · 15 min livres')).toBeInTheDocument();
+    expect(within(between).getByText('Próximo: Treino às 11:45 · 15 min livres')).toBeInTheDocument();
     expect(await within(between).findByText('Responder e-mail')).toBeInTheDocument();
     expect(screen.queryByText('Estudar SQL')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Bloco atual' })).not.toBeInTheDocument();

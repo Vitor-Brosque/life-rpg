@@ -45,7 +45,7 @@ describe('Painel timeline with blocks', () => {
       expect(entry(list, name)).not.toHaveAttribute('aria-current');
       expect(entry(list, name)).toHaveAttribute('data-state', 'upcoming');
     }
-    expect(within(entry(list, 'Treino')).getByText('12:30–14:30')).toBeInTheDocument();
+    expect(within(entry(list, 'Treino')).getByText('11:45–13:15')).toBeInTheDocument();
     // The class is still drawn, and "livre" means outside blocks and commitments.
     expect(within(list).getByText('Aula')).toBeInTheDocument();
     expect(within(list).getAllByText('livre 30 min')).toHaveLength(2);
@@ -53,20 +53,20 @@ describe('Painel timeline with blocks', () => {
   });
 
   it('a shrunk block has its cut part dashed', async () => {
-    vi.setSystemTime(at(11, 10, 30));
+    vi.setSystemTime(at(11, 10, 0));
     await startBlock('b1');
     const { container } = render(<PainelScreen />);
     const list = await timeline();
     await within(list).findByText('Tech');
     const tech = entry(list, 'Tech');
-    expect(within(tech).getByText('10:30–12:00')).toBeInTheDocument();
-    expect(within(tech).getByText(/encolhido: 1h30 de 3h/)).toBeInTheDocument();
+    expect(within(tech).getByText('10:00–11:15')).toBeInTheDocument();
+    expect(within(tech).getByText(/encolhido: 1h15 de 2h45/)).toBeInTheDocument();
     expect(container.querySelector('.timeline__cut')).not.toBeNull();
   });
 
   it('a block that does not fit today is a thin "sem tempo hoje" marker', async () => {
-    vi.setSystemTime(at(11, 16));
-    await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '17:45', end: '19:00' });
+    vi.setSystemTime(at(11, 14, 30));
+    await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '16:30', end: '19:00' });
     render(<PainelScreen />);
     const list = await timeline();
     await within(list).findByText('Compl');
@@ -77,9 +77,9 @@ describe('Painel timeline with blocks', () => {
   });
 
   it('a finished block is muted with a check', async () => {
-    vi.setSystemTime(at(11, 11, 50));
+    vi.setSystemTime(at(11, 11, 0));
     const done: BlockSession = {
-      ...base, id: 'bs-b1-2026-11-11', blockId: 'b1', day: '2026-11-11', startedAt: at(11, 9), endedAt: at(11, 11, 30), version: 'normal',
+      ...base, id: 'bs-b1-2026-11-11', blockId: 'b1', day: '2026-11-11', startedAt: at(11, 8, 30), endedAt: at(11, 10, 45), version: 'normal',
     };
     await db.blockSessions.put(done);
     render(<PainelScreen />);
@@ -94,7 +94,7 @@ describe('Painel timeline with blocks', () => {
 
   it('Apoio shows "Onde você parou" for the current block', async () => {
     const past: BlockSession = {
-      ...base, id: 'bs-b1-2026-11-10', blockId: 'b1', day: '2026-11-10', startedAt: at(10, 9), endedAt: at(10, 11),
+      ...base, id: 'bs-b1-2026-11-10', blockId: 'b1', day: '2026-11-10', startedAt: at(10, 8, 30), endedAt: at(10, 10, 45),
       version: 'normal', nextAction: 'Revisar o parser',
     };
     await db.blockSessions.put(past);

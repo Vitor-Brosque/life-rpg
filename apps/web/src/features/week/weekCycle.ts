@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { DayKey, DayMode, Week, WeekAtypical, WeekSummary } from '@life/shared';
-import { cleanWeekSummary, weekdayOf, weekKey } from '@life/shared';
+import type { DayKey, DayMode, GoalProgress, ID, Week, WeekAtypical, WeekSummary } from '@life/shared';
+import { cleanWeekSummary, isGoalProgress, weekdayOf, weekKey } from '@life/shared';
 import { db } from '../../db/db';
 
 interface WeekSession {
@@ -114,15 +114,41 @@ export function readReviewDraft(weekId: DayKey): ReviewDraft {
   }
 }
 
-/** Stores the draft and drops other weeks' drafts (they are never needed again). */
-export function writeReviewDraft(weekId: DayKey, draft: ReviewDraft | undefined): void {
+/** The lines that came from "Usar no ajuste", kept with the draft (so a later Salvar still gives them source Padrões). */
+export function readReviewSuggested(weekId: DayKey): string[] {
   try {
-    if (draft) localStorage.setItem(DRAFT_PREFIX + weekId, JSON.stringify(draft));
+    const parsed: unknown = JSON.parse(localStorage.getItem(DRAFT_PREFIX + weekId) ?? 'null');
+    const list = parsed && typeof parsed === 'object' ? (parsed as { suggested?: unknown }).suggested : undefined;
+    return Array.isArray(list) ? list.filter((t): t is string => typeof t === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Stores the draft (with its "Usar no ajuste" lines and "Avançou?" taps) and drops other weeks' drafts. */
+export function writeReviewDraft(
+  weekId: DayKey, draft: ReviewDraft | undefined, suggested: readonly string[] = [], goals: Readonly<Record<ID, GoalProgress>> = {},
+): void {
+  try {
+    if (draft) localStorage.setItem(DRAFT_PREFIX + weekId, JSON.stringify({ ...draft, suggested, goals }));
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k?.startsWith(DRAFT_PREFIX) && (k !== DRAFT_PREFIX + weekId || !draft)) localStorage.removeItem(k);
     }
   } catch { /* private mode / quota: the draft just stays in memory */ }
+}
+
+/** The "Avançou?" taps kept with the draft (only valid answers). */
+export function readReviewGoals(weekId: DayKey): Record<ID, GoalProgress> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(DRAFT_PREFIX + weekId) ?? 'null');
+    const goals = parsed && typeof parsed === 'object' ? (parsed as { goals?: unknown }).goals : undefined;
+    if (!goals || typeof goals !== 'object') return {};
+    return Object.fromEntries(Object.entries(goals as Record<string, unknown>)
+      .filter((e): e is [string, GoalProgress] => isGoalProgress(e[1])));
+  } catch {
+    return {};
+  }
 }
 
 /** True once per week (per device): the first time the card shows, the companion greets the week. */

@@ -64,14 +64,14 @@ describe('trend sentences', () => {
 
 describe('weeks 5–8 sentences', () => {
   const n: WatchNotice = {
-    key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Bloco 1 · Tech News', minimumMin: 45,
+    key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Bloco 1 · Tech News', minimumMin: 40,
     anchor: '2026-09-28', weekNumber: 6, base: { started: 12, planned: 18 }, recent: { started: 4, planned: 12, weeks: 2 },
   };
   it('observed and experiment', () => {
     expect(watchObservedText(n)).toBe('Nas 4 primeiras semanas, você começou 12 de 18 (67%). Nas últimas 2 semanas, 4 de 12 (33%).');
     expect(watchObservedText({ ...n, recent: { started: 1, planned: 5, weeks: 1 } }))
       .toBe('Nas 4 primeiras semanas, você começou 12 de 18 (67%). Na última semana, 1 de 5 (20%).');
-    expect(watchExperiment(n)).toBe('Nesta semana, a meta de Bloco 1 · Tech News é só a versão mínima (45 min).');
+    expect(watchExperiment(n)).toBe('Nesta semana, a meta de Bloco 1 · Tech News é só a versão mínima (40 min).');
   });
 });
 

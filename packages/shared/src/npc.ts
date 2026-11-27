@@ -188,6 +188,11 @@ export interface NpcCtx {
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+/** "uns 4 min", but "cerca de 1 min" (never "uns 1 min"); at least 1 minute. */
+export function aboutMinutesText(minutes: number): string {
+  const n = Math.max(1, Math.round(minutes));
+  return n === 1 ? 'cerca de 1 min' : `uns ${n} min`;
+}
 
 /** 20 → "20 min", 60 → "1h", 90 → "1h30" (same format as the web's formatDuration). */
 export function formatMinutes(min: number): string {
@@ -246,7 +251,7 @@ function kindLines(c: NpcCtx, add: (id: string, text: string, now?: boolean) => 
           ...(s.due > 0 ? [plural(s.due, 'revisão', 'revisões')] : []),
           ...(s.fresh > 0 ? [plural(s.fresh, 'card novo', 'cards novos')] : []),
         ];
-        add('e-due', `Hoje há ${parts.join(' e ')} esperando, uns ${Math.max(1, Math.round(s.minutes))} min. Lembrar com esforço é o que fixa.`, true);
+        add('e-due', `Hoje há ${parts.join(' e ')} esperando, ${aboutMinutesText(s.minutes)}. Lembrar com esforço é o que fixa.`, true);
       }
       if (s && s.goalMet) add('e-done', 'Revisão de hoje feita. O resto volta na hora certa.');
       else if (s && s.restDay && !free && s.cards > 0) add('e-rest', 'Dia sem revisão. Os cards esperam sem pressa.');

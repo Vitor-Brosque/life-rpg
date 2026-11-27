@@ -5,11 +5,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'wouter';
 import type { Journey, Mission } from '@life/shared';
+import { pickableGoals } from '@life/shared';
 import { Icon } from '../../art/icons';
 import { db } from '../../db/db';
+import { useGoals } from '../../db/goalData';
 import { useAreas, useMissions } from '../../db/hooks';
 import { patch } from '../../db/repo';
 import { completeJourney, createMission, updateMission } from '../../domain/actions';
+import { setJourneyGoal } from '../../domain/goalActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
 import { formatDuration } from '../../ui/format';
@@ -23,6 +26,7 @@ import { JourneyPracticeLink } from '../practice/PracticePanel';
 import { EditableField } from '../mission/EditableField';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { DRAG_INSTRUCTIONS, usePlanSensors } from '../plan/planShared';
+import { GoalChips } from './GoalSheet';
 import { byJourneyOrder, journeyStats } from './journeyData';
 import '../plan/plan.css';
 
@@ -92,6 +96,8 @@ function JourneyBody({ journey }: { journey: Journey }) {
   const nextOrder = own.reduce((mx, m) => Math.max(mx, (m.journeyOrder ?? -1) + 1), 0);
   const inactive = journey.status !== 'active';
 
+  const goals = useGoals();
+  const goal = goals?.find((g) => g.id === journey.goalId);
   const edit = (changes: Partial<Journey>) => safeRun(patch<Journey>('journeys', journey.id, changes));
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
@@ -111,8 +117,9 @@ function JourneyBody({ journey }: { journey: Journey }) {
 
   return (
     <section className="screen stack">
-      <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Jornadas</Link>
+      <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Objetivos e jornadas</Link>
       <h1 className="journey-detail__title">{journey.title}</h1>
+      {goal && <p className="journey-detail__goal">{`Objetivo: ${goal.title}`}</p>}
       {journey.outcome && <p className="journey-detail__outcome">{journey.outcome}</p>}
       {inactive && <p className="muted">Esta jornada está {journey.status === 'done' ? 'concluída' : 'arquivada'}.</p>}
 
@@ -137,11 +144,13 @@ function JourneyBody({ journey }: { journey: Journey }) {
       <AddMission journey={journey} nextOrder={nextOrder} />
 
       <details className="journey-detail__edit">
-        <summary>Editar título, resultado e área</summary>
+        <summary>Editar título, resultado, objetivo e área</summary>
         <Panel variant="stone" className="journey-detail__fields">
           <EditableField label="Título" value={journey.title} required onSave={(v) => edit({ title: v })} />
           <EditableField label="Resultado esperado" value={journey.outcome} multiline
             placeholder="O que estará pronto no fim?" onSave={(v) => edit({ outcome: v || undefined })} />
+          <GoalChips goals={pickableGoals(goals ?? [], journey.goalId)} value={journey.goalId} legend="Objetivo"
+            onChange={(goalId) => safeRun(setJourneyGoal(journey.id, goalId))} />
           <fieldset className="attr">
             <legend className="field__label">Área</legend>
             <div className="cluster">
@@ -188,7 +197,7 @@ export function JourneyDetail({ id }: { id: string }) {
   if (!journey || journey.deleted) {
     return (
       <section className="screen stack">
-        <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Jornadas</Link>
+        <Link href="/planejar?aba=jornadas" className="journey-detail__back">← Objetivos e jornadas</Link>
         <Panel variant="stone"><p>Jornada não encontrada.</p></Panel>
       </section>
     );

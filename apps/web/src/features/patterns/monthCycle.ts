@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { DayKey, DayMode, MonthAnswers, MonthKey } from '@life/shared';
 import { addMonths, monthCardDue, monthEnd, monthKeyOf, monthReviewId, monthStart } from '@life/shared';
 import { db } from '../../db/db';
+import { getMeta, setMeta } from '../../db/repo';
+import { safeRun } from '../../ui/safeRun';
 
 export const MONTH_QUESTIONS: ReadonlyArray<{ key: keyof MonthAnswers; label: string; short: string }> = [
   { key: 'progress', label: 'O que mostra que você avançou neste mês?', short: 'Avanços' },
@@ -10,8 +12,12 @@ export const MONTH_QUESTIONS: ReadonlyArray<{ key: keyof MonthAnswers; label: st
   { key: 'next', label: 'Que mudança pequena você quer levar para o próximo mês?', short: 'Para o próximo mês' },
 ];
 
+/** Meta key (this device only) of the last "Agora não" / "Fazer depois": the card stays hidden for the rest of that day. */
+export const MONTH_LATER_KEY = 'month-card-later';
+interface MonthLater { month: MonthKey; day: DayKey }
+
 interface MonthSession {
-  /** Month whose card got "Agora não" / "Fazer depois" in this app session (it comes back on the next open). */
+  /** Month whose card got "Agora não" / "Fazer depois" in this app session (hidden at once, before the stored day is read back). */
   dismissed?: MonthKey;
   /** Month whose card was expanded ("Começar"). */
   started?: MonthKey;
@@ -35,11 +41,12 @@ export function useMonthCycle(today: DayKey | undefined, day: { asked: boolean; 
   const prev = today ? addMonths(monthKeyOf(today), -1) : undefined;
   const state = useLiveQuery(async () => {
     if (!prev) return undefined;
-    const [review, active] = await Promise.all([
+    const [review, active, later] = await Promise.all([
       db.monthReviews.get(monthReviewId(prev)),
       db.xpEvents.where('dayKey').between(monthStart(prev), monthEnd(prev), true, true).filter((x) => !x.deleted).count(),
+      getMeta<MonthLater>(MONTH_LATER_KEY),
     ]);
-    return { review: review ?? null, active: active > 0 };
+    return { review: review ?? null, active: active > 0, laterDay: later?.month === prev ? later.day : undefined };
   }, [prev]);
   const { dismissed, started } = useMonthSession();
   const month = today && state && day.asked
@@ -48,10 +55,14 @@ export function useMonthCycle(today: DayKey | undefined, day: { asked: boolean; 
   return {
     loaded: state !== undefined,
     month,
-    show: month !== undefined && dismissed !== month,
+    show: month !== undefined && dismissed !== month && state?.laterDay !== today,
     started: month !== undefined && started === month,
     start: () => useMonthSession.setState({ started: month }),
-    later: () => useMonthSession.setState({ dismissed: month, started: undefined }),
+    later: () => {
+      useMonthSession.setState({ dismissed: month, started: undefined });
+      // Reopening the app (the iPhone reloads it often) must not bring it back the same day.
+      if (month && today) safeRun(setMeta(MONTH_LATER_KEY, { month, day: today } satisfies MonthLater));
+    },
   };
 }
 

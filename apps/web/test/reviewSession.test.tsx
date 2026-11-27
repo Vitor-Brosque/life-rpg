@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -74,6 +76,20 @@ describe('ReviewSession', () => {
     expect(screen.getAllByText((_, el) => el?.tagName === 'PRE' && el.textContent === 'SELECT 1')).toHaveLength(1);
   });
 
+  it('code cards: after the reveal the typed code shows once (the editor closes)', async () => {
+    const user = userEvent.setup();
+    await deck(1, 'code');
+    render(<ReviewSession />);
+    await user.type(await screen.findByLabelText('Sua resposta (código)'), 'SELECT 2');
+    await user.click(screen.getByRole('button', { name: 'Mostrar resposta' }));
+    expect(await screen.findByRole('heading', { name: 'Sua resposta' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sua resposta (código)')).toBeNull();
+    const typed = [...document.querySelectorAll('pre, textarea')]
+      .filter((el) => (el instanceof HTMLTextAreaElement ? el.value : el.textContent) === 'SELECT 2');
+    expect(typed).toHaveLength(1);
+    expect(screen.getByRole('group', { name: 'Como foi?' })).toBeInTheDocument();
+  });
+
   it('topic: write, reveal the key points, tick them; the rating is suggested and coverage saved', async () => {
     const user = userEvent.setup();
     const d = await saveDeck({ name: 'BD' });
@@ -131,6 +147,8 @@ describe('ReviewSession', () => {
     vi.setSystemTime(Date.now() + 30_000);
     await user.keyboard('4');
     expect(await screen.findByText('1 card · 1 min')).toBeInTheDocument();
+    // 12/11/2026 is a Thursday: the line names the next study day, so "nada previsto" reads as that day's load.
+    expect(screen.getByText('Próximo dia de estudo (sex): nada previsto.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Voltar ao Estudo' }));
     expect(window.location.pathname).toBe('/estudo');
   });
@@ -201,5 +219,25 @@ describe('ReviewSession', () => {
   it('with nothing to review says so', async () => {
     render(<ReviewSession />);
     expect(await screen.findByText('Nada para revisar agora.')).toBeInTheDocument();
+  });
+});
+
+describe('rating bar on a phone', () => {
+  // jsdom has no layout: the sticky offset is checked in the stylesheet itself.
+  const css = readFileSync(resolve(process.cwd(), 'src/features/study/study.css'), 'utf8');
+  const bottomOf = (block: string) => /\.rating\s*\{[^}]*?bottom:\s*([^;]+);/.exec(block)?.[1] ?? '';
+
+  it('sticks above the fixed bottom nav (and its safe area), not behind it', () => {
+    const phone = bottomOf(css);
+    expect(phone).toContain('var(--nav-h)');
+    expect(phone).toContain('var(--safe-bottom)');
+    expect(phone).toContain('var(--dock-h');
+  });
+
+  it('on wide screens (side nav) it only clears the dock', () => {
+    const wide = /@media \(min-width: 1200px\)\s*\{([\s\S]*?)\n\}/.exec(css.slice(css.indexOf('.rating {')))?.[1] ?? '';
+    const bottom = bottomOf(wide);
+    expect(bottom).toContain('var(--dock-h');
+    expect(bottom).not.toContain('var(--nav-h)');
   });
 });

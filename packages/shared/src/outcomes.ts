@@ -12,8 +12,14 @@ export function oneLine(text: string | undefined, max = RESULT_MAX): string | un
   return t === '' ? undefined : t;
 }
 
-export const BLOCK_OUTCOMES: readonly BlockOutcome[] = ['feito', 'parcial', 'nao-deu'];
-export const BLOCK_OUTCOME_LABEL: Record<BlockOutcome, string> = { feito: 'Feito', parcial: 'Parcial', 'nao-deu': 'Não deu' };
+export const BLOCK_OUTCOMES: readonly BlockOutcome[] = ['feito', 'parcial', 'investiguei', 'nao-deu'];
+export const BLOCK_OUTCOME_LABEL: Record<BlockOutcome, string> = {
+  feito: 'Feito', parcial: 'Parcial', investiguei: 'Investiguei', 'nao-deu': 'Não deu',
+};
+/** What "Investiguei" means, under its chip (block close and Parcial): research is work, never a postponement. */
+export const INVESTIGATED_HINT = 'Pesquisa ou exploração, sem entrega ainda: conta como trabalho, não como adiamento.';
+/** A "Parcial" marked "Investiguei" (`data.investigated: true` on the 'partial' event). */
+export const investigatedPartial = (e: Pick<LifeEvent, 'data'>): boolean => e.data?.investigated === true;
 
 export const SNOOZE_REASONS: readonly SnoozeReason[] = ['sem-tempo', 'sem-energia', 'nao-sei-comecar', 'falta-algo', 'outra-prioridade'];
 export const SNOOZE_REASON_LABEL: Record<SnoozeReason, string> = {

@@ -18,12 +18,12 @@ Uma ideia atravessa o app inteiro: **um dia parado não apaga nada**. Nada zera,
 7. [Personagem e Mundo](#7-personagem-e-mundo)
 8. [Painel no monitor secundário](#8-painel-no-monitor-secundário)
 9. [Ajustes](#9-ajustes)
-10. [IA opcional](#10-ia-opcional)
+10. [IA opcional](#10-ia-opcional) e [Assistentes: ChatGPT e Claude](#assistentes-chatgpt-e-claude)
 11. [Backups e dados](#11-backups-e-dados)
 12. [Perguntas frequentes e quando algo não funciona](#12-perguntas-frequentes-e-quando-algo-não-funciona)
 13. [Base científica, com honestidade](#13-base-científica-com-honestidade)
 
-A barra de navegação tem cinco abas: **Agora**, **Planejar**, **Estudo**, **Diário** e **Personagem**. Jornadas fica no **Planejar**.
+A barra de navegação tem cinco abas: **Agora**, **Planejar**, **Estudo**, **Diário** e **Personagem**. **Objetivos** (com as jornadas dentro) e as **temporadas** ficam no **Planejar**.
 Corpo, Padrões, Mapa e Ajustes abrem a partir do **Personagem**. O Painel abre em `/painel`.
 
 ---
@@ -49,10 +49,15 @@ Funciona sem internet: tudo fica salvo neste aparelho.
 
 O LIFE RPG é um app web (PWA). No iPhone:
 
-1. Abra o endereço do app no **Safari** (no homelab, é o endereço HTTPS do Tailscale).
+1. Abra o endereço do app no **Safari**. É o endereço HTTPS do Tailscale: o deste PC (veja "Usar no iPhone com este
+   PC" no `README.md`) ou o do servidor onde o app estiver.
 2. Toque em **Compartilhar**.
 3. Toque em **Adicionar à Tela de Início**.
-4. A partir daí, abra sempre pelo ícone da Tela de Início.
+4. Feche o Safari e, a partir daí, abra sempre pelo ícone da Tela de Início.
+5. Na tela de boas-vindas, toque em **Já uso em outro aparelho** e informe o código de acesso.
+
+A ordem importa: instale, abra pelo ícone e só então conecte. O app aberto pelo ícone guarda os dados separados do
+Safari; conectar no Safari e instalar depois faria o app instalado começar vazio.
 
 Abrir pelo ícone é necessário para receber notificações no iOS: o iPhone só entrega notificações
 de apps instalados, e só em páginas HTTPS.
@@ -66,7 +71,7 @@ A sincronização copia seus dados para o servidor, faz os backups e leva tudo p
 Sem ela o app funciona, mas os dados ficam só no navegador daquele aparelho.
 
 1. Descubra o **código de acesso**: ele está no arquivo `data/token`, na pasta do app no servidor
-   (neste computador, a pasta `data/` do projeto; no homelab, `~/projects/life-rpg/data/token`).
+   (neste computador, a pasta `data/` do projeto; no servidor de casa, `~/projects/life-rpg/data/token`).
 2. No app, vá em **Personagem → engrenagem → Sincronização**.
 3. Cole o código no campo **Código de acesso**.
 
@@ -82,10 +87,15 @@ Basta uma vez por aparelho ou navegador. A seção mostra a **Situação** e qua
 O Agora responde "o que faço agora?" sem exigir que você decida antes. De cima para baixo:
 
 - **Faixa de status:** avatar e nível, sua energia atual (definida pelo tipo do dia; toque para ajustar),
-  o tempo livre até o próximo compromisso e o indicador de sincronização.
-- **Tipo do dia**, em um chip no topo.
-- **Bloco atual**, quando há um em andamento.
+  o tempo livre até o próximo compromisso e o indicador de sincronização, com o chip do **tipo do dia** ao lado.
 - **Cuidados:** a faixa de sono e refeição (veja abaixo).
+- **Linha da semana**, quando há algo a dizer: semana atípica, estratégias em teste, o experimento antigo e o link
+  **Nova semana**, que reabre o card guardado.
+- **Um card de momento por vez**, logo acima do bloco atual e da missão: "Como foi hoje?" (à noite, na sua janela),
+  "Como está hoje?", "Nova semana", a reflexão do mês ou a "Revisão rápida". Quando mais de um vale, aparece o card
+  mais acima nessa lista, e os outros esperam atrás do botão **Mais para hoje (N)**. Tocar num deles o traz para cima, e o
+  que estava lá vai para a lista. Nada disso grava nada, e o bloco atual e a missão nunca somem.
+- **Bloco atual**, quando há um em andamento.
 - **Missão agora:** um único cartão, com o primeiro passo em destaque.
 - **Também cabe agora:** duas ou três alternativas. Tocar numa delas a promove ao cartão principal.
 - **Hoje:** a lista do dia.
@@ -119,11 +129,13 @@ No cartão do bloco atual:
 - **Começar bloco** inicia o bloco.
 - **Versão mínima** troca para a versão curta do bloco. Começar pouco já conta.
 - **Pular hoje** deixa o bloco de hoje de lado, sem registro negativo.
-- **Encerrar bloco** fecha quando você terminar. A folha pergunta, se você quiser, **Como foi?** (Feito, Parcial
-  ou Não deu), **O que saiu?** em uma linha e a próxima ação. **Encerrar sem anotar** continua sendo um toque.
+- **Encerrar bloco** fecha quando você terminar. A folha pergunta, se você quiser, **Como foi?** (Feito, Parcial, **Investiguei**
+  ou Não deu; Investiguei é pesquisa ou exploração sem entrega ainda e conta como trabalho, à parte de Não deu), **O que saiu?** em uma linha e a próxima ação. **Encerrar sem anotar** continua sendo um toque.
 - **Escapei** (ícone da porta) é um registro de um toque para quando você percebe que escapou para
   outra coisa. Notar já é a parte útil. Você escolhe para onde escapou (por exemplo, YouTube, Redes ou
   Outra) e nada mais é cobrado.
+- Se uma [estratégia](#estratégias) em teste estiver ligada a esse bloco (ou à jornada dele), o cartão mostra uma linha
+  calma, "Estratégia em teste: …", antes e durante o bloco. Ela só lembra: não pede toque e não bloqueia nada.
 
 **Começar tarde encolhe o bloco** até a versão mínima, sem empurrar o resto do dia. Se o horário do bloco
 acaba, o Agora avisa e oferece "Voltar agora", sem drama. Blocos de rotina (por exemplo, o início do dia)
@@ -135,11 +147,12 @@ Os botões do cartão principal:
 
 - **Começar** abre a ficha da missão (primeiro passo, checklist, notas). Começar nunca liga o
   cronômetro sozinho.
-- **Concluir** conclui e dá o XP. Há um aviso "Desfazer" por alguns segundos. Depois, na ficha da missão
+- **Concluir** conclui e dá o XP. Há um aviso "Desfazer" por alguns segundos; tocar no texto do aviso o fecha na hora. Depois, na ficha da missão
   concluída, o campo **O que saiu?** guarda em uma linha o que ficou pronto (opcional).
 - **Parcial** aparece quando a missão está em andamento: anote, se quiser, **O que saiu?** e a **Próxima ação**
   (que vira o primeiro passo da próxima vez) e escolha quando ela volta (Mais tarde hoje, Amanhã ou Escolher
-  dia). Parcial é progresso: não conta como adiamento.
+  dia). Marque **Investiguei** quando foi pesquisa ou exploração sem entrega ainda: o aviso diz "Investigação anotada" e o
+  fechamento do dia e os relatórios contam à parte. Parcial é progresso: não conta como adiamento.
 - **Outra** mostra a próxima sugestão.
 - **Encolher** pergunta "Qual é uma versão de 5 minutos?" e guarda como primeiro passo.
 - **Agora não** oferece **Mais tarde hoje**, **Amanhã** ou **Escolher dia**, e um **Motivo (opcional)**: Sem tempo,
@@ -150,6 +163,9 @@ Os botões do cartão principal:
   que esse bloco acontece (pulando dias livres) e, durante o bloco, ela vira a sugestão de foco. O cartão
   mostra "Plano: {bloco}". Um plano "se–então" ajuda, em média, a transformar intenção em início
   numa ocasião concreta; por isso ele aparece só para o que já foi adiado, sem virar burocracia.
+
+Quando a jornada da missão serve a um [objetivo](#objetivos-e-jornadas), o cartão e a ficha da missão mostram a cadeia em
+uma linha: "Carreira em Dados › Tech News". É só o lembrete do porquê; sem objetivo, a linha não aparece.
 
 Se uma missão foi adiada várias vezes, o cartão mostra **Encolher**, **Dividir** e **Soltar** com uma
 frase gentil. Soltar é uma estratégia legítima, não um fracasso. Dentro de um compromisso, o cartão
@@ -232,25 +248,32 @@ soltar — você escolhe. Nada aqui é atraso." Para cada missão há **Hoje mes
 Em dia que não é livre, a partir das 20h (ou do fim do último compromisso, como uma aula à noite), o
 Agora e o Painel mostram o card **Como foi hoje?**: "Dois minutos para fechar o dia. Tudo é opcional.".
 O link **Como foi hoje**, no fim do Agora, abre a mesma folha a qualquer hora. Nada disso bloqueia o app, e
-**Agora não** esconde o card naquele dia.
+**Agora não** esconde o card naquele dia. Na sua janela ele vem antes dos outros cards de momento; os outros ficam em
+**Mais para hoje**.
 
 A folha mostra:
 
-- **Observado:** blocos iniciados (e em que versão), pulados e não iniciados, missões concluídas e parciais,
+- **Observado:** blocos iniciados (e em que versão), pulados e não iniciados, missões concluídas, parciais e investigações (contadas à parte),
   minutos de foco, o treino, cards revisados e sessões de prática encerradas.
 - **Pendências de hoje:** Amanhã, Escolher dia ou Soltar para cada uma.
-- **Cansaço durante o dia** (Pouco, Médio, Muito) e uma **Observação**, opcionais. A observação não tem limite de
-  tamanho e fica no [Diário](#diário) como a entrada **fechamento do dia** (as notas escritas antes desta versão
-  passaram para lá sozinhas, sem duplicar).
+- **Como você esteve (tudo opcional):** quatro fileiras de um toque — **Cansaço durante o dia** (Pouco, Médio, Muito),
+  **Humor** (Para baixo, Ok, Bem), **Sobrecarga** (Leve, Média, Pesada) e **Concentração** (Difícil, Ok, Boa). Tocar
+  escolhe, tocar de novo desfaz. Só o que você tocou é gravado: uma escolha mudada em outro aparelho e não tocada aqui fica
+  como está.
+- Uma **Observação**, opcional, sem limite de tamanho, que fica no [Diário](#diário) como a entrada **fechamento do dia**
+  (as notas escritas antes desta versão passaram para lá sozinhas, sem duplicar).
 - **Correções:** ajustar o início e o fim de um bloco, marcar **Fiz, mas não registrei** num bloco que você
   fez sem tocar no app (fica "registrado depois" e não dá XP) e corrigir os minutos de uma sessão de foco ou
   apagá-la (com Desfazer).
 
-**Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar cansaço e nota.
+**Fechar o dia** guarda o fechamento; abrir de novo mostra "Dia fechado às …" e deixa ajustar as escolhas e a nota. **Escrever no
+diário** também guarda as escolhas que você tocou, sem fechar o dia.
 A observação só é gravada se você mexeu nela: um texto mais novo (de outro aparelho ou do diário) nunca é trocado
 pela cópia que a folha mostrou ao abrir. Se o fechamento estava em Apagadas recentemente com outro texto, ou mudou
 enquanto a folha estava aberta e você escreveu outra observação, esse texto fica em Apagadas recentemente, como uma
 entrada comum do dia (dá para restaurar), e a observação nova vira o fechamento.
+
+**Situação de fala** guarda o que você já marcou ou escreveu e abre o registro de uma situação real (veja Fala, no Estudo).
 
 ### Diário
 
@@ -268,7 +291,7 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   a outra como texto não salvo quando consegue perceber o conflito.
 - **Mudar data e hora** troca o dia e a hora (o dia segue o início do seu dia: 01:30 conta para o dia anterior).
 - Opcionais: **Ligar a…** uma missão ou uma jornada (as disciplinas são jornadas), até 3; **Temas** (Faculdade,
-  Carreira, Projetos, Estudo, Saúde, Treino, Sono, Relacionamentos, Família, Lazer, Sentimentos, Ideias); e
+  Carreira, Projetos, Estudo, Saúde, Treino, Sono, Relacionamentos, Família, Lazer, Sentimentos, Ideias, Comunicação); e
   **Privada**, que deixa a entrada fora das exportações, a menos que você a inclua naquela exportação.
 - A tela mostra **uma semana** (segunda a domingo), um grupo por dia, o mais recente primeiro, com as entradas na
   ordem da hora. **Semana anterior**, **Próxima semana** e **Mesma semana, mês passado** navegam. As respostas da
@@ -285,28 +308,104 @@ obrigatório: não há lembrete, sequência, XP nem "faltou" num dia sem entrada
   existe) e **Revisões da semana e do mês** (ligado). A **Prévia** mostra o texto exato. No iPhone,
   **Compartilhar** abre a folha de compartilhar (Salvar em Arquivos, enviar); no PC, **Baixar** salva o arquivo.
 
+#### Relatórios
+
+**Relatórios** (na barra do Diário) monta um texto em Markdown para levar a uma conversa com uma IA, ou para você reler.
+Tudo vem do que está registrado, por regras: nada é inventado para completar, nada usa IA e nada sai sem o seu toque.
+
+- **Período:** **Semana** (de segunda a domingo; na segunda e na terça a tela abre na semana passada, nos outros dias na
+  atual), **Mês** ou **Personalizado** (duas datas, até hoje, no máximo 92 dias). Um período em andamento vai até hoje.
+- **Tema:** **Geral** (todas as seções), **Aprendizagem** (blocos de estudo, revisões, prática técnica e matérias),
+  **Hábitos e comportamento** (execução, hábitos — com estratégias e concentração —, adiamentos e travas), **Saúde** (sono, treino, cansaço, humor e sobrecarga),
+  **Comunicação oral** (a prática de fala: as sessões por atividade e tamanho, as gravações como lista com datas, a velocidade
+  das leituras como observação e as situações reais, com as suas percepções separadas dos fatos) ou **Personalizado** (você
+  marca as seções; começa pelas do tema que estava escolhido).
+- **Entradas do diário:** **Nenhuma**, **Do tema** (o padrão: as entradas com os temas daquele relatório; no Geral, todas; no Hábitos e comportamento, e no Personalizado com Execução, Hábitos ou Adiamentos, também as ligadas a uma missão),
+  **Escolher** (você marca as entradas do período) ou **Todas**. **Incluir entradas privadas** fica desligado e volta a
+  desligar toda vez que você abre a tela. As entradas vão com as suas palavras, sem resumo nem correção.
+- **Dados de saúde** (quando o relatório tem Saúde): **Sono**, **Treino** e **Estado do dia**, ligados. Desligado, aquele
+  dado some do texto, sem aviso. Eles não filtram o diário: para isso, use **Escolher**.
+- Com [objetivos](#objetivos-e-jornadas), a **Visão geral** mostra, para cada um, o que esteve ligado a ele no período
+  (em **Registrado**) e, em **Minhas percepções**, as respostas do **Avançou?**, que são a sua leitura, não um dado; as
+  [temporadas](#temporadas) do período aparecem no cabeçalho, e a revisão de uma temporada entra em **Revisões**. Na
+  **Execução**, **Investiguei** é contado à parte de Parcial e de Não deu.
+- Cada seção separa **Registrado** (o que o app guardou), **Minhas percepções** (as suas palavras: "O que saiu?", o
+  pensamento do card de início, a explicação da prática, o motivo da semana atípica), **Sem dados** (o que não foi
+  registrado; ausência não é fracasso) e **Para investigar** (as mesmas regras de Padrões, como hipótese, nunca como
+  conclusão). Uma seção sem nenhum registro mostra só a linha "Sem dados", sem números.
+- Os blocos contam até ontem (hoje ainda está em andamento). Listas longas mostram as 8 primeiras e "e mais N".
+- A **Prévia** é exatamente o arquivo. No iPhone, **Compartilhar** abre a folha de compartilhar; no PC, **Baixar** salva
+  `relatorio-<tema>-<início>_a_<fim>.md`. Abrir a tela e mudar as escolhas não grava nada; as escolhas voltam ao padrão
+  na próxima visita.
+
+#### Estratégias
+
+**Estratégias** (na barra do Diário) guarda o que você decidiu testar: uma ideia de uma conversa com uma IA, de uma
+pesquisa, de Padrões ou sua. Nada chega de uma IA sozinho: a estratégia só existe se você a registrar.
+
+- **Nova estratégia:** só o título é obrigatório ("O que vai testar?"). O resto são toques opcionais: **De onde veio?**
+  (Conversa de IA, Pesquisa, Ideia minha, Padrões; com IA ou Pesquisa dá para dizer qual conversa ou fonte), **Por quê?**,
+  **O que observar?**, **Ligar a** um bloco ou a uma jornada, **Desde** (até hoje) e **Decidir em** (1 a 4 semanas; o padrão
+  é 2). **Começar a testar** guarda.
+- A lista separa **Testando**, **Mantidas**, **Ajustadas** e **Descartadas**. A partir do dia de decidir, a estratégia
+  mostra **Hora de decidir** (aqui e no card Nova semana). Decidir é opcional e não tem notificação.
+- Tocar numa estratégia abre os mesmos campos e a **Decisão**: **Ainda testando**, **Manter**, **Ajustar** ou **Descartar**,
+  com uma nota sua, se quiser. Quando chega o dia, aparece também **Decidir depois (+7 dias)**, que dá mais uma semana
+  (e guarda o que você já tinha digitado). Numa estratégia ajustada, **Testar a versão ajustada** abre uma nova já
+  preenchida; a antiga fica como histórico. Só o que você mudou é gravado.
+- **Apagar** leva para **Apagadas recentemente** (no fim da tela): lá dá para **Restaurar** ou **Apagar de vez**.
+- As estratégias em teste aparecem numa linha do Agora e do Painel ("Estratégias em teste: …", no máximo duas e "+N"); as
+  ligadas a um bloco aparecem também no cartão daquele bloco.
+- Os **Relatórios** citam no começo as estratégias em teste no período e, em Hábitos, cada uma com a origem, o estado e o que
+  os registros mostram durante o teste (blocos iniciados, Escapei), com as suas palavras e a nota "Associação, não causa".
+  Esses números são observação: não mostram que a estratégia funcionou.
+
+#### Observação de 14 dias
+
+O card **Observação de 14 dias**, no topo do Diário, liga um modo opcional: por 14 dias, marque no "Como foi hoje?" o humor,
+a sobrecarga e a concentração, se quiser. **Começar** liga; enquanto dura, o card da noite mostra só "Observação: dia N de
+14", sem insistir e sem notificação. **Encerrar observação** (com confirmação) termina antes; depois do dia 14 ela termina
+sozinha.
+
+No fim, **Ver resumo** mostra o que foi registrado, em dias: dias com algum registro, sono (pela duração da noite anterior),
+tipo do dia, humor, sobrecarga, concentração, cansaço e blocos iniciados, cada um com "sem registro" à parte. Não há
+interpretação nem cruzamento: 14 dias são poucos pontos e não sustentam conclusões. **Começar outra** substitui a
+observação anterior; aqueles dias continuam num relatório de período personalizado.
+
 ---
 
 ## 3. A semana
 
 ### O card "Nova semana"
 
-Na segunda de manhã, o Agora mostra o card **Nova semana**, com dois passos curtos (dá para
-**Começar** ou **Fazer depois**):
+Na segunda de manhã, o Agora mostra o card **Nova semana**, em dois passos curtos (dá para
+**Começar** ou **Fazer depois**). O primeiro passo, a revisão da semana passada, tem três partes:
 
 1. **Observado:** os números da semana passada, "sem julgamento".
-2. **Sua leitura**, três perguntas opcionais com suas palavras:
+2. **Avançou nos seus objetivos?** Para cada [objetivo](#objetivos-e-jornadas) ativo, o que esteve ligado a ele na
+   semana passada (missões concluídas e blocos iniciados das jornadas dele, ou "Sem registro ligado a ele na semana
+   passada.") e três chips opcionais: **Sim**, **Um pouco** e **Não desta vez**. Tocar de novo desfaz; só o que você tocou
+   é gravado.
+3. **Sua leitura**, três perguntas opcionais com suas palavras:
    - O que funcionou?
    - Qual foi o maior obstáculo?
    - Que ajuste você quer testar?
 
-O **ajuste** vira o **experimento da semana**: o Agora mostra "Experimento da semana: …" para você
-lembrar de testá-lo. Uma semana é pouco para concluir algo, então compare com calma.
+O segundo passo se chama **Objetivos da semana**.
+
+**Fazer depois** guarda o card até a próxima vez que você abrir o app; enquanto isso, o link
+**Nova semana** no topo do Agora (e do Painel) o abre de novo. Ele é oferecido na segunda e na terça.
+
+Cada linha do **ajuste** vira uma [estratégia](#estratégias) em teste (com origem Padrões quando veio de "Usar no ajuste"),
+e o Agora passa a mostrar "Estratégias em teste: …". Se alguma estratégia já chegou ao dia de decidir, o card mostra
+"Hora de decidir: …" com o link **Decidir em Estratégias**; decidir é opcional. Uma semana é pouco para concluir algo, então
+compare com calma. Os experimentos de semanas anteriores a
+esta versão continuam como estavam ("Experimento da semana: …" e "Experimentos anteriores" em Padrões).
 
 Se a IA opcional estiver ligada, um **Resumo da semana** pode aparecer depois da sua leitura
 (veja [IA opcional](#10-ia-opcional)). O que ficou aberto na semana passada vem para esta semana, a
 não ser que você toque em **Soltar**. Se um bloco tiver caído de forma clara entre a 5ª e a 8ª semana
-de uso, o card traz um aviso gentil (veja [Padrões](#6-padrões)).
+de uso, o card traz um aviso gentil, com a semana da temporada quando houver uma (veja [Padrões](#6-padrões)).
 
 ### Semana atípica
 
@@ -317,17 +416,33 @@ quanto, e os Padrões não comparam essa semana com as outras: as tendências mo
 o aviso das semanas 5–8 pula a semana e os adiamentos dela ficam fora da conta. Na segunda seguinte, o
 card Nova semana dá as boas-vindas de volta. Dá para desmarcar a qualquer momento.
 
+### Temporadas
+
+Em vez de um programa fixo, o app oferece **temporadas** opcionais de 6 a 8 semanas, com um ou dois focos. No topo de
+**Planejar → Semana**, **Nova temporada** pede o **Nome da temporada**, até dois focos (cada um com o seu texto e, se quiser,
+**Ligar o foco 1 a** (ou **2**) um objetivo ou a uma estratégia em teste), **Começa em** e a **Duração** (6, 7 ou 8 semanas). A folha
+diz em que semana ela termina.
+
+O card mostra "Temporada: {nome} · semana N de M". **Semanas atípicas não entram na conta**: elas empurram o fim uma
+semana, e o card diz quantas ficaram de fora. Ele nunca diz "7 de 6": depois da última semana planejada, diz que as
+semanas planejadas terminaram. A partir da última semana, **Rever temporada** mostra os números da temporada (as mesmas
+regras de Padrões, sem as semanas atípicas, só o que aconteceu), o **Avançou?** que você marcou nas Novas semanas e três
+perguntas opcionais (O que avançou? O que atrapalhou? O que levar para a próxima?). **Encerrar temporada** guarda as
+respostas, que aparecem no Diário e nos relatórios; **Agora não** guarda o que você escreveu neste aparelho para depois.
+Em **Editar temporada** dá para mudar tudo e, se quiser parar antes, **Rever e encerrar agora**. Uma temporada por vez;
+sem nenhuma, nada muda no app.
+
 ### Objetivos da semana
 
 Cada bloco pode ter um objetivo para a semana. Eles aparecem na aba **Planejar → Semana** e vão sendo
 marcados conforme você avança.
 
-### Planejar: Semana, Quadro, Rotina, Jornadas e Casa
+### Planejar: Semana, Quadro, Rotina, Objetivos e Casa
 
 A aba **Planejar** tem cinco visões. Uma lembrança da última escolhida fica no aparelho.
 
 - **Semana:** a semana em blocos, com setas para semana anterior e próxima. É onde se enxerga
-  quais blocos caem em quais dias, compromissos e objetivos. Toque num dia para ver o plano dele.
+  quais blocos caem em quais dias, compromissos e objetivos. Toque num dia para ver o plano dele. No topo fica a [temporada](#temporadas), se houver uma.
 - **Quadro:** missões em colunas (**Sem data**, **Hoje**, **Em andamento**, **Feito (7 dias)**).
   Use **Mover para…** para trocar de dia, ou arraste.
 - **Rotina:** o editor da sua semana-modelo. Cada **bloco** tem nome, dias da semana, horário-alvo,
@@ -339,24 +454,37 @@ A aba **Planejar** tem cinco visões. Uma lembrança da última escolhida fica n
   inteira.** Em cada bloco, o interruptor **Revisão espaçada neste bloco** diz se o Agora deve oferecer
   cards durante ele. No fim da Rotina, **Recorrentes** lista tudo o que repete: as missões com
   repetição (com a próxima data) e os compromissos semanais; toque para editar ou tirar a repetição.
-- **Jornadas:** os projetos grandes, com a próxima missão de cada um (veja [Jornadas](#jornadas)).
+- **Objetivos:** os objetivos e, dentro de cada um, as jornadas (veja [Objetivos e jornadas](#objetivos-e-jornadas)).
 - **Casa:** cardápio, compras e freezer (veja [Corpo e casa](#5-corpo-e-casa)).
 
 Compromissos (aulas, consultas) entram pelo **+** (tipo **Compromisso**) ou pela folha de compromisso no
 Planejar, com a opção **Repetir toda semana em…** (e **Repetir até**, opcional). Os lembretes de compromisso
 são notificações do servidor e dependem de **Ajustes → Notificações**.
 
-### Jornadas
+### Objetivos e jornadas
 
-A visão **Jornadas**, no **Planejar**, guarda os projetos grandes: um objetivo (o **Resultado esperado**) e várias missões em
-ordem. O endereço antigo `/jornadas` abre essa visão. **Só a próxima missão aparece no Agora**, para não virar lista de tarefas. Ao concluir a jornada,
-você ganha um bônus de XP. Uma jornada pode ter área, um baralho de estudo e sessões de prática.
+A visão **Objetivos**, no **Planejar**, junta o porquê e os projetos. Um **objetivo** é o porquê, com um **Horizonte**
+opcional em texto livre (ex.: "Primeira vaga em Engenharia de Dados · 2027") e um **Por que importa?** opcional. Uma
+**jornada** é um projeto que serve a ele: um resultado esperado e várias missões em ordem. **Só a próxima missão aparece
+no Agora**, para não virar lista de tarefas.
+
+- **Novo objetivo** cria um objetivo ativo. Até **5 ativos**: ao criar ou ativar um sexto, a folha pergunta qual pausar;
+  sem escolher, ele fica pausado. Nada é bloqueado.
+- Cada objetivo aparece com as suas jornadas (arraste para reordenar dentro dele) e um **Editar**, que muda o texto e a
+  **Situação** (Ativo, Pausado, Concluído, Arquivado). Objetivos não são apagados: saem da frente como arquivados.
+- As jornadas sem objetivo ficam em **Sem objetivo**. Escolha o objetivo de uma jornada com um toque em **Nova jornada** ou na
+  ficha da jornada, em "Editar título, resultado, objetivo e área".
+- **Mostrar concluídos e arquivados** mostra os objetivos e as jornadas que saíram da frente.
+
+O endereço antigo `/jornadas` abre essa visão. Ao concluir uma jornada, você ganha um bônus de XP; objetivos e temporadas
+não dão XP. Uma jornada pode ter área, um baralho de estudo e sessões de prática.
 
 ---
 
 ## 4. Estudo
 
-A aba **Estudo** reúne revisão espaçada, lousas, prática técnica e o progresso por matéria. Ela mostra, de cima para baixo:
+A aba **Estudo** reúne revisão espaçada, lousas, prática técnica, os PDFs da aula (em **Materiais**) e o progresso
+por matéria. Ela mostra, de cima para baixo:
 **Hoje**, **Rascunhos para completar**, **Baralhos**, **Lousas**, **Prática técnica**, **Próximos dias**,
 **Observado** e **Preferências de estudo**.
 
@@ -368,6 +496,11 @@ dos cards maduros nos últimos 30 dias (a partir de 20 revisões), minutos de re
 tópicos, sessões de prática e quantas com Autônomo, e a próxima entrega. Só números observados, sem nota.
 Dali você abre a jornada, o baralho ou a revisão só daquele baralho.
 
+**Perfil de estudo.** No topo de Matérias fica o **Perfil de estudo**: como você aprende melhor, seus horários, o
+que funciona. Ele vale para todas as disciplinas: os chats de todas as matérias leem este perfil. Toque em
+**Editar**, escreva (aceita Markdown: listas, **negrito**, títulos com #) e **Salvar**; um chat também pode propor
+um perfil novo, que você revisa como as outras propostas.
+
 **Disciplinas da faculdade.** Sem nenhuma disciplina cadastrada, Matérias oferece **Cadastrar a grade do
 semestre?** com uma grade de exemplo (seg Estruturas de Dados, ter Matemática Discreta, qua Banco de Dados, qui
 Redes de Computadores, sex Engenharia de Software, das 19h30 às 22h30). **Confirmar** cria uma jornada por disciplina na área
@@ -376,9 +509,39 @@ Faculdade e a aula semanal de cada uma; o que já existe com o mesmo nome é rea
 O compromisso genérico "Aula" nunca é apagado sozinho: o card diz onde apagá-lo.
 
 No cartão de cada disciplina aparecem a aula (dias e horário), a **próxima avaliação** ("em N dias"), "Sem
-contato há N dias de estudo" (só a partir de 5), os últimos exercícios e os assuntos por nível. **Abrir
-disciplina** leva à tela dela, com:
+contato há N dias de estudo" (só a partir de 5; ler um PDF da disciplina por pelo menos um minuto também conta como
+contato), os últimos
+exercícios e os assuntos por nível. **Abrir disciplina** leva à tela dela, com:
 
+- **Chat da disciplina:** cole o link do chat ou do projeto do ChatGPT (ou de qualquer endereço `https://`) em
+  **Link do chat ou do projeto** e toque em **Salvar**. Depois, **Abrir chat** abre a conversa numa aba nova e
+  **Trocar link** muda o endereço (apagar o campo e salvar remove o link). O link é colado à mão, porque o chat não
+  sabe o próprio endereço, e nunca é enviado a um assistente. Dali também dá para mandar o que o chat ensinou para
+  a disciplina (veja **Estudo pelos chats** em Assistentes).
+- **Caderno:** a memória da disciplina entre as conversas, em quatro seções: **Plano de ensino** (ementa,
+  objetivos, cronograma e critérios de avaliação), **O que já foi estudado**, **Dificuldades** e **Para o próximo
+  chat** (o que um chat novo precisa saber para continuar, inclusive como ensinar você). Cada seção mostra o texto
+  formatado (listas, **negrito**, títulos, fórmulas e código; nunca roda HTML) e tem **Editar**, com **Salvar** e
+  **Cancelar**; texto longo aparece cortado, com **Ver tudo**. Seção vazia diz "Vazio. Peça ao chat da matéria para
+  preencher." Na **Bibliografia**, cada livro tem título, autores e tipo (básica, complementar ou outra), **Abrir**
+  (só links `https://`, numa aba nova) e **Apagar** (com **Desfazer**); **Adicionar livro** pede título, autores,
+  tipo e link.
+- **PDFs:** os PDFs da aula (slides, plano de ensino, capítulos de livros). **Adicionar PDF** escolhe o arquivo; o
+  app mostra "Lendo o PDF…" enquanto conta as páginas e separa o texto de cada uma (é esse texto que o chat da
+  matéria lê). Cada PDF mostra o título, o número de páginas, onde você parou ("p. 34 de 120") e a marca **Neste
+  aparelho** quando o arquivo está guardado aqui. **Abrir** abre o leitor (veja [PDFs da aula](#pdfs-da-aula));
+  **Baixar para ler sem internet** guarda o PDF neste aparelho; **Tirar deste aparelho** pergunta ao PC se ele tem o
+  PDF ("Conferindo com o PC…") e só apaga a cópia daqui quando o PC responde que tem. Se o PDF ainda espera envio, se
+  o PC está desligado ou fora de alcance, ou se o PC não tem o arquivo, o botão avisa "Este PDF ainda não foi enviado
+  ao PC. Abra o app com o PC ligado antes de tirar." (quando o PC responde que não tem, o app manda o PDF de novo na
+  próxima sincronização). **Apagar** tem **Desfazer**; um minuto depois, na próxima sincronização, o app tira deste
+  aparelho os PDFs apagados, também só depois que o PC confirma que tem uma cópia. Um arquivo que não é PDF, que passa
+  de 50 MB ou que tem senha recebe a frase do motivo. Um PDF escaneado (só imagem) abre normalmente, mas não tem texto
+  para o chat.
+- **Apostilas:** resumos, explicações e listas de exercícios que os chats escrevem para você, com o dia e quem
+  escreveu. Um toque abre a apostila numa tela própria, boa de ler no celular e no notebook, com fórmulas e código.
+  **Salvar como PDF** abre a impressão, e a folha sai sem os menus e os botões: no computador, escolha "Salvar como
+  PDF" como impressora; no iPhone, abre a tela de impressão do iOS. **Apagar apostila** tem **Desfazer**.
 - **Avaliações:** provas e trabalhos com data (**Nova prova ou trabalho**, ou pelo **+**, tipo **Prova ou trabalho**). Uma avaliação é
   um evento com data: ela aparece em Hoje no próprio dia, não vira sugestão do Agora, não entra nas pendências
   e só muda de data quando você edita.
@@ -392,6 +555,40 @@ o Agora mostra **Sugestão para este bloco**: uma disciplina e o motivo, nesta o
 14 dias, 5 ou mais dias de estudo sem contato, aula hoje à noite, ou revisar a aula anterior. **Trocar**
 mostra a próxima; **Usar** põe a próxima missão daquela disciplina no cartão principal (sem criar nada) ou,
 sem missão aberta, oferece revisar o baralho dela ou registrar exercícios. **Escolher outra** desfaz.
+
+### PDFs da aula
+
+**Estudo → Materiais** (o botão **Materiais** em Baralhos) reúne todos os PDFs, por disciplina, e o grupo **Sem
+disciplina**. Ali, **Adicionar PDF** tem ao lado a escolha da disciplina, e cada PDF tem **Disciplina** para mudá-lo
+de lugar. Os chats das matérias leem só os PDFs ligados a uma disciplina; os de "Sem disciplina" ficam só com você.
+Um PDF grande (mais de 8 MB) sobe para o PC depois dos outros dados, sem segurar a sincronização das revisões; até
+terminar de subir, os outros aparelhos dizem que o PC ainda não tem o PDF.
+
+**O leitor** abre na página onde você parou, mesmo que tenha parado em outro aparelho, e mostra "p. 12 de 120".
+Dá para ir a uma página, **Ajustar à largura**, aumentar e diminuir o zoom (o zoom rola dentro da área do PDF). As
+páginas são desenhadas quando chegam perto da tela, então um livro de 300 páginas não trava; no fim de um PDF de
+slides, rolar até embaixo chega ao último slide ("p. 40 de 40"). A página atual é guardada a cada poucos segundos e
+ao sair. Abrir pelo **Ver no PDF** não muda onde você parou: só se você seguir lendo dali, 2 páginas ou mais adiante
+ou atrás. Num aparelho que ainda não tem o PDF, ele é baixado do PC na hora em que você abre ("Baixando o PDF…"),
+nunca sozinho em segundo plano, para não encher o celular; sem internet e sem cópia local, o leitor diz "Este PDF
+não está neste aparelho. Abra com o PC ligado para baixar." O leitor funciona sem internet quando o PDF já está no
+aparelho, inclusive os escaneados em preto e branco (capítulos xerocados) e os com imagens JPEG 2000. No iPhone, os
+PDFs precisam do iOS 17.4 ou mais novo (no computador, de um Chrome, Edge, Firefox ou Safari atual).
+
+**Criar card desta página:** selecione um trecho e toque no botão. Abre uma folha com a **Frente** vazia (a
+pergunta é sua), o **Verso** com o trecho, o baralho da disciplina já escolhido e a origem "Título · p. 12". Salvar
+cria um card normal, que entra na revisão. Sem seleção, o verso começa vazio. Se a disciplina do PDF foi apagada, a
+folha não escolhe baralho e diz por quê: escolha outro, ou mude a disciplina do PDF em Materiais. Na revisão, depois
+de mostrar a resposta, um card criado de um PDF tem **Ver no PDF, p. 12**, que abre o leitor nessa página; **←
+Revisão** volta para a mesma revisão (a do baralho, se era **Revisar este baralho**).
+
+**Lembrar antes de sair:** ao sair do leitor depois de ler pelo menos 3 páginas novas ou 5 minutos, aparece "Sem
+olhar, o que você lembra das páginas 12 a 18?". O que você escrever, um ponto por linha, vira um card de **Tópico**
+no baralho da disciplina, com a frente "Título · p. 12–18". **Pular** fecha sem criar nada. Só conta o tempo de
+leitura de verdade: o tempo com o celular bloqueado ou em outro app fica de fora, e um trecho sem tocar nem rolar
+conta no máximo 3 minutos (uma página difícil lida com calma conta; o leitor esquecido aberto não). Uma página conta como lida depois de 8 segundos nela, então passar rápido por 10 páginas
+não pergunta nada. Ler pelo menos um minuto conta como contato com a disciplina. Se o PDF ou a disciplina for
+apagado com o leitor aberto, a folha não aparece. Ler não dá XP.
 
 ### Baralhos e notas
 
@@ -540,6 +737,65 @@ de foco ou de estudo, oferece **Retomar** a sessão aberta ou começar uma nova 
 Há XP pequeno por esforço real (encerrar com problema e implementação escritos, e comparar uma
 reconstrução), no máximo 3 sessões por dia, e nada pelos valores dos indicadores.
 
+### Fala (comunicação oral)
+
+Em **Estudo → Fala** você pratica falar com mais clareza, naturalidade, ritmo e conforto, com gravação e **sem nota**.
+Abrir a tela não grava nada.
+
+**Hoje.** Três atividades sugeridas, uma por tamanho: **5 min**, **15 min** e **25–30 min**. O tamanho é só um rótulo:
+nada é cronometrado. **Começar** abre a sessão já preenchida; **Nova sessão** abre vazia. Com o programa de 12 semanas
+ativo, as sugestões são as da semana; sem ele, são sugestões livres.
+
+**A sessão.** Escolha a atividade: **Leitura de referência** (um dos três textos do app, sempre o mesmo texto), **Explicação
+espontânea** (de 1 a 3 minutos, explicando algo seu: um JOIN, o pipeline do Tech News, um card de tópico), **Exercício**
+(pausas, ritmo, ênfase ou articulação) ou **Simulação** (entrevista, apresentação, pergunta em aula). **Gravar** grava até
+3 minutos; ao tocar **Parar**, a gravação já fica guardada no aparelho (e vai para o servidor na próxima sincronização).
+Grave quantas vezes quiser. Fechar a sessão no meio de uma gravação para e guarda antes de fechar.
+Se você sair da tela com uma gravação em andamento, o app também a guarda.
+
+Depois, se quiser: **Como você percebeu?** (clareza percebida, ritmo, pausas e conforto vocal, de 1 a 5, em que 5 é "como
+eu queria"), **Consegui explicar?** (o conteúdo, separado da fala) e notas. Tudo isso é percepção, não medida.
+**Encerrar sessão** pede uma gravação ou **Fiz a atividade** e dá um pouco de XP de esforço, no máximo duas sessões por dia.
+Fechar sem encerrar guarda o que você escreveu, com a sessão em aberto.
+
+**Velocidade, só na leitura de referência.** Como o texto é fixo, o app divide as palavras do texto pela duração da
+gravação. A duração vai do toque em Gravar ao toque em Parar: toque em Parar logo ao terminar. A velocidade é observação,
+não meta: **mais devagar não é automaticamente melhor**. Na fala espontânea não há velocidade (seria preciso transcrever, e
+transcrição automática não mede se você foi entendido), e o app **nunca mede volume** (o microfone depende do aparelho e da
+distância).
+
+**Comparar gravações.** Abre com a primeira e a última leitura do mesmo texto, lado a lado, com data e percepção. Ouça uma e
+depois a outra; o que mudou é você quem percebe.
+
+**Situação real.** Depois de uma aula, conversa, entrevista ou apresentação, **Registrar situação real** (também pelo botão
+**Situação de fala** do "Como foi hoje?"): o contexto, se pediram para repetir (0, 1, 2, 3+), clareza e conforto percebidos e
+uma frase. É o que mostra se a prática chega ao dia a dia, com a ressalva de que pedidos de repetição dependem também do
+ambiente e de quem ouve.
+
+**Programa de 12 semanas (opcional).** Quatro fases: observar e criar referências (semanas 1–2); pausas, ritmo, articulação,
+ênfase e volume confortável (3–5); explicações técnicas e simulações (6–8); situações reais (9–12). **Você escolhe a semana**
+com **Semana anterior** e **Próxima semana**: o calendário nunca avança sozinho, e pular, repetir ou parar não é atraso. No fim
+de cada fase, uma pergunta opcional: o que mudou nas situações reais? A resposta que você digitar fica guardada mesmo se sair da tela.
+
+**Gravações e espaço.** Leituras de referência e gravações com **Guardar** ficam sempre. As outras podem sair deste aparelho
+depois de 30 dias: **Espaço das gravações → Tirar gravações antigas deste aparelho** mostra a lista e só tira com o seu toque.
+Antes de tirar, o app confere com o servidor, uma a uma, e só sai a gravação que o servidor confirma ter; as outras ficam e o
+aviso diz quantas. Para ouvir de novo uma que saiu, **Buscar no servidor**. Nada sai sozinho, e sem a sincronização conectada
+(o servidor de casa) nenhuma gravação pode sair do aparelho.
+Se você mexer na mesma sessão em dois aparelhos, as gravações dos dois são mantidas; nos outros campos vale a alteração mais
+recente.
+
+**Saúde vocal.** Rouquidão que não melhora em cerca de 4 semanas, dor ao falar, perda de voz ou esforço constante para ser
+ouvido são motivos para procurar um otorrinolaringologista ou um fonoaudiólogo. Pratique num volume confortável; se a voz
+cansar ou doer, pare. O app não avalia a sua voz e não faz diagnóstico.
+
+**Ponte com o estudo.** No fim de uma prática técnica encerrada, **Explicar em voz alta** abre uma sessão de fala já com o tema
+da prática. Abrir e fechar sem mexer não guarda nada. Na sessão, **Escolher de…** traz as suas jornadas, matérias e cards de
+tópico.
+
+O relatório **Comunicação oral** (Diário → Relatórios) mostra as sessões, as gravações (só a lista, com datas), a velocidade das
+leituras, as situações reais e as suas percepções, separadas dos fatos.
+
 ### O orçamento de tempo e os fins de semana
 
 A revisão não acumula porque o plano do dia respeita um **orçamento de tempo**, não uma contagem de cards.
@@ -588,25 +844,85 @@ O **lembrete de desaceleração** é uma notificação de segunda a sexta, desli
 
 **Plano de treino.** Em **Corpo → Treino**, **Usar a divisão de exemplo de 5 dias** cria o plano da semana (segunda
 Peito e tríceps, terça Costas e bíceps, quarta Pernas, quinta Ombros, sexta Corpo inteiro; sábado e domingo,
-descanso da musculação). **Editar plano** (`/corpo/plano`) muda o nome de cada dia e os exercícios, um por linha. Séries e
-cargas nunca são inventadas: só entram quando você registra.
+descanso da musculação). **Editar plano** (`/corpo/plano`) muda o nome de cada dia e, por exercício, as **séries**,
+as **repetições de/até**, o **descanso** (botões 60 s, 90 s, 2 min, 2–3 min, 3 min, 3–4 min ou **Outro**) e uma
+**observação**; **Subir**, **Descer** e **Remover** arrumam a lista. Tudo além do nome é opcional, e planos antigos só
+com nomes continuam valendo. Cargas nunca são inventadas: só entram quando você registra.
+
+**Bloco de treino (opcional).** No fim do plano, **Começar um bloco** pede o início, o número de semanas (1 a 8) e,
+por semana, a faixa de RIR (repetições que ainda daria para fazer com boa técnica) e, se quiser, os minutos de
+cardio. O treino de hoje mostra "Semana 2 de 4 · RIR ~2 · cardio 30 min" e o cardio mostra a meta da semana.
 
 **Treino de hoje.** O Corpo e o bloco Treino do Agora mostram "Treino de hoje: Pernas". **Abrir o treino de
 hoje** (no Agora, **Abrir treino**) leva à tela do registro: em cada exercício, repetições e carga (kg) e
-**Salvar série**, **Pulei** ou **Troquei por…**; a linha "Última: 3 × 10 · 40 kg" lembra a sessão anterior sem
-preencher nada. Também dá para pôr um **Exercício fora do plano**, registrar o **Cardio** (modalidade, minutos e
+**Salvar série**, **Pulei** ou **Troquei por…**; a linha do plano ("3 × 6–8 · descanso 2–3 min") e a linha
+"Última: 3 × 10 · 40 kg · RIR 2, 2, 1" lembram o pedido e a sessão anterior sem preencher nada. Na série, a fileira
+**RIR 0 1 2 3 4 5+** é opcional. Salvar uma série de um exercício com descanso no plano abre a faixa **Descanso**
+no rodapé (Pausar, Pular), que conta até o mínimo e mostra "Pode ir"; ela segue o relógio e não toca som.
+**Senti desconforto** anota onde (ombro, cotovelo, punho, lombar, joelho, canela ou outro) e uma nota; o app só
+registra, nunca diagnostica. Quando a última sessão chegou ao topo da faixa em todas as séries pedidas, com a mesma
+carga e com o RIR da semana (sem bloco, só as repetições contam), aparece **Pronto para subir a carga** com o motivo.
+A carga nova é você quem escreve. Também dá para pôr um **Exercício fora do plano**, registrar o **Cardio** (modalidade, minutos e
 intensidade percebida de 1 a 10) e, se quiser, esforço e recuperação. **Terminei o treino** pede os minutos (o
 tempo desde "Começar bloco", quando houver). Um dia passado pode ser corrigido em `/corpo/treino?dia=AAAA-MM-DD`;
 o que você registra para um dia passado não dá XP.
 
 **Evolução por exercício** e **Cardio por semana**, no Corpo, mostram como observado a melhor série e o volume
 das últimas sessões de cada exercício e as sessões e minutos de cardio das últimas 8 semanas completas. Sem
-recorde, meta ou progressão sugerida.
+recorde ou meta; o RIR das séries e as marcas de desconforto aparecem junto.
 
 Também dá para usar **Registrar treino** direto: musculação, cardio ou outro,
 mais os minutos. A contagem da semana é observada, sem meta. A **versão mínima do cardio** é 10 minutos de
 caminhada leve ou bicicleta, em ritmo de conversa, e conta como cardio. No bloco, **Fiz o cardio mínimo** registra de
 um toque. "Começar é a parte difícil: a versão mínima vale o mesmo XP."
+
+### Nutrição
+
+Em **Personagem → Corpo**, a seção **Nutrição** mostra o resumo de hoje ("Hoje: 1.180 de 2.350 kcal · P 80/170 · C
+140/260 · G 35/70") e **Abrir nutrição** (`/corpo/nutricao`). Sem metas, aparece **Definir metas**. Os números deste
+guia são exemplos inventados.
+
+**Alimentos e receitas** (`/corpo/nutricao/alimentos`). O app não traz tabela nutricional: você cadastra os alimentos
+que come em **Novo alimento**, com os valores por 100 g (calorias, proteína, carboidratos, gorduras e, se quiser,
+fibra), a **referência** (**Pronto**, cozido e pronto para comer, ou **Cru**), a **fonte** (**Rótulo**, **Tabela** quando
+você consultou uma base reconhecida, ou **Estimativa**, que aparece como "estimado" nos totais), o **grupo** (o plano usa
+proteína, carboidrato, verdura, fruta e gordura; **Outro** fica de fora), a **preferência** (**Pouco** entra no plano no
+máximo uma vez por dia; **Nunca** não é sugerido, mas dá para registrar) e, se quiser, uma **unidade** ("1 fatia = 25 g")
+e uma **porção máxima** por refeição (sem ela, o plano usa o limite do grupo, como 250 g de proteína, e no máximo 4
+unidades). **Bom para** marca as refeições em que o plano pode usar o alimento (nenhuma marcada vale para todas):
+assim o café da manhã não recebe arroz e frango só porque estão no estoque. Se as calorias digitadas não batem com os
+macros, a tela avisa sem impedir de salvar. **Nova receita** pede os ingredientes (um
+alimento e as gramas, inclusive o óleo ou o azeite do preparo) e o rendimento final, pesado depois de pronto; os valores
+por 100 g aparecem calculados enquanto você digita e ficam guardados ao salvar. Apagar um alimento não muda o diário:
+cada registro guarda uma cópia dos valores.
+
+**Metas e peso** (`/corpo/nutricao/metas`). As metas são gramas de proteína, carboidratos e gorduras em dois grupos,
+**Segunda a sexta** e **Sábado e domingo**; as calorias saem delas (4 kcal por grama de proteína e de carboidrato, 9
+por grama de gordura). **Salvar metas** vale a partir de hoje e guarda as anteriores no histórico ("Desde 11/11: …"),
+e os dias passados continuam com a meta que valia neles. Em **Refeições**, ligue só as que você faz (café da manhã,
+lanche da manhã, almoço, café da tarde, jantar e ceia). Em **Peso**, digite os kg e toque em **Registrar**: aparecem a
+última pesagem, a média dos últimos 7 dias com pesagem e a mudança em relação à média anterior. Uma pesagem isolada não
+muda as metas.
+
+**O dia** (`/corpo/nutricao`). O topo mostra a meta do dia, o comido, o planejado e o que falta, em calorias e em
+P/C/G, com barras. Passar da meta aparece como "passou 12 g", sem alarme.
+
+- **Estoque de hoje:** o que você tem hoje. O que tinha antes aparece como "Tinha em 24/11" com **Confirmar**, porque o
+  estoque de ontem precisa ser confirmado no dia. As gramas são opcionais; com elas, o que você come é descontado.
+  **Adicionar ao estoque** usa a mesma busca de alimentos.
+- **Adicionar o que comi**, em cada refeição: escolha o alimento (os do estoque de hoje vêm primeiro), digite as gramas
+  (vírgula vale) ou toque nas unidades ("2 fatias") e **Registrar**. Toque num item comido para corrigir as gramas, ou
+  **Apagar** (com **Desfazer**).
+- **Montar o resto do dia:** escolha a fome (**Pouca**, **Normal** ou **Muita**) e, em "Treino hoje antes de…", a
+  refeição que vem logo depois do treino (ou **Sem treino**): ela vira pós-treino e a anterior, pré-treino, e as duas
+  recebem mais carboidrato no plano. **Montar** distribui o estoque confirmado nas refeições que faltam e mostra o total
+  planejado, a diferença para a meta e frases como "Faltam 35 g de proteína.", com a sugestão de um alimento cadastrado
+  que fecharia a diferença. O que você comeu nunca muda: montar de novo troca só os itens planejados das refeições sem
+  nada comido. Num item planejado, **Comi** registra com as gramas sugeridas (dá para trocar antes) e **Tirar** o tira
+  do plano. Sem metas ou sem estoque confirmado hoje, a folha explica e leva até lá.
+
+Nada da nutrição dá XP, tem sequência ou aparece no personagem, como o sono. Os assistentes (ChatGPT e Claude) nunca
+leem nada daqui.
 
 ### Cardápio
 
@@ -650,9 +966,9 @@ Toda leitura aparece com um destes três rótulos:
 - **Observado:** contagens com o denominador ("iniciei 7 de 10 blocos"). É o que aconteceu.
 - **Hipótese:** uma leitura possível, sempre começando com "Pode ser que…". Só aparece com amostra mínima,
   são no máximo três de cada vez, e podem ser acaso. Você decide se vale testar.
-- **Experimento sugerido:** uma mudança pequena e reversível para testar por uma semana. **Usar como
-  experimento da semana** o grava como o experimento da semana, e ele aparece no Agora. Se já existe outro,
-  o app pergunta antes de trocar.
+- **Experimento sugerido:** uma mudança pequena e reversível para testar. **Testar como estratégia** a registra em
+  [Estratégias](#estratégias), em teste a partir de hoje; ela aparece no Agora. Várias podem estar em teste ao mesmo
+  tempo; uma que já está em teste mostra **Já está em teste**.
 
 ### O que há em Padrões
 
@@ -669,11 +985,11 @@ Toda leitura aparece com um destes três rótulos:
   responder na revisão × acerto. Os grupos aparecem lado a lado, com a nota **"Associação, não causa"**. Nada
   aparece antes de 14 pares de dias (e 30 revisões por grupo na revisão), e não há coeficientes nem valores-p.
 - **Semanas 5–8:** se um bloco iniciado há 4 a 8 semanas cai de forma clara, aparece um aviso gentil, sem
-  vermelho, que também diz que pode ser só variação. As opções são usar "a meta é só a versão mínima" como
-  experimento, **Ajustar a rotina** ou **Está tudo bem assim**, que dispensa o aviso daquele começo.
+  vermelho, que também diz que pode ser só variação. Com uma temporada ativa, ele diz também em que semana dela você está. As opções são **Testar como estratégia** ("a meta é só a versão
+  mínima"), **Ajustar a rotina** ou **Está tudo bem assim**, que dispensa o aviso daquele começo.
 - **Reflexão do mês:** nos 7 primeiros dias de cada mês aparece no Agora uma reflexão opcional de 3
   perguntas, com os números do mês acima das perguntas. **Pular este mês** grava sem respostas e não volta;
-  **Agora não** esconde até a próxima abertura. Em Padrões, as reflexões antigas ficam em **Reflexões do mês**
+  **Agora não** esconde pelo resto do dia, mesmo se você fechar e abrir o app. Em Padrões, as reflexões antigas ficam em **Reflexões do mês**
   e podem ser editadas.
 
 ### Como ler
@@ -682,7 +998,8 @@ Toda leitura aparece com um destes três rótulos:
 2. Leia a **Hipótese** como pergunta, não como veredito.
 3. **Associação não é causa.** Uma semana de provas, ansiedade ou uma gripe pode encurtar o sono e também o
    dia seguinte. Os números lado a lado servem para pensar, não para concluir.
-4. Teste **uma mudança por vez**, por uma semana, e lembre que uma semana ainda pode ser acaso.
+4. Compare com calma: uma estratégia é revista, por padrão, depois de 14 dias, e dá para testar várias ao mesmo tempo.
+   Quando houver várias mudanças juntas, fica mais difícil saber o que ajudou. Uma semana ainda pode ser acaso.
 5. Nada aqui dá XP: ler padrões ou refletir não é esforço de execução.
 
 ---
@@ -704,7 +1021,7 @@ O XP recompensa **esforço, início e estratégia**, não volume. Alguns exemplo
 - começar uma missão pesada ou adiada, ou encolhê-la;
 - 2 XP a cada 10 minutos de foco, com teto diário;
 - revisar 5 cards no dia e cumprir a meta do dia de estudo;
-- terminar uma sessão de prática, um treino ou um preparo em lote.
+- terminar uma sessão de prática técnica ou de fala, um treino ou um preparo em lote.
 
 Séries, cardio detalhado, resultados, motivos, fechamento do dia, correções, listas e assuntos não dão XP, e
 "Fiz, mas não registrei" também não. Registrar sono não dá XP: o registro é para você observar a regularidade, e recompensar o registro
@@ -733,8 +1050,9 @@ o tempo.
   livre as falas são sobre descanso. Áreas que você criou ganham uma andarilha.
 - Um ponto "…" no mapa indica um NPC com algo sobre hoje.
 
-Quando um território sobe de estágio por XP ganho agora, o companheiro celebra uma vez, e o Personagem
-mostra "Novidade" por 3 dias.
+Quando um território sobe de estágio por XP ganho agora, o companheiro celebra uma vez, no aparelho
+onde você ganhou o XP, e o Personagem desse aparelho mostra "Novidade" por 3 dias. Os outros aparelhos
+só atualizam o mapa quando sincronizam, sem repetir a festa.
 
 ### Cores desbloqueáveis
 
@@ -756,7 +1074,7 @@ parte, no monitor secundário. Em telas com 1200 px ou mais, o Agora também usa
 
 Três colunas, legíveis de relance e atualizadas sozinhas:
 
-- **Agora:** o bloco e a missão principal, com alternativas.
+- **Agora:** o bloco e a missão principal, com alternativas, e um card de momento por vez com **Mais para hoje**, como no celular.
 - **Hoje:** a linha do tempo, com compromissos, janelas livres e a hora atual.
 - **Apoio:** o cronômetro grande, o companheiro, a captura e a constância.
 
@@ -818,7 +1136,7 @@ pedido é **cobrado na sua conta da Anthropic**. Um **teto diário de pedidos** 
 2. Informe a chave ao servidor, fora do repositório:
    - **Neste computador:** defina `ANTHROPIC_API_KEY` como variável de ambiente de usuário do Windows e reabra o
      LIFE RPG.
-   - **No homelab:** coloque `ANTHROPIC_API_KEY=...` (e, se quiser, `LIFE_RPG_AI_DAILY_LIMIT=30`) no arquivo
+   - **No servidor de casa:** coloque `ANTHROPIC_API_KEY=...` (e, se quiser, `LIFE_RPG_AI_DAILY_LIMIT=30`) no arquivo
      `.env` do servidor, como descreve `deploy/README.md`, e suba de novo.
 3. No app, abra **Ajustes → Inteligência (opcional)** e ligue só as ajudas que quiser. Cada uma começa
    desligada. A seção só aparece com o servidor conectado pela sincronização.
@@ -838,18 +1156,100 @@ enviado"** com o texto exato que vai sair do aparelho:
 Nenhuma resposta muda dados sozinha: a pista vai para o Feedback, o card só vira rascunho com **Aceitar**, e o
 resumo fica só no aparelho.
 
+### Assistentes: ChatGPT e Claude
+
+Dá para conectar o ChatGPT ou o Claude (os que você já usa e que já sabem da sua rotina) ao LIFE RPG por um conector
+MCP. Numa conversa, o assistente lê como o app está montado e manda **propostas**: áreas, rotina em blocos,
+compromissos fixos, jornadas com missões, missões avulsas, objetivos, temporada, plano de treino (com séries, faixas,
+descansos e bloco), disciplinas, o que você estudou em cada disciplina, o caderno e as apostilas de cada disciplina,
+o seu perfil de estudo e início e fim do dia. Nada muda sem você.
+
+1. **Sincronização conectada** no app (o assistente fala com o seu servidor, não com o aparelho).
+2. No computador que serve o app, rode `tailscale funnel --bg --https=8443 http://127.0.0.1:8788`. Isso publica na
+   internet **só a porta do assistente** (MCP e login); o app e a sincronização continuam privados. O Funnel precisa
+   estar liberado no painel do Tailscale. O computador precisa estar ligado durante a conversa.
+3. Em **Ajustes → Assistentes (ChatGPT e Claude)**, cole o endereço `https://…` que o Funnel mostrou e toque em
+   **Ligar assistentes**. O app mostra o endereço do conector (`…/mcp`).
+4. No ChatGPT ou no Claude, adicione um **conector personalizado (MCP)** com esse endereço. Abre uma página do LIFE
+   RPG que diz o que o assistente poderá fazer e pede o seu **código de acesso**; toque em **Permitir**. O assistente
+   recebe uma chave limitada a ler o contexto e enviar propostas; o código de acesso nunca chega a ele.
+5. Converse. Peça, por exemplo, "monte minha rotina no LIFE RPG com o que você sabe de mim". Ele chama
+   `ler_contexto` e depois `enviar_proposta` (o ChatGPT pede a sua confirmação antes de enviar).
+6. No app aparece **Proposta do assistente · N itens** no Agora. **Revisar** mostra os itens por grupo, com o porquê de
+   cada um; desmarque o que não quiser e toque em **Aplicar selecionados** (ou **Recusar**). O que já existe com o
+   mesmo nome é reaproveitado; o que não cabe mais é pulado com o motivo. Aplicar não dá XP.
+
+**Sem conector:** se você não consegue adicionar um conector (limite do plano, outro chat), use **Ajustes → Assistentes → Sem conector**, que funciona com qualquer chat, sem servidor e sem sincronização, até offline. **Copiar pedido para o chat** copia um texto com as regras, o formato e como o app está montado (o mesmo que o assistente lê pelo conector, sem diário, sono nem nutrição). Cole no chat e converse; quando você concordar, o chat responde com um bloco JSON. Toque em **Colar resposta do chat**, cole a resposta e toque em **Revisar proposta**: o app confere o formato e, se estiver certo, abre a mesma revisão (fonte "Colada de um chat"); se houver problemas, mostra a lista para você levar de volta ao chat. Se o aparelho não deixar copiar sozinho, o texto aparece numa caixa para você copiar à mão.
+
+**Estudo pelos chats:** se você tem um chat por matéria, dá para juntar o que cada um já ensinou dentro da
+disciplina. Com o conector ligado, peça no chat da matéria algo como "manda para a disciplina Banco de Dados no LIFE
+RPG o que vimos aqui". Sem conector, abra a disciplina e use **Chat da disciplina → Copiar pedido de estudo** (o
+pedido do "Sem conector", já focado nessa disciplina), cole no chat e depois toque em **Colar resposta do chat** ali
+mesmo. Na revisão aparece o grupo **Estudo**, um item por assunto, card, prova ou trabalho e tarefa, que você pode
+desmarcar. Ao aplicar:
+
+- os assuntos entram em **Assuntos** da disciplina; os que o chat marcou como já vistos ficam em **Vi na aula**. O
+  chat nunca marca Entendi nem Resolvo sem ajuda (isso é você quem diz), e um nível nunca é rebaixado;
+- os cards entram como **rascunho** no baralho da disciplina (se ela não tiver baralho, é criado um com o nome
+  dela) e aparecem em **Estudo → Rascunhos para completar**. Só viram cards de revisão quando você abre, confere e
+  salva cada um;
+- as provas e os trabalhos entram em **Avaliações**, como os criados à mão;
+- as tarefas viram missões da jornada da disciplina (uma dúvida vira, por exemplo, "Perguntar ao professor sobre …").
+
+O que já existe na disciplina (assunto com o mesmo nome, card com a mesma frente, avaliação do mesmo tipo no mesmo
+dia, missão aberta com o mesmo título) aparece como "já existia" e não é duplicado. Nada disso dá XP.
+
+**Caderno da disciplina e apostilas:** os chats "conversam entre si" pelo app. Antes de ensinar ou propor estudo de
+uma disciplina, o chat chama `ler_disciplina` e recebe o caderno, o seu perfil de estudo, os assuntos com o nível
+de cada um, as provas e trabalhos, a lista de apostilas e até 150 cards dos baralhos da disciplina; `ler_apostila`
+lê uma apostila inteira. Assim, um chat recém-criado começa lendo esse material em vez de começar do zero. Ao
+terminar, peça algo como "atualiza o caderno de Banco de Dados no LIFE RPG" ou "faz uma apostila de normalização e
+manda para o LIFE RPG". Na revisão, no grupo **Estudo**, aparecem itens como "Caderno · Banco de Dados: Plano de
+ensino (substitui o atual)" (com "Hoje está vazio." quando a seção ainda está vazia), "Bibliografia · …" e
+"Apostila · Banco de Dados: Normalização passo a passo · 12 mil caracteres"; o "Perfil de estudo (substitui o
+atual)" vem primeiro. Ao aplicar, cada seção enviada substitui a atual (o mesmo texto aparece como "já existia");
+um livro com o mesmo título é atualizado, um novo entra no fim (até 40); uma apostila com o mesmo título na
+disciplina tem o texto substituído (a revisão avisa antes: "Já existe uma apostila com este título: o texto será
+substituído."), senão é criada. Sem conector, o **Copiar pedido de estudo** da disciplina já leva o mesmo conteúdo
+de `ler_disciplina`, com os 60 cards mais recentes, então qualquer chat recebe a memória da disciplina. Uma proposta
+pelo conector tem até 256 KB; acima disso o chat recebe "A proposta passou de 256 KB. Mande as apostilas em propostas
+separadas."
+
+**PDFs da aula:** `ler_disciplina` também lista os PDFs da disciplina (título, páginas e se têm texto), e
+`ler_material` lê o texto das páginas que o chat pedir, com o número de cada página, até 40 mil caracteres por vez
+(se passar, ele diz de que página continuar). Assim o chat monta apostilas, cards e o caderno a partir dos slides e do
+plano de ensino, citando a página. Peça algo como "lê os slides da aula 3 e faz uma apostila de normalização". O texto
+é lido no PC, então o PDF precisa ter chegado ao PC: se ainda não chegou, o chat recebe "O texto deste PDF ainda não
+chegou ao PC. Abra o app no aparelho onde o PDF foi adicionado, com o PC ligado."; um PDF escaneado responde "Este
+PDF não tem texto: é uma imagem escaneada." PDFs em "Sem disciplina" ou de disciplinas arquivadas ou concluídas nunca
+são lidos. Sem conector, o **Copiar
+pedido de estudo** lista os PDFs da disciplina só com o título e as páginas, sem o texto.
+
+**O que o assistente lê:** perfil, áreas, rotina, compromissos fixos, jornadas, objetivos, temporada, missões abertas,
+treino, disciplinas (com os nomes dos assuntos e as provas e trabalhos ainda abertos), um resumo em números das
+últimas 4 semanas, o que aconteceu com as propostas anteriores e o estudo das disciplinas: caderno, apostilas, o texto
+dos PDFs das disciplinas, assuntos, provas e trabalhos, os cards dos baralhos ligados a cada disciplina e o perfil de
+estudo. **Nunca lê** diário, sono, nutrição, check-ins, registros de energia, estratégias, baralhos e cards fora das
+disciplinas, PDFs fora das disciplinas nem o link do chat da disciplina. A conversa fica guardada pela empresa do assistente, pelas regras dela.
+
+**Limites e segurança:** até 60 chamadas por hora e 10 propostas por dia por assistente; no máximo 3 propostas
+esperando (a mais antiga é substituída). O login aceita 5 tentativas por minuto e bloqueia por 1 hora depois de 20
+erros. Em **Assistentes conectados** você vê cada assistente e o último uso, e **Revogar** corta o acesso na hora;
+**Desligar assistentes** revoga todos.
+
 ---
 
 ## 11. Backups e dados
 
 - **Onde estão:** tudo fica em `data/` no servidor: o banco (`life-rpg.sqlite`), `token`, `vapid.json`
-  (chaves de notificação) e `backups/`. Imagens e áudios ficam em `data/media/`. **Não apague `data/` nem
-  `vapid.json`.**
+  (chaves de notificação) e `backups/`. Imagens, áudios, os PDFs da aula e o texto extraído deles ficam em
+  `data/media/`. **Não apague `data/` nem `vapid.json`.**
 - **Backup diário:** o servidor faz um backup por volta das 3h e guarda os 14 mais recentes. As mídias
   também são espelhadas em `data/backups/media/`, sem ocupar espaço extra e sem apagar nada.
 - **Exportar:** em **Ajustes → Dados**, **Exportar JSON** (no iPhone, **Preparar exportação** e depois
   **Compartilhar arquivo**, para salvar em Arquivos). Imagens e áudios entram até 25 MB. Se passar, as que
-  ainda esperam envio ao servidor têm prioridade, e Ajustes avisa antes.
+  ainda esperam envio ao servidor têm prioridade, e Ajustes avisa antes. Os PDFs da aula e o texto extraído deles
+  ficam fora da exportação (Ajustes diz isso); o backup diário do PC guarda uma cópia deles.
 - **Diário:** a exportação JSON leva todas as entradas, inclusive as privadas e as de Apagadas recentemente.
   **Apagar de vez** troca o texto por vazio no aparelho e, ao sincronizar, no servidor; os backups diários do
   servidor guardam o texto antigo até girarem (14 dias).
@@ -877,7 +1277,7 @@ pessoa só, isso costuma bastar. Evite editar a mesma lousa ou sessão de práti
 
 **Os dados não aparecem no outro aparelho.**
 Confira em **Ajustes → Sincronização** se a situação está boa e se há registros **Pendentes**. O servidor
-precisa estar ligado e acessível (no homelab, o Tailscale precisa estar ligado nos dois aparelhos).
+precisa estar ligado e acessível (no servidor de casa, o Tailscale precisa estar ligado nos dois aparelhos).
 
 **Não recebo notificações no iPhone.**
 No iPhone, notificações só chegam com o app **instalado** na Tela de Início, aberto pelo ícone, em uma página
@@ -886,7 +1286,7 @@ toque em **Ativar notificações**. Se a permissão foi negada, libere nos ajust
 
 **O microfone não funciona (gravar áudio ou "Responder falando").**
 O navegador só libera o microfone em páginas **HTTPS** (ou `localhost`). Neste computador, o endereço
-`localhost:8787` já serve. No homelab, o endereço do Tailscale precisa de HTTPS (`tailscale serve`). Sem isso,
+`localhost:8787` já serve. No servidor de casa, o endereço do Tailscale precisa de HTTPS (`tailscale serve`). Sem isso,
 a gravação fica indisponível, mas você ainda pode escolher um arquivo de áudio. Se o microfone foi negado,
 permita nas configurações do navegador para este site.
 
@@ -934,16 +1334,36 @@ que cada um dá e o que não dá:
   tem utilidade moderada. Por isso o campo opcional "Por quê?", que nunca é obrigatório.
 - **Intenções de implementação e versões mínimas:** um plano no formato "se X, então Y" aumenta a chance de
   executar (Gollwitzer e Sheeran, 2006), e começar pequeno reduz a barreira de início. Os blocos de versão
-  mínima e os experimentos de uma semana vêm daí. O efeito é médio, não garantido.
+  mínima e as estratégias ligadas a um bloco vêm daí. O efeito é médio, não garantido.
 - **Regularidade do sono:** em universitários, horários mais irregulares aparecem associados a notas mais
   baixas (Phillips e colegas, 2017, observacional, cerca de 60 estudantes). É **associação, não causa**. O
   app só mostra a sua regularidade como dado observado para você testar. Não é aconselhamento médico.
 - **Hábitos levam tempo:** em um estudo, a formação de um hábito levou de semanas a meses, com grande
   variação entre pessoas, e perder um dia não comprometeu a formação (Lally e colegas, 2010). Por isso não há
-  sequências que zeram, e uma queda entre a 5ª e a 8ª semana é tratada como momento de ajuste, não como
+  sequências que zeram, as temporadas de 6 a 8 semanas deixam as semanas atípicas fora da conta, e uma queda entre a 5ª e a 8ª semana é tratada como momento de ajuste, não como
   fracasso.
+- **Mudar a situação:** estratégias de ambiente (celular em outro cômodo, biblioteca) aparecem numa revisão como mais
+  fáceis de sustentar do que resistir na hora (Duckworth, Gendler e Gross, 2016). É evidência **promissora**, ainda em
+  construção: o app registra e lembra, mas os números de um teste são observação, não prova de efeito.
+- **Acompanhar o progresso dos objetivos:** registrar o progresso aumenta a chance de atingir metas, mais quando fica
+  anotado (Harkin e colegas, 2016, meta-análise). Por isso o **Avançou?** é leve e opcional, e o app mostra o que esteve
+  ligado a cada objetivo sem nota. Metas ligadas ao que importa para você aparecem associadas a esforço mais sustentado
+  (Sheldon e Elliot, 1999): **associação, não causa**.
+- **Pesquisar é trabalho:** em tarefas novas e complexas, metas de aprendizagem (descobrir como fazer) costumam render mais
+  do que metas só de desempenho (revisão de Locke e Latham, 2002), sobretudo em estudos de laboratório. **Investiguei** é
+  só um registro honesto disso; não promete efeito.
+- **Registrar o estado do dia:** anotar humor e estado ajuda a notar variações pessoais, mas a adesão cai com o tempo e
+  poucos dias não sustentam causas. Por isso são três toques opcionais e o resumo de 14 dias vem com essa ressalva.
+- **Fala clara:** em estudos de laboratório sobre "fala clara" (revisão de Smiljanić e Bradlow, 2009), quem fala com
+  articulação mais cuidadosa, mais pausas e ritmo um pouco mais lento costuma ser mais bem entendido por quem ouve. Esses
+  estudos não separam qual ajuste pesa mais, os resultados variam entre pessoas, e a transferência para o dia a dia depende
+  de prática. Por isso o app não trata "mais devagar" como meta, mostra a velocidade só como observação e usa as situações
+  reais como termômetro. Gravar e ouvir a própria fala é **promissor, com evidência limitada**: daí a comparação sem nota.
+- **Saúde vocal:** a diretriz clínica de rouquidão (disfonia) da Academia Americana de Otorrinolaringologia e Cirurgia de
+  Cabeça e Pescoço (atualização de 2018) orienta avaliação quando a rouquidão não melhora em cerca de 4 semanas. O app só
+  repete essa orientação geral; não avalia a voz.
 - **Autoperdão:** perdoar-se por procrastinar associou-se a menos procrastinação depois (Wohl e colegas,
   2010). Daí o tom sem culpa em todo o app.
 
-Os limites de nível, o orçamento de tempo, o teto de novos cards e os estágios do mapa são **decisões de
-produto**, não resultados de estudos.
+Os limites de nível, o orçamento de tempo, o teto de novos cards, os estágios do mapa, o limite de 5 objetivos, as 12 semanas do programa de fala, os 30 dias das gravações, a
+duração das temporadas e o "um card por vez" do Agora são **decisões de produto**, não resultados de estudos.

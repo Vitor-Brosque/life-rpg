@@ -52,6 +52,21 @@ describe('JourneysView', () => {
   });
 });
 
+describe('NewJourneyForm focus', () => {
+  it('"Cancelar" and "Criar jornada" put focus on "Nova jornada", never on the body', async () => {
+    const user = userEvent.setup();
+    render(<JourneysView />);
+    await user.click(await screen.findByRole('button', { name: 'Nova jornada' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nova jornada' })).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: 'Nova jornada' }));
+    await user.type(screen.getByLabelText('Título'), 'Aprender violão');
+    await user.click(screen.getByRole('button', { name: 'Criar jornada' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nova jornada' })).toHaveFocus());
+    expect(await screen.findByText('Aprender violão')).toBeInTheDocument();
+  });
+});
+
 describe('JourneyDetail', () => {
   it('"Concluir jornada" confirms and awards 30 XP', async () => {
     const j = await seedJourney();

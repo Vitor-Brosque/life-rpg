@@ -220,7 +220,7 @@ describe('navigation', () => {
 
   it('/jornadas opens Planejar on Jornadas, with the Planejar tab lit', async () => {
     const loc = await renderApp('/jornadas');
-    expect(await screen.findByRole('tab', { name: 'Jornadas', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Objetivos', selected: true })).toBeInTheDocument();
     expect(loc.history!.at(-1)).toBe('/planejar?aba=jornadas');
     const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
     expect(within(nav).getByRole('link', { name: 'Planejar' })).toHaveAttribute('aria-current', 'page');

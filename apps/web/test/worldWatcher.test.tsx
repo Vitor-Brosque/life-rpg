@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Settings, XpEvent } from '@life/shared';
 import { normalizeSeen } from '@life/shared';
 import { db } from '../src/db/db';
-import { getMeta, newRecord, patch, put, setMeta } from '../src/db/repo';
+import { applyRemote, getMeta, newRecord, patch, put, setMeta } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import { useCompanion } from '../src/features/companion/store';
-import { WorldWatcher, checkWorld } from '../src/features/world/WorldWatcher';
+import { CELEBRATE_DELAY_MS, WorldWatcher, checkWorld } from '../src/features/world/WorldWatcher';
 
 const xp = (amount: number, fields: Partial<XpEvent> = {}): XpEvent =>
   newRecord<XpEvent>({ at: Date.now(), amount, reason: 'complete', dayKey: '2026-11-13', ...fields });
@@ -64,6 +64,25 @@ describe('WorldWatcher', () => {
     await put('xpEvents', xp(25, { areaId: 'area-vigor' }));
     await waitFor(() => expect(useCompanion.getState().message).toBe('O território de Vigor agora é um acampamento!'), { timeout: 4000 });
     expect(normalizeSeen(await getMeta('world'))?.news[0]).toMatchObject({ kind: 'stage', areaId: 'area-vigor', stage: 1 });
+  });
+
+  it('a second device: territories grown by synced XP are not celebrated again', async () => {
+    // Before its first sync the device stored the seed areas, silently, at stage 0.
+    await checkWorld(await liveAreas(), []);
+    render(<WorldWatcher />);
+    // The other device earned this XP minutes ago (and celebrated there); now it arrives by sync.
+    for (const areaId of ['area-vigor', 'area-oficio', 'area-intelecto']) {
+      await applyRemote({ table: 'xpEvents', record: { ...xp(25, { areaId }) } });
+    }
+    await waitFor(async () => expect(normalizeSeen(await getMeta('world'))?.stages)
+      .toMatchObject({ 'area-vigor': 1, 'area-oficio': 1, 'area-intelecto': 1 }));
+    await new Promise((r) => setTimeout(r, CELEBRATE_DELAY_MS + 300));
+    expect(useCompanion.getState().message).toBeUndefined();
+    expect(normalizeSeen(await getMeta('world'))?.news).toEqual([]);
+
+    // XP earned here afterwards still celebrates.
+    await put('xpEvents', xp(115, { areaId: 'area-vigor' })); // 140 in all: Aldeia
+    await waitFor(() => expect(useCompanion.getState().message).toBe('O território de Vigor agora é uma aldeia!'), { timeout: 4000 });
   });
 
   it('a muted companion says nothing, but the news is kept', async () => {

@@ -250,3 +250,26 @@
 .journey-detail__edit > summary::-webkit-details-marker { display: none; }
 .journey-detail__edit > summary::before { content: '▸'; }
 .journey-detail__edit[open] > summary::before { content: '▾'; }
+.goal-group { display: flex; flex-direction: column; gap: var(--space-2); }
+.goal-group__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.goal-group__title { margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
+.goal-group__meta, .goal-group__why, .goal-group__empty { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.goal-form input[type='text'], .goal-form select { width: 100%; }
+.goal-form__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+.goal-form__chips legend { padding: 0; margin-bottom: 6px; }
+.goal-form__note { flex-basis: 100%; margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.journey-detail__goal { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-dim); }
+.purpose-chain { margin: 0; color: var(--text-dim); font-size: 0.875rem; overflow-wrap: anywhere; }
+.main-card .purpose-chain { margin: 0 0 var(--space-2); color: var(--ink-soft); }
+
+/* --------------------------------------------------------------- temporadas */
+.season-none { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.season-none .btn { min-height: 36px; }
+.season-none__hint { color: var(--text-dim); font-size: 0.875rem; }
+.season-card { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+.season-card__title { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.season-card__title:focus { outline-offset: 4px; }
+.season-card__note { margin: 0; color: var(--text-dim); font-size: 0.875rem; }
+.season-card__focus { margin: 0; padding-left: 1.25em; }
+.season-form__issue { margin: 0; min-height: 1.25em; font-weight: 600; }
+.season-review__goals { margin: 0; padding-left: 1.25em; }

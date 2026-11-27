@@ -136,6 +136,8 @@ describe('npcLines', () => {
       id: 'e-due', now: true,
       text: 'Hoje há 14 revisões e 6 cards novos esperando, uns 7 min. Lembrar com esforço é o que fixa.',
     });
+    const one = ctx({ kind: 'escriba', world: world({ study: { due: 1, fresh: 0, minutes: 0.4, goalMet: false, restDay: false, cards: 80 } }) });
+    expect(text(one, 'e-due')).toBe('Hoje há 1 revisão esperando, cerca de 1 min. Lembrar com esforço é o que fixa.');
     expect(ids(ctx({ kind: 'escriba', world: world({ study: { due: 0, fresh: 0, minutes: 0, goalMet: true, restDay: false, cards: 80 } }) })))
       .toEqual(['e-done', 'stage']);
     expect(ids(ctx({ kind: 'escriba', world: world({ study: { due: 9, fresh: 0, minutes: 2, goalMet: false, restDay: true, cards: 80 } }) })))

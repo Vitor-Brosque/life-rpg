@@ -1,8 +1,9 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  Area, Block, BlockSession, Card, Checkin, Commitment, DayPlan, DayState, Deck, DiaryEntry, EnergyLog, FocusSession, FreezerMove, Journey,
-  LifeEvent, MediaType, Menu, Mission, MonthReview, Note, PracticeSession, ProblemSet, Profile, Recipe, Review, Settings, ShoppingList, Sketch,
-  SleepLog, SubjectTopic, SyncTable, TrainingLog, TrainingPlan, Week, Workout, XpEvent,
+  Area, Block, BlockSession, Card, Checkin, Commitment, DayPlan, DayState, Deck, DiaryEntry, EnergyLog, FocusSession, Food, FoodLog, FreezerMove,
+  Goal, Journey, LifeEvent, MediaType, Menu, Mission, MonthReview, Note, NutritionTarget, PantryItem, PracticeSession, ProblemSet, Profile, Proposal,
+  Recipe, Review, Settings, ShoppingList, Sketch, SleepLog, Season, SpeechProgram, SpeechSession, SpeechSituation, Strategy, StudyDoc,
+  StudyFile, StudyFileProgress, SubjectNotebook, SubjectTopic, SyncTable, TrainingLog, TrainingPlan, Week, WeighIn, Workout, XpEvent,
 } from '@life/shared';
 import { closeNoteEntry, weekdayOf } from '@life/shared';
 
@@ -50,6 +51,22 @@ export class LifeDB extends Dexie {
   problemSets!: Table<ProblemSet, string>;
   subjectTopics!: Table<SubjectTopic, string>;
   diaryEntries!: Table<DiaryEntry, string>;
+  strategies!: Table<Strategy, string>;
+  goals!: Table<Goal, string>;
+  seasons!: Table<Season, string>;
+  speechSessions!: Table<SpeechSession, string>;
+  speechSituations!: Table<SpeechSituation, string>;
+  speechPrograms!: Table<SpeechProgram, string>;
+  proposals!: Table<Proposal, string>;
+  foods!: Table<Food, string>;
+  nutritionTargets!: Table<NutritionTarget, string>;
+  foodLogs!: Table<FoodLog, string>;
+  pantry!: Table<PantryItem, string>;
+  weighIns!: Table<WeighIn, string>;
+  subjectNotebooks!: Table<SubjectNotebook, string>;
+  studyDocs!: Table<StudyDoc, string>;
+  studyFiles!: Table<StudyFile, string>;
+  studyFileProgress!: Table<StudyFileProgress, string>;
   mediaInfo!: Table<MediaInfo, string>;
   mediaData!: Table<MediaData, string>;
   mediaQueue!: Table<MediaUpload, string>;
@@ -174,6 +191,73 @@ export class LifeDB extends Dexie {
         await tx.table('diaryEntries').put(entry);
         await tx.table('outbox').put({ key: `diaryEntries:${entry.id}`, table: 'diaryEntries', id: entry.id, updatedAt: entry.updatedAt });
       }
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v11 (Estratégias e estado do dia): the strategies Vitor tests. No data migration: Week.experiment stays as it
+    // is (read only) and the new DayState/Settings fields need none. Same cursor restart as v2–v4 and v6–v10, so
+    // strategies a v10 client skipped (unknown table) are pulled again.
+    this.version(11).stores({
+      strategies: 'id',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v12 (Objetivos e temporadas): the objectives above the journeys and the optional 6–8-week seasons. No data migration:
+    // Journey.goalId, WeekReview.goals, the 'investiguei' outcome and the Parcial's `investigated` are optional fields. Same
+    // cursor restart as v2–v4 and v6–v11, so goals and seasons a v11 client skipped (unknown tables) are pulled again.
+    this.version(12).stores({
+      goals: 'id',
+      seasons: 'id',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+
+    // v13 (Comunicação oral): speech sessions, real situations and the 12-week program. No data migration: Settings.speech
+    // and the 'speech' XP reason are optional. Same cursor restart as v2–v4 and v6–v12, so speech records a v12 client
+    // skipped (unknown tables) are pulled again.
+    this.version(13).stores({
+      speechSessions: 'id,day',
+      speechSituations: 'id,day',
+      speechPrograms: 'id',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // Assistentes pelo MCP (2026-11-25): proposals written by the server, decided here. The cursor goes back to 0
+    // so proposals already on the server arrive (records already here are kept by the merge rule).
+    this.version(14).stores({
+      proposals: 'id,status',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // v15 (Nutrição): foods and recipes, targets with history, the diary by meal, the day's stock and weigh-ins. No data
+    // migration: Settings.nutrition is optional. Same cursor restart as v2–v4 and v6–v14, so nutrition records a v14
+    // client skipped (unknown tables) are pulled again (last-writer-wins makes the replay harmless).
+    this.version(15).stores({
+      foods: 'id,name',
+      nutritionTargets: 'id,from',
+      foodLogs: 'id,day',
+      pantry: 'id,foodId',
+      weighIns: 'id,day',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // v16 (Caderno da disciplina, 2026-11-26): one notebook per subject and the apostilas, both by subject. No data
+    // migration: Profile.studyProfile is optional. Same cursor restart as v15, so notebooks and apostilas a v15 client
+    // skipped (unknown tables) are pulled again.
+    this.version(16).stores({
+      subjectNotebooks: 'id,journeyId',
+      studyDocs: 'id,journeyId',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // v17 (PDFs da aula, 2026-11-26): the PDFs of Materiais, by subject, and where she stopped in each one (a record of
+    // its own, id = the PDF's id, so reading never rewrites the PDF's record). No data migration: Note.source is optional.
+    // Same cursor restart as v16, so PDFs a v16 client skipped (unknown tables) are pulled again.
+    this.version(17).stores({
+      studyFiles: 'id,journeyId',
+      studyFileProgress: 'id',
+    }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
   }

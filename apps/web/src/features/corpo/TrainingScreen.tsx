@@ -1,17 +1,19 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useSearch } from 'wouter';
-import type { CardioModality, DayKey, ExerciseSet, ID, TrainingExercise, TrainingLog, Workout } from '@life/shared';
+import type { CardioModality, DayKey, DiscomfortSpot, ExerciseSet, ID, PlannedDetail, TrainingExercise, TrainingLog, TrainingTarget, Workout } from '@life/shared';
 import {
-  CARDIO_LABEL, CARDIO_MODALITIES, EFFORT_MAX, EXERCISE_NAME_MAX, INTENSITY_MAX, SET_ISSUE_TEXT, WORKOUT_MAX_MIN, cardioText, isValidDayKey,
-  lastSession, lastSessionText, parseSet, performedName, startTrainingLog, trainingDayOf,
+  CARDIO_LABEL, CARDIO_MODALITIES, DISCOMFORT_LABEL, DISCOMFORT_NOTE_MAX, DISCOMFORT_NOTE_TEXT, DISCOMFORT_SPOTS, EFFORT_MAX,
+  EXERCISE_NAME_MAX, INTENSITY_MAX, RIR_MAX, SET_ISSUE_TEXT, WORKOUT_MAX_MIN, blockWeekOf, cardioText, discomfortText, isValidDayKey,
+  lastSession, lastSessionText, parseSet, performedName, plannedDetailOf, plannedText, progressionReason, rirValueText,
+  startTrainingLog, targetCardioText, targetText, trainingDayOf,
 } from '@life/shared';
 import { useTrainingLog, useTrainingLogs, useTrainingPlan, useWorkouts } from '../../db/corpoData';
 import { db } from '../../db/db';
 import { useNow, useToday } from '../../db/hooks';
 import {
   TrainingValidationError, addExtraExercise, addSet, clearExerciseStatus, finishTraining, removeCardio, removeExtraExercise,
-  removeSet, reopenTraining, replaceExercise, saveCardio, setTrainingFeel, skipExercise, undoFinishTraining, updateSet,
+  removeSet, reopenTraining, replaceExercise, saveCardio, setDiscomfort, setTrainingFeel, skipExercise, undoFinishTraining, updateSet,
 } from '../../domain/trainingActions';
 import { WorkoutValidationError } from '../../domain/workoutActions';
 import { Button } from '../../ui/Button';
@@ -21,13 +23,15 @@ import { formatClock } from '../../ui/format';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
 import { shortDay } from './corpoFormat';
+import { RestBar, useRestTimer } from './RestBar';
 import './corpo.css';
 
 const toast = (msg: string, action?: { label: string; run(): void }) => useToast.getState().show(msg, action);
 
 const kgLabel = (kg: number): string => String(kg).replace('.', ',');
 const setLine = (n: number, s: ExerciseSet): string =>
-  (s.kg !== undefined ? `Série ${n}: ${s.reps} × ${kgLabel(s.kg)} kg` : `Série ${n}: ${s.reps} repetições`);
+  `${s.kg !== undefined ? `Série ${n}: ${s.reps} × ${kgLabel(s.kg)} kg` : `Série ${n}: ${s.reps} repetições`}${s.rir !== undefined ? ` · RIR ${rirValueText(s.rir)}` : ''}`;
+const sameName = (a: string, b: string): boolean => a.trim().toLocaleLowerCase('pt-BR') === b.trim().toLocaleLowerCase('pt-BR');
 
 /** Runs an action; a validation error goes to `onInvalid`, anything else to the failure toast. */
 async function attempt(task: () => Promise<unknown>, onInvalid?: (message: string) => void): Promise<boolean> {
@@ -73,6 +77,15 @@ export function TrainingScreen() {
   const view = loaded ? (log ?? { ...startTrainingLog(day, plan ?? undefined) }) : undefined;
   const exercises = view?.exercises ?? [];
   const planName = view?.planName ?? (loaded ? trainingDayOf(plan ?? undefined, day)?.name : undefined);
+  const target: TrainingTarget | undefined = loaded ? (view?.target ?? (planName ? blockWeekOf(plan?.block, day) : undefined)) : undefined;
+  const todayPlan = loaded ? trainingDayOf(plan ?? undefined, day)?.exercises ?? [] : [];
+  // Logs created before the detailed plan have no copied request: today's plan (same name) fills the gap.
+  const detailFor = (e: TrainingExercise): PlannedDetail | undefined => {
+    if (e.planned) return e.planned;
+    const p = todayPlan.find((x) => sameName(x.name, e.name));
+    return p ? plannedDetailOf(p) : undefined;
+  };
+  const resting = useRestTimer((s) => s.exercise !== undefined);
 
   return (
     <section className="screen training stack" aria-labelledby="training-title">
@@ -81,6 +94,7 @@ export function TrainingScreen() {
       {loaded && (
         <>
           {planName && <p className="training__plan">{planName}</p>}
+          {target && <p className="training__target">{targetText(target)}</p>}
           {exercises.length === 0 && !planName && (plan ? (
             <p className="muted">Descanso da musculação.</p>
           ) : (
@@ -89,24 +103,49 @@ export function TrainingScreen() {
             </p>
           ))}
           {exercises.map((e) => (
-            <ExerciseCard key={e.id} day={day} exercise={e} reference={(() => {
+            <ExerciseCard key={e.id} day={day} exercise={e} detail={detailFor(e)} {...(() => {
               const last = lastSession(logs, performedName(e), day);
-              return last ? lastSessionText(last) : undefined;
+              if (!last) return {};
+              const ready = e.status === 'trocado' ? undefined : progressionReason(last, detailFor(e));
+              return { reference: lastSessionText(last), ...(ready ? { ready } : {}) };
             })()} />
           ))}
           <AddExtra day={day} />
-          <CardioSection day={day} log={log} others={(workouts ?? []).filter((w) => w.day === day && w.kind === 'cardio' && w.id !== log?.cardioWorkoutId)} />
+          <CardioSection day={day} log={log} target={target} others={(workouts ?? []).filter((w) => w.day === day && w.kind === 'cardio' && w.id !== log?.cardioWorkoutId)} />
           <Feel day={day} log={log} />
           <Footer day={day} log={log} defaultMin={defaultMin} blockId={blockParam} />
+          {resting && <div className="rest-bar__spacer" aria-hidden="true" />}
+          <RestBar />
         </>
       )}
     </section>
   );
 }
 
-function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: TrainingExercise; reference?: string }) {
+/** RIR 0 1 2 3 4 5+ (optional: tapping the selected one clears it). */
+function RirButtons({ value, onChange, label }: { value?: number; onChange(v: number | undefined): void; label: string }) {
+  return (
+    <div className="training-rir" role="group" aria-label={label}>
+      <span className="field__label">RIR (opcional)</span>
+      <div className="training-feel__chips">
+        {Array.from({ length: RIR_MAX + 1 }, (_, i) => i).map((n) => (
+          <Chip key={n} selected={value === n} aria-label={`RIR ${rirValueText(n)}`} onClick={() => onChange(value === n ? undefined : n)}>
+            {rirValueText(n)}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExerciseCard({ day, exercise: e, detail, reference, ready }: {
+  day: DayKey; exercise: TrainingExercise; detail?: PlannedDetail; reference?: string; ready?: string;
+}) {
   const [reps, setReps] = useState('');
   const [kg, setKg] = useState('');
+  const [rir, setRir] = useState<number>();
+  const [editRir, setEditRir] = useState<number>();
+  const [hurting, setHurting] = useState(false);
   const [error, setError] = useState<string>();
   const [editing, setEditing] = useState<number>();
   const [editReps, setEditReps] = useState('');
@@ -120,16 +159,23 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
 
   const save = (ev: FormEvent) => {
     ev.preventDefault();
-    const set = parseSet(reps, kg);
+    const set = parseSet(reps, kg, rir);
     if (set === 'reps' || set === 'kg') { setError(SET_ISSUE_TEXT[set]); return; }
     setError(undefined);
-    void attempt(() => addSet(day, e.id, set), setError);
+    void attempt(() => addSet(day, e.id, set), setError).then((ok) => {
+      if (!ok) return;
+      setRir(undefined);
+      // The rest of the plan for this exercise starts counting (a swapped exercise keeps the planned rest).
+      if (detail?.restMinSec !== undefined) {
+        useRestTimer.getState().start({ exercise: performedName(e), minSec: detail.restMinSec, ...(detail.restMaxSec !== undefined ? { maxSec: detail.restMaxSec } : {}) });
+      }
+    });
   };
   const startEdit = (i: number, s: ExerciseSet) => {
-    setEditing(i); setEditReps(String(s.reps)); setEditKg(s.kg !== undefined ? kgLabel(s.kg) : ''); setError(undefined);
+    setEditing(i); setEditReps(String(s.reps)); setEditKg(s.kg !== undefined ? kgLabel(s.kg) : ''); setEditRir(s.rir); setError(undefined);
   };
   const saveEdit = (i: number, control: Element) => {
-    const set = parseSet(editReps, editKg);
+    const set = parseSet(editReps, editKg, editRir);
     if (set === 'reps' || set === 'kg') { setError(SET_ISSUE_TEXT[set]); return; }
     setError(undefined);
     focusWhenGone(control, toHeading);
@@ -163,7 +209,12 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
           </Button>
         )}
       </div>
+      {detail && plannedText(detail) && <p className="training-ex__plan">{plannedText(detail)}</p>}
+      {detail?.note && <p className="training-ex__note">{detail.note}</p>}
       {reference && <p className="training-ex__ref">{reference}</p>}
+      {ready && (
+        <p className="training-ex__ready"><span className="training-ex__ready-tag">Pronto para subir a carga</span>{' '}{ready}</p>
+      )}
       {e.sets.length > 0 && (
         <ol className="training-sets">
           {e.sets.map((s, i) => (
@@ -178,6 +229,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
                     <span className="field__label">Carga (kg)</span>
                     <input aria-label={`Carga da série ${i + 1} de ${name}`} inputMode="decimal" value={editKg} onChange={(ev) => setEditKg(ev.target.value)} />
                   </label>
+                  <RirButtons value={editRir} onChange={setEditRir} label={`RIR da série ${i + 1} de ${name}`} />
                   <Button size="sm" variant="primary" aria-label={`Salvar série ${i + 1} de ${name}`} onClick={(ev) => saveEdit(i, ev.currentTarget)}>Salvar</Button>
                   <Button size="sm" variant="ghost" aria-label={`Cancelar edição da série ${i + 1} de ${name}`} onClick={() => { setEditing(undefined); setError(undefined); }}>Cancelar</Button>
                 </div>
@@ -204,6 +256,7 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
           <span className="field__label">Carga (kg)</span>
           <input aria-label={`Carga (kg) de ${name}`} inputMode="decimal" value={kg} onChange={(ev) => { setKg(ev.target.value); setError(undefined); }} />
         </label>
+        <RirButtons value={rir} onChange={setRir} label={`RIR da próxima série de ${name}`} />
         <Button type="submit" size="sm" variant="primary" aria-label={`Salvar série de ${name}`}>Salvar série</Button>
       </form>
       {error && <p role="alert" className="training__error">{error}</p>}
@@ -215,6 +268,9 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
           </Button>
         )}
         <Button ref={swapToggle} size="sm" aria-expanded={swapping} aria-label={`Troquei por… ${name}`} onClick={() => setSwapping((v) => !v)}>Troquei por…</Button>
+        <Button size="sm" aria-expanded={hurting} aria-label={`${e.discomfort ? 'Editar desconforto' : 'Senti desconforto'} em ${name}`} onClick={() => setHurting((v) => !v)}>
+          {e.discomfort ? 'Editar desconforto' : 'Senti desconforto'}
+        </Button>
         {state && e.sets.length === 0 && (
           <Button size="sm" variant="ghost" aria-label={`Desfazer ${state} de ${name}`}
             onClick={(ev) => { focusWhenGone(ev.currentTarget, toHeading); safeRun(clearExerciseStatus(day, e.id)); }}>
@@ -222,6 +278,8 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
           </Button>
         )}
       </div>
+      {e.discomfort && !hurting && <p className="training-ex__discomfort">{discomfortText(e.discomfort)}</p>}
+      {hurting && <DiscomfortForm day={day} exercise={e} onClose={() => setHurting(false)} />}
       {swapping && (
         <form className="training-form" noValidate onSubmit={saveSwap}>
           <label className="field">
@@ -232,6 +290,44 @@ function ExerciseCard({ day, exercise: e, reference }: { day: DayKey; exercise: 
         </form>
       )}
     </article>
+  );
+}
+
+/** "Senti desconforto": where (one tap) and an optional note; never a diagnosis. */
+function DiscomfortForm({ day, exercise: e, onClose }: { day: DayKey; exercise: TrainingExercise; onClose(): void }) {
+  const [spot, setSpot] = useState<DiscomfortSpot | undefined>(e.discomfort?.spot);
+  const [note, setNote] = useState(e.discomfort?.note ?? '');
+  const name = e.name;
+  const save = (ev: FormEvent) => {
+    ev.preventDefault();
+    if (!spot) return;
+    void attempt(() => setDiscomfort(day, e.id, { spot, note })).then((ok) => { if (ok) onClose(); });
+  };
+  return (
+    <form className="training-discomfort stack" noValidate onSubmit={save}>
+      <div className="training-feel" role="group" aria-label={`Onde foi o desconforto em ${name}`}>
+        <span className="field__label">Onde?</span>
+        <div className="plan-exercise__chips">
+          {DISCOMFORT_SPOTS.map((s) => (
+            <Chip key={s} selected={spot === s} onClick={() => setSpot(s)}>{DISCOMFORT_LABEL[s]}</Chip>
+          ))}
+        </div>
+      </div>
+      <label className="field">
+        <span className="field__label">Nota (opcional)</span>
+        <input aria-label={`Nota do desconforto em ${name}`} maxLength={DISCOMFORT_NOTE_MAX} value={note} onChange={(ev) => setNote(ev.target.value)} />
+      </label>
+      <p className="muted">{DISCOMFORT_NOTE_TEXT}</p>
+      <div className="training-ex__actions">
+        <Button type="submit" size="sm" variant="primary" disabled={!spot} aria-label={`Salvar desconforto em ${name}`}>Salvar</Button>
+        {e.discomfort && (
+          <Button size="sm" variant="ghost" onClick={() => { void attempt(() => setDiscomfort(day, e.id, undefined)).then((ok) => { if (ok) onClose(); }); }}>
+            Tirar desconforto
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" onClick={onClose}>Cancelar</Button>
+      </div>
+    </form>
   );
 }
 
@@ -255,7 +351,7 @@ function AddExtra({ day }: { day: DayKey }) {
   );
 }
 
-function CardioSection({ day, log, others }: { day: DayKey; log: TrainingLog | null | undefined; others: Workout[] }) {
+function CardioSection({ day, log, target, others }: { day: DayKey; log: TrainingLog | null | undefined; target?: TrainingTarget; others: Workout[] }) {
   const cardio = log?.cardio;
   const [editing, setEditing] = useState(false);
   const [modality, setModality] = useState<CardioModality>('bicicleta');
@@ -290,6 +386,7 @@ function CardioSection({ day, log, others }: { day: DayKey; log: TrainingLog | n
   return (
     <section className="training-cardio stack" aria-labelledby="training-cardio-title">
       <h2 id="training-cardio-title" className="section-title" tabIndex={-1}>Cardio</h2>
+      {target && targetCardioText(target) && <p className="training__target">{`Meta da semana: ${targetCardioText(target)}`}</p>}
       {cardio && !editing ? (
         <div className="training-cardio__row">
           <span>{cardioText(cardio)}</span>

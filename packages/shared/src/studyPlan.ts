@@ -79,7 +79,7 @@ export function topicCostOf(reviews: Review[]): number {
 }
 
 /** Time a review counts toward the day: up to 3 min, or 10 min for a topic (one with coverage). */
-const creditedMs = (r: Review): number => Math.min(r.durationMs, r.coverage ? TOPIC_DONE_CAP_MS : DONE_CAP_MS);
+export const creditedMs = (r: Pick<Review, 'durationMs' | 'coverage'>): number => Math.min(r.durationMs, r.coverage ? TOPIC_DONE_CAP_MS : DONE_CAP_MS);
 
 type Costs = Pick<StudyPlan, 'secPerReview' | 'newCost' | 'topicCost'>;
 

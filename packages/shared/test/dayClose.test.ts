@@ -11,17 +11,17 @@ const D = '2026-11-11'; // Wednesday
 const at = (t: string, day = D): number => timestampAt(day, t);
 const aula: Commitment = { ...base, id: 'aula', title: 'Aula', date: '2026-11-02', start: '19:00', end: '23:00', weekdays: [1, 2, 3, 4, 5], remind: true };
 const blocks = [
-  block({ id: 'r', order: 0, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' }),
-  block({ id: 'b1', name: 'Tech News', order: 1, targetStart: '09:00', durationMin: 180, minimumMin: 45 }),
-  block({ id: 'b2', name: 'Treino', order: 2, targetStart: '12:30', durationMin: 120, minimumMin: 45, kind: 'body' }),
-  block({ id: 'b3', name: 'Faculdade', order: 3, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study' }),
-  block({ id: 'b4', name: 'Estudo técnico', order: 4, targetStart: '16:45', durationMin: 60, minimumMin: 25, kind: 'study' }),
+  block({ id: 'r', order: 0, targetStart: '08:00', durationMin: 30, minimumMin: 15, kind: 'routine' }),
+  block({ id: 'b1', name: 'Tech News', order: 1, targetStart: '08:30', durationMin: 165, minimumMin: 40 }),
+  block({ id: 'b2', name: 'Treino', order: 2, targetStart: '11:45', durationMin: 90, minimumMin: 35, kind: 'body' }),
+  block({ id: 'b3', name: 'Faculdade', order: 3, targetStart: '13:45', durationMin: 90, minimumMin: 30, kind: 'study' }),
+  block({ id: 'b4', name: 'Estudo técnico', order: 4, targetStart: '15:30', durationMin: 60, minimumMin: 25, kind: 'study' }),
 ];
 const s = (blockId: string, p: Partial<BlockSession>): BlockSession => ({ ...base, id: `bs-${blockId}-${D}`, blockId, day: D, version: 'normal', ...p });
 const sessions = [
-  s('b1', { startedAt: at('09:05'), endedAt: at('12:00'), outcome: 'parcial' }),
-  s('b2', { startedAt: at('12:40'), endedAt: at('13:30'), version: 'minimum' }),
-  s('b3', { endedAt: at('15:01'), skipped: true }),
+  s('b1', { startedAt: at('08:35'), endedAt: at('11:15'), outcome: 'parcial' }),
+  s('b2', { startedAt: at('11:55'), endedAt: at('12:25'), version: 'minimum' }),
+  s('b3', { endedAt: at('13:46'), skipped: true }),
 ];
 const NOW = at('23:30');
 const occurrences = planDay({ day: D, now: NOW, dayStartHour: 4, dayEndHour: 0, mode: 'normal', blocks, commitments: [aula], sessions });
@@ -63,9 +63,9 @@ describe('dayCloseSummary', () => {
       event('partial', 'm4', D, '17:00', { result: 'quase' }),
       event('partial', 'm2', '2026-11-10', '17:00', {}),
     ],
-    focus: [focus('f1', '09:10', 50), focus('f2', '16:50', 40), focus('f3', '10:00', 30, { deleted: true }), focus('f4', '10:00', 30, { startedAt: at('10:00', '2026-11-10') })],
+    focus: [focus('f1', '09:10', 50), focus('f2', '15:40', 40), focus('f3', '10:00', 30, { deleted: true }), focus('f4', '10:00', 30, { startedAt: at('10:00', '2026-11-10') })],
     reviews: [review(D, 3), review(D, 1), review('2026-11-10', 3)],
-    practice: [practice({ endedAt: at('18:00') }), practice({ status: 'open' })],
+    practice: [practice({ endedAt: at('17:20') }), practice({ status: 'open' })],
     trainingLog: log,
     workouts: [workout(D, 'cardio', 20), workout('2026-11-10', 'cardio', 30)],
   });
@@ -74,7 +74,7 @@ describe('dayCloseSummary', () => {
       ['b1', 'normal'], ['b2', 'minimo'], ['b3', 'pulado'], ['b4', 'nao-iniciado'],
     ]);
     expect(summary.counts).toEqual({ normal: 1, minimo: 1, pulado: 1, 'nao-iniciado': 1 });
-    expect(summary.blocks[0]).toMatchObject({ startedAt: at('09:05'), endedAt: at('12:00'), outcome: 'parcial' });
+    expect(summary.blocks[0]).toMatchObject({ startedAt: at('08:35'), endedAt: at('11:15'), outcome: 'parcial' });
     expect(summary.blocks[3]).not.toHaveProperty('startedAt');
   });
   it('missions, partial (one per mission, today only), focus, reviews, practice, training, workouts', () => {
@@ -91,7 +91,7 @@ describe('dayCloseSummary', () => {
     expect(summary.pending.map((m) => m.id)).toEqual(['m3', 'm2']);
   });
   it('a retro session is marked', () => {
-    const retro = [...sessions.slice(0, 2), s('b4', { startedAt: at('17:00'), endedAt: at('17:40'), retro: true })];
+    const retro = [...sessions.slice(0, 2), s('b4', { startedAt: at('15:40'), endedAt: at('16:20'), retro: true })];
     const occ = planDay({ day: D, now: NOW, dayStartHour: 4, dayEndHour: 0, mode: 'normal', blocks, commitments: [aula], sessions: retro });
     const out = dayCloseSummary({ day: D, dayStartHour: 4, occurrences: occ, missions: [], events: [], focus: [], reviews: [], practice: [], workouts: [] });
     expect(out.blocks.find((b) => b.blockId === 'b4')).toMatchObject({ state: 'normal', retro: true });
@@ -100,9 +100,9 @@ describe('dayCloseSummary', () => {
 
 describe('corrections', () => {
   it('typedWindow: logical times, order, the future and the format', () => {
-    expect(typedWindow(D, '15:00', '16:30', 4, NOW)).toEqual({ startedAt: at('15:00'), endedAt: at('16:30') });
+    expect(typedWindow(D, '14:00', '15:30', 4, NOW)).toEqual({ startedAt: at('14:00'), endedAt: at('15:30') });
     expect(typedWindow(D, '23:40', '00:20', 4, at('02:00', '2026-11-12'))).toEqual({ startedAt: at('23:40'), endedAt: at('00:20', '2026-11-12') });
-    expect(typedWindow(D, '16:30', '15:00', 4, NOW)).toBe('order');
+    expect(typedWindow(D, '15:30', '14:00', 4, NOW)).toBe('order');
     expect(typedWindow(D, '23:00', '23:50', 4, NOW)).toBe('future');
     expect(typedWindow(D, '9:00', '10:00', 4, NOW)).toBe('format');
   });

@@ -16,8 +16,8 @@ const weekEntries = (monday: DayKey): Promise<DiaryEntry[]> =>
   db.diaryEntries.where('day').between(monday, addDays(monday, 6), true, true).toArray();
 
 async function weekReviews(monday: DayKey, dayStartHour: number): Promise<DiaryReviewRef[]> {
-  const [weeks, months] = await Promise.all([db.weeks.toArray(), db.monthReviews.toArray()]);
-  return diaryReviews({ weeks, months, monday, dayStartHour });
+  const [weeks, months, seasons] = await Promise.all([db.weeks.toArray(), db.monthReviews.toArray(), db.seasons.toArray()]);
+  return diaryReviews({ weeks, months, seasons, monday, dayStartHour });
 }
 
 /** The timeline of the week of `monday`: day groups (newest first) with the reviews answered that week. */

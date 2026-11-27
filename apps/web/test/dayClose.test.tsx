@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
-import type { BlockSession, DiaryEntry, FocusSession } from '@life/shared';
+import type { BlockSession, DayState, DiaryEntry, FocusSession } from '@life/shared';
 import { db } from '../src/db/db';
 import { refreshNow, useNow, useToday } from '../src/db/hooks';
 import { newRecord, patch, put } from '../src/db/repo';
@@ -113,8 +113,8 @@ describe('card "Como foi hoje?"', () => {
 describe('sheet "Como foi hoje"', () => {
   it('describes the observed day', async () => {
     const user = userEvent.setup();
-    await session('b1', { startedAt: at(11, 9), endedAt: at(11, 12) });
-    await session('b2', { startedAt: at(11, 12, 30), endedAt: at(11, 13), version: 'minimum' });
+    await session('b1', { startedAt: at(11, 8, 30), endedAt: at(11, 11, 15) });
+    await session('b2', { startedAt: at(11, 11, 45), endedAt: at(11, 12, 15), version: 'minimum' });
     await put('focusSessions', newRecord<FocusSession>({
       id: 'f1', startedAt: at(11, 10), endedAt: at(11, 10, 30), activeMs: 30 * 60_000, mode: 'free', outcome: 'finished',
     }));
@@ -122,7 +122,7 @@ describe('sheet "Como foi hoje"', () => {
     await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
     const s = await sheet();
     expect(await within(s).findByText('2 de 5 blocos iniciados (1 na versão mínima).')).toBeInTheDocument();
-    expect(within(s).getByText('Tech — Iniciado · 09:00–12:00')).toBeInTheDocument();
+    expect(within(s).getByText('Tech — Iniciado · 08:30–11:15')).toBeInTheDocument();
     expect(within(s).getByText('30 min de foco registrado')).toBeInTheDocument();
   });
 
@@ -193,6 +193,58 @@ describe('sheet "Como foi hoje"', () => {
     expect(within(again).getByRole('button', { name: 'Médio' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(again).getByLabelText('Observação (opcional)')).toHaveValue('Dia corrido');
     expect(within(again).getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
+  });
+
+  it('Humor, Sobrecarga and Concentração are one tap each, next to Cansaço; tapping again clears', async () => {
+    const user = userEvent.setup();
+    render(view());
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    const state = await within(s).findByRole('group', { name: 'Como você esteve (tudo opcional)' });
+    const row = (name: string) => within(state).getByRole('group', { name });
+    expect(within(row('Cansaço durante o dia')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Pouco', 'Médio', 'Muito']);
+    expect(within(row('Humor')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Para baixo', 'Ok', 'Bem']);
+    expect(within(row('Sobrecarga')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Leve', 'Média', 'Pesada']);
+    expect(within(row('Concentração')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Difícil', 'Ok', 'Boa']);
+    await user.click(within(row('Humor')).getByRole('button', { name: 'Ok' }));
+    await user.click(within(row('Sobrecarga')).getByRole('button', { name: 'Pesada' }));
+    await user.click(within(row('Sobrecarga')).getByRole('button', { name: 'Pesada' }));
+    await user.click(within(row('Concentração')).getByRole('button', { name: 'Boa' }));
+    expect(within(row('Humor')).getByRole('button', { name: 'Ok' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    const ds = (await db.dayState.get(TODAY))!;
+    expect(ds).toMatchObject({ mood: 'ok', concentration: 'boa' });
+    expect(ds.load).toBeUndefined();
+    expect(ds.tiredness).toBeUndefined();
+  });
+
+  it('a choice changed elsewhere while the sheet is open is kept: only what he touched is written', async () => {
+    await put('dayState', newRecord<DayState>({ id: TODAY, hardDay: false, reviewDone: false, tiredness: 'pouco', mood: 'baixo' }));
+    const user = userEvent.setup();
+    render(view());
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    expect(within(await within(s).findByRole('group', { name: 'Cansaço durante o dia' })).getByRole('button', { name: 'Pouco' }))
+      .toHaveAttribute('aria-pressed', 'true');
+    await patch<DayState>('dayState', TODAY, { tiredness: 'muito', mood: 'bem' });   // another device
+    await user.click(within(within(s).getByRole('group', { name: 'Concentração' })).getByRole('button', { name: 'Difícil' }));
+    await user.click(within(s).getByRole('button', { name: 'Fechar o dia' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Dia fechado.'));
+    expect(await db.dayState.get(TODAY)).toMatchObject({ tiredness: 'muito', mood: 'bem', concentration: 'dificil', closedAt: at(11, 23, 10) });
+  });
+
+  it('"Escrever no diário" keeps the choices tapped (only those) and does not close the day', async () => {
+    const user = userEvent.setup();
+    const loc = memoryLocation({ path: '/', record: true });
+    render(<Router hook={loc.hook}>{view()}</Router>);
+    await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
+    const s = await sheet();
+    await user.click(within(await within(s).findByRole('group', { name: 'Humor' })).getByRole('button', { name: 'Bem' }));
+    await user.click(within(s).getByRole('button', { name: 'Escrever no diário' }));
+    await waitFor(() => expect(loc.history!.at(-1)).toMatch(/^\/diario\/[0-9A-Z]{26}$/));
+    await waitFor(async () => expect((await db.dayState.get(TODAY))?.mood).toBe('bem'));
+    expect((await db.dayState.get(TODAY))?.closedAt).toBeUndefined();
   });
 
   it('the observation shows the fechamento entry of the day, with no length limit', async () => {
@@ -332,9 +384,9 @@ describe('sheet "Como foi hoje"', () => {
     await user.click(await within(s).findByText('Correções'));
     await user.click(within(s).getByRole('button', { name: 'Fiz, mas não registrei: Compl' }));
     expect(within(s).getByText('Fica marcado como registrado depois e não dá XP.')).toBeInTheDocument();
-    expect(within(s).getByLabelText('Início de Compl')).toHaveValue('18:00');
+    expect(within(s).getByLabelText('Início de Compl')).toHaveValue('16:50');
     await user.click(within(s).getByRole('button', { name: 'Registrar Compl' }));
-    expect(await within(s).findAllByText(/Compl — Iniciado · registrado depois · 18:00–18:40/)).not.toHaveLength(0);
+    expect(await within(s).findAllByText(/Compl — Iniciado · registrado depois · 16:50–17:20/)).not.toHaveLength(0);
     await waitFor(() => expect(document.activeElement).toBe(within(s).getByRole('button', { name: 'Ajustar horário de Compl' })));
     expect(await db.blockSessions.get(`bs-b5-${TODAY}`)).toMatchObject({ retro: true });
     expect((await db.xpEvents.toArray()).filter((x) => x.reason === 'block')).toHaveLength(0);
@@ -342,7 +394,7 @@ describe('sheet "Como foi hoje"', () => {
 
   it('corrects block times and focus minutes, and deletes a focus session with Desfazer', async () => {
     const user = userEvent.setup();
-    await session('b1', { startedAt: at(11, 9), endedAt: at(11, 12) });
+    await session('b1', { startedAt: at(11, 8, 30), endedAt: at(11, 11, 15) });
     await put('focusSessions', newRecord<FocusSession>({
       id: 'f1', startedAt: at(11, 10), endedAt: at(11, 11), activeMs: 60 * 60_000, mode: 'free', outcome: 'finished',
     }));
@@ -352,11 +404,11 @@ describe('sheet "Como foi hoje"', () => {
     await user.click(await within(s).findByText('Correções'));
     await user.click(within(s).getByRole('button', { name: 'Ajustar horário de Tech' }));
     const start = within(s).getByLabelText('Início de Tech');
-    expect(within(s).getByLabelText('Fim de Tech')).toHaveValue('12:00');
+    expect(within(s).getByLabelText('Fim de Tech')).toHaveValue('11:15');
     await user.clear(start);
-    await user.type(start, '09:10');
+    await user.type(start, '08:40');
     await user.click(within(s).getByRole('button', { name: 'Salvar horário de Tech' }));
-    await waitFor(async () => expect((await db.blockSessions.get(`bs-b1-${TODAY}`))!.startedAt).toBe(at(11, 9, 10)));
+    await waitFor(async () => expect((await db.blockSessions.get(`bs-b1-${TODAY}`))!.startedAt).toBe(at(11, 8, 40)));
     await waitFor(() => expect(document.activeElement).toBe(within(s).getByRole('button', { name: 'Ajustar horário de Tech' })));
 
     await user.click(within(s).getByRole('button', { name: 'Corrigir minutos do foco das 10:00' }));
@@ -392,7 +444,7 @@ describe('sheet "Como foi hoje"', () => {
 
   it('shows the correction error next to the field', async () => {
     const user = userEvent.setup();
-    await session('b1', { startedAt: at(11, 9), endedAt: at(11, 12) });
+    await session('b1', { startedAt: at(11, 8, 30), endedAt: at(11, 11, 15) });
     render(view());
     await user.click(await screen.findByRole('button', { name: 'Como foi hoje' }));
     const s = await sheet();

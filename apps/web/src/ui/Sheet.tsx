@@ -29,10 +29,18 @@ export function Sheet({ open, onClose, title, children, placement = 'bottom' }: 
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // The opener is read while rendering, before the content mounts: a field with autoFocus takes the focus on commit,
+  // and the effect below would then see that field (inside the sheet) instead of the control that opened it.
+  const openerRef = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  wasOpen.current = open;
 
   useEffect(() => {
     if (!open) return;
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = openerRef.current;
     // Focus the dialog itself: focusing a field would pop the iPhone keyboard on every open.
     // Content that wants a field focused can use autoFocus.
     if (panelRef.current && !panelRef.current.contains(document.activeElement)) panelRef.current.focus();

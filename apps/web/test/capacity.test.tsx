@@ -50,14 +50,14 @@ describe('blockFit', () => {
       mission({ id: 'outro', areaId: 'area-ordem', durationMin: 60, date: TODAY }),
     ];
     const fit = blockFit({ mission: moving, blocks: FIXTURE, plan: plan(), missions, today: TODAY });
-    expect(fit).toMatchObject({ load: 175, capacity: 120, full: true, nextDay: '2026-11-12' });
+    expect(fit).toMatchObject({ load: 175, capacity: 90, full: true, nextDay: '2026-11-12' });
     expect(fit?.block.id).toBe('b2');
   });
 
   it('fits when the load stays within the block', () => {
-    const moving = mission({ id: 'perna', areaId: 'area-vigor', durationMin: 90 });
+    const moving = mission({ id: 'perna', areaId: 'area-vigor', durationMin: 60 });
     expect(blockFit({ mission: moving, blocks: FIXTURE, plan: plan(), missions: [moving], today: TODAY }))
-      .toMatchObject({ load: 90, capacity: 120, full: false });
+      .toMatchObject({ load: 60, capacity: 90, full: false });
   });
 
   it('an explicit blockId wins over the area; missions of no block have no fit', () => {
@@ -102,7 +102,7 @@ describe('quick review', () => {
     const row = await item('Treino de perna');
     await blockReady(row);
     await user.click(within(row).getByRole('button', { name: 'Hoje' }));
-    expect(await within(row).findByText('O bloco Treino de hoje já está cheio (2h30 de 2h). Mandar para o próximo (qui)?'))
+    expect(await within(row).findByText('O bloco Treino de hoje já está cheio (2h30 de 1h30). Mandar para o próximo (qui)?'))
       .toBeInTheDocument();
     expect((await db.missions.get(m.id))?.date).toBe('2026-11-10');
     await user.click(within(row).getByRole('button', { name: 'Mandar para o próximo (qui)' }));
@@ -151,7 +151,7 @@ describe('"Mover para…" panel', () => {
     await user.click(await within(backlog).findByRole('button', { name: 'Mover para… Candidatura' }));
     expect(await within(backlog).findByRole('button', { name: 'Próximo bloco (qui)' })).toBeInTheDocument();
     await user.click(within(backlog).getByRole('button', { name: 'Hoje' }));
-    expect(await within(backlog).findByText('O bloco Compl de hoje já está cheio (1h de 40 min). Mandar para o próximo (qui)?'))
+    expect(await within(backlog).findByText('O bloco Compl de hoje já está cheio (1h de 30 min). Mandar para o próximo (qui)?'))
       .toBeInTheDocument();
     await user.click(within(backlog).getByRole('button', { name: 'Mandar para o próximo (qui)' }));
     await waitFor(async () => expect((await db.missions.get(m.id))?.date).toBe('2026-11-12'));

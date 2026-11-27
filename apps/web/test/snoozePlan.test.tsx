@@ -121,7 +121,7 @@ describe('SnoozeDialog plan', () => {
     const m = await createMission({ title: 'Treinar', postponeCount: 2 });
     renderDialog(m);
     await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));
-    await user.selectOptions(screen.getByLabelText('Quando?'), 'b2'); // Treino 12:30
+    await user.selectOptions(screen.getByLabelText('Quando?'), 'b2'); // Treino 11:45
     await user.click(screen.getByRole('button', { name: 'Guardar para o próximo Treino' }));
     await waitFor(async () => expect((await db.missions.get(m.id))?.date).toBe(TODAY));
   });
@@ -164,7 +164,7 @@ describe('SnoozeDialog plan, without a block', () => {
 describe('SnoozeDialog plan, today in a lighter mode', () => {
   it("a block that today's stored mode leaves out is kept for the next qualifying day", async () => {
     const user = userEvent.setup();
-    await setDayMode('recovery'); // only protected blocks happen; Treino (12:30, not started) does not
+    await setDayMode('recovery'); // only protected blocks happen; Treino (11:45, not started) does not
     const m = await createMission({ title: 'Treinar', postponeCount: 1 });
     render(<><SnoozeDialog mission={m} today={TODAY} onClose={vi.fn()} /><ToastHost /></>);
     await user.click(await screen.findByRole('button', { name: 'Fazer um plano (opcional)' }));

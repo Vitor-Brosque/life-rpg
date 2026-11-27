@@ -52,6 +52,8 @@
   --nav-h: 64px;
   --sidebar-w: 232px;
   --dock-h: 0px; /* height of the slot above the nav, measured by Layout */
+  --dock-bar-h: 0px; /* height of the bar right above the nav alone (the timer), measured by Layout */
+  --dock-fab-w: 0px; /* width to keep free at the right for the floating "+", measured by Layout */
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);

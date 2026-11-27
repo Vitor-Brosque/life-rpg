@@ -288,6 +288,8 @@ export function CaptureForm({ defaultDate, autoFocus, onEscape }: CaptureFormPro
         enterKeyHint="done"
         autoComplete="off"
         autoCapitalize="sentences"
+        // The browser's spelling underline is red, and names like "SQL" trip it; autocorrect is untouched.
+        spellCheck={false}
       />
       {hint && <p className="capture__hint">{hint}</p>}
       <CaptureOptions view={view} ctx={ctx} openRow={openRow} onToggleRow={toggleRow} choose={choose}

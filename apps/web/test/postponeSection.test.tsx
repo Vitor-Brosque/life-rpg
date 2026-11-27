@@ -8,6 +8,7 @@ import { timestampAt } from '@life/shared';
 import { db } from '../src/db/db';
 import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
+import { testStrategy } from '../src/domain/strategyActions';
 import { useMissionSheet } from '../src/features/mission/MissionSheet';
 import { PatternsScreen } from '../src/features/patterns/PatternsScreen';
 import { ToastHost } from '../src/ui/Toast';
@@ -79,7 +80,7 @@ describe('Adiamentos', () => {
     expect(screen.getByText('Tarde: adiou 6 · começou 2')).toBeInTheDocument();
   });
 
-  it('hypotheses come with their basis and an experiment that becomes the week\'s', async () => {
+  it('hypotheses come with their basis and an experiment tested as a strategy', async () => {
     const user = userEvent.setup();
     await seed();
     renderScreen();
@@ -89,9 +90,10 @@ describe('Adiamentos', () => {
     expect(screen.getByText('Hipóteses vêm de contagens de 4 semanas: podem ser acaso e mostram associação, não causa. Você decide se vale testar.')).toBeInTheDocument();
     await user.click(within(h).getByRole('button', { name: 'Abrir missão: Lista de cálculo' }));
     expect(useMissionSheet.getState().openId).toBe('mH1');
-    await user.click(within(h).getByRole('button', { name: 'Usar como experimento da semana' }));
-    await waitFor(async () => expect((await db.weeks.get('2026-11-09'))?.experiment)
-      .toBe('Nesta semana, reescreva o primeiro passo de “Lista de cálculo” como uma ação de 5 minutos, ou divida a missão em etapas.'));
+    await user.click(within(h).getByRole('button', { name: 'Testar como estratégia' }));
+    await waitFor(async () => expect((await db.strategies.toArray()).map((s) => [s.title, s.source])).toEqual([
+      ['Nesta semana, reescreva o primeiro passo de “Lista de cálculo” como uma ação de 5 minutos, ou divida a missão em etapas.', 'padroes'],
+    ]));
   });
 
   it('below 8 postponements: says how far it is', async () => {
@@ -111,14 +113,11 @@ describe('Adiamentos', () => {
     expect(screen.getByText('Uma semana é pouco para concluir: compare com calma.')).toBeInTheDocument();
   });
 
-  it('asks before replacing an experiment the week already has', async () => {
-    const user = userEvent.setup();
+  it('a suggestion already in test says so', async () => {
     await seed();
-    await db.weeks.put({ ...base, id: '2026-11-09', objectives: [], experiment: 'Celular longe' } satisfies Week);
+    await testStrategy('Nesta semana, reescreva o primeiro passo de “Lista de cálculo” como uma ação de 5 minutos, ou divida a missão em etapas.', 'padroes');
     renderScreen();
     const h = await screen.findByRole('article', { name: 'Pode ser que “Lista de cálculo” esteja grande ou pouco clara.' });
-    await user.click(within(h).getByRole('button', { name: 'Usar como experimento da semana' }));
-    expect(await within(h).findByText(/já tem o experimento “Celular longe”/)).toBeInTheDocument();
-    expect((await db.weeks.get('2026-11-09'))?.experiment).toBe('Celular longe');
+    expect(await within(h).findByRole('button', { name: 'Já está em teste' })).toBeDisabled();
   });
 });

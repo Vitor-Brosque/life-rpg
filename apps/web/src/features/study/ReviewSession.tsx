@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocation, useSearch } from 'wouter';
 import type { Card, CardFace, ID, Note, Rating, ScheduleCtx, Stroke, StudyInput, StudyPlan } from '@life/shared';
 import {
-  cardFace, nextLearningAt, pickNext, previews, remainingOf, scheduleOf, studyPlan, studySettingsOf, suggestRating,
+  cardFace, nextLearningAt, pickNext, previews, remainingOf, scheduleOf, studyPlan, studySettingsOf, suggestRating, weekdayOf,
 } from '@life/shared';
 import { db } from '../../db/db';
 import { useDayMode, useProfile, useSettings, useToday } from '../../db/hooks';
@@ -11,7 +11,7 @@ import { maxDurationMs, rateCard, setCardSuspended, undoRating } from '../../dom
 import { createSketch, saveSketchStrokes } from '../../domain/sketchActions';
 import { Button } from '../../ui/Button';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
-import { formatClock, plural } from '../../ui/format';
+import { WEEKDAY_ABBR, formatClock, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { FAILURE_TOAST, safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
@@ -286,7 +286,7 @@ export function ReviewSession() {
           {phrase && <p className="review__phrase">{phrase}</p>}
           {session.goalShown && <p>Meta de hoje feita.</p>}
           {view.nextLearning !== undefined && <p className="muted">Um card em aprendizado volta às {formatClock(view.nextLearning)}.</p>}
-          {next && <p className="muted">Próximo dia de estudo: {forecastMinutes(next.min).text}.</p>}
+          {next && <p className="muted">Próximo dia de estudo ({WEEKDAY_ABBR[weekdayOf(next.day)]}): {forecastMinutes(next.min).text}.</p>}
           <div className="study-today__actions">
             <Button variant="primary" onClick={finish}>Voltar ao Estudo</Button>
             {session.undo.length > 0 && <Button variant="ghost" onClick={() => void onUndo()} aria-keyshortcuts="Z">Desfazer</Button>}
@@ -344,8 +344,9 @@ export function ReviewSession() {
           <Panel variant="stone" className="review__card">
             <Rich text={isCloze && revealed ? face.back : face.front} className="review__front" />
             <SpeakButton text={isCloze && revealed ? face.back : face.front} lang={view.speechLang} label="Ouvir a pergunta" />
-            {isCode && (
-              <CodeEditor label="Sua resposta (código)" language={face.code!.lang} value={answer} onChange={setAnswer} readOnly={revealed} rows={6} />
+            {/* After the reveal the typed code shows once, in "Sua resposta" next to the answer. */}
+            {isCode && !revealed && (
+              <CodeEditor label="Sua resposta (código)" language={face.code!.lang} value={answer} onChange={setAnswer} rows={6} />
             )}
             {!revealed && (
               <div className="review__modes">
@@ -387,7 +388,8 @@ export function ReviewSession() {
                     : undefined} />
               )}
               {revealed
-                ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} speechLang={view.speechLang} />
+                ? <RevealPanel face={face} answer={answer} cloze={isCloze} covered={covered} onToggle={toggle} speechLang={view.speechLang}
+                  {...(note.source ? { source: note.source } : {})} />
                 : <Button variant="primary" onClick={reveal} aria-keyshortcuts="Space">Mostrar resposta</Button>}
             </div>
           </Panel>

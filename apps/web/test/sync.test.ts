@@ -344,6 +344,39 @@ describe('startSync', () => {
     expect(f.mock.calls.length).toBe(after);
   });
 
+  it('losing the connection shows offline at once, with nothing to send; coming back syncs again', async () => {
+    await setMeta('syncToken', 'tok');
+    const f = vi.fn(async () => json({ cursor: 1, changes: [] }));
+    vi.stubGlobal('fetch', f);
+    vi.stubGlobal('EventSource', FakeES);
+    fake();
+    const stop = start();
+    await flushUntil(() => useSyncStatus.getState().state === 'idle');
+    expect(useSyncStatus.getState().state).toBe('idle');
+    const calls = f.mock.calls.length;
+
+    window.dispatchEvent(new Event('offline'));
+    expect(useSyncStatus.getState().state).toBe('offline');
+    expect(f.mock.calls.length).toBe(calls); // said by the browser's event, not by a failed request
+
+    window.dispatchEvent(new Event('online'));
+    await flushUntil(() => useSyncStatus.getState().state === 'idle');
+    expect(useSyncStatus.getState().state).toBe('idle');
+
+    stop();
+    window.dispatchEvent(new Event('offline'));
+    expect(useSyncStatus.getState().state).toBe('idle');
+  });
+
+  it('the offline event leaves a sync that is turned off alone', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    fake();
+    start();
+    await flush(100);
+    window.dispatchEvent(new Event('offline'));
+    expect(useSyncStatus.getState().state).toBe('disabled');
+  });
+
   it('retries with doubling delay only on failed retries', async () => {
     await setMeta('syncToken', 'tok');
     const f = vi.fn(async () => { throw new TypeError('network'); });

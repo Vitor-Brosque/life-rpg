@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import type { Area, BlockOccurrence, DayKey, DayMode, Mission } from '@life/shared';
-import { isOfBlock, reviewPrompt } from '@life/shared';
+import { isOfBlock, reviewPrompt, strategiesForBlock, strategyLine } from '@life/shared';
 import { useBlocks, useWeek } from '../../db/hooks';
+import { useStrategies } from '../../db/strategyData';
 import { useTimer } from '../../timer/store';
 import { PracticePrompt } from '../practice/PracticePrompt';
 import { ReviewPrompt, ReviewPromptView } from '../study/ReviewPrompt';
@@ -77,6 +78,7 @@ export function AgoraNow({
   const { engine, primary, alternatives, actions, canSkip } = agora;
   const week = useWeek();
   const blocks = useBlocks();
+  const strategies = useStrategies();
   const note = useResumeNote(current?.block.id, today);
   const timerMissionId = useTimer((s) => (s.status === 'idle' ? undefined : s.missionId));
 
@@ -105,10 +107,14 @@ export function AgoraNow({
     // The mission being worked on: the timer's, else the main card's when it belongs to the block.
     const timerMission = timerMissionId ? missions.find((m) => m.id === timerMissionId && live(m)) : undefined;
     const focus = timerMission ?? (primary && isOfBlock(primary.mission, current.block) ? primary.mission : undefined);
+    const blockIds = sameNameIds(blocks, current.block);
+    const strategy = strategyLine(
+      strategiesForBlock(strategies ?? [], today, blockIds, current.block.journeyId).map((s) => s.title),
+    );
     return (
       <>
         <BlockBanner occurrence={current} now={now} next={next} note={showNote ? note : undefined} week={week}
-          blockIds={sameNameIds(blocks, current.block)} focusMission={focus} compact={compact} />
+          blockIds={blockIds} strategy={strategy} focusMission={focus} compact={compact} />
         <SubjectSuggestion current={current} today={today}
           mainMissionId={current.block.kind !== 'routine' ? primary?.mission.id : undefined} />
         {showReview || showPractice ? (

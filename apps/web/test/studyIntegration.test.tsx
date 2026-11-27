@@ -21,7 +21,7 @@ afterEach(() => { vi.useRealTimers(); });
 
 const block = (over: Partial<Block> = {}): Block => ({
   id: 'b1', createdAt: 1, updatedAt: 1, deleted: false, name: 'Complementos', weekdays: [1, 2, 3, 4, 5], order: 0,
-  targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light', protected: false, checklist: [], archived: false, ...over,
+  targetStart: '16:50', durationMin: 30, minimumMin: 10, kind: 'light', protected: false, checklist: [], archived: false, ...over,
 });
 const occ = (over: Partial<Block> = {}) => ({ block: block(over) }) as unknown as BlockOccurrence;
 

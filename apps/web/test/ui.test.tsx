@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -59,6 +59,28 @@ describe('Sheet', () => {
     expect(opener).toHaveFocus();
   });
 
+  it('gives focus back to the opener even when the content has an autoFocus field', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>Novo</button>
+          <Sheet open={open} onClose={() => setOpen(false)} title="Novo item">
+            <input type="text" aria-label="Título" autoFocus />
+            <button type="button" onClick={() => setOpen(false)}>Criar</button>
+          </Sheet>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Novo' }));
+    expect(screen.getByRole('textbox', { name: 'Título' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Criar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Novo' })).toHaveFocus();
+  });
+
   it('closes from the close button', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -89,6 +111,74 @@ describe('Toast', () => {
     expect(region).toHaveTextContent('Salvo');
     act(() => { vi.advanceTimersByTime(4100); });
     expect(screen.queryByText('Salvo')).not.toBeInTheDocument();
+  });
+
+  it('a tap on the message closes it at once; a new toast shown by the action survives the action tap', async () => {
+    const user = userEvent.setup();
+    render(<ToastHost />);
+    act(() => useToast.getState().show('Missão concluída · +10 XP', { label: 'Desfazer', run: () => {} }));
+    await user.click(screen.getByText('Missão concluída · +10 XP'));
+    expect(screen.queryByText('Missão concluída · +10 XP')).not.toBeInTheDocument();
+
+    act(() => useToast.getState().show('Missão concluída', { label: 'Desfazer', run: () => useToast.getState().show('Desfeito') }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(screen.getByText('Desfeito')).toBeInTheDocument();
+  });
+});
+
+describe('Toast action focus', () => {
+  afterEach(() => { act(() => useToast.getState().dismiss()); });
+
+  it('after the action the focus is on the page heading, never on <body>', async () => {
+    const user = userEvent.setup();
+    render(<><h1 tabIndex={-1} data-focus-target="page">Tela</h1><ToastHost /></>);
+    act(() => useToast.getState().show('Feito', { label: 'Desfazer', run: () => {} }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Tela' })).toHaveFocus());
+  });
+
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  const page = () => render(<><h1 tabIndex={-1} data-focus-target="page">Tela</h1><input aria-label="Campo" /><ToastHost /></>);
+
+  it('an action that moves focus to an element keeps it there (the heading does not take it)', async () => {
+    const user = userEvent.setup();
+    page();
+    const field = screen.getByRole('textbox', { name: 'Campo' });
+    act(() => useToast.getState().show('Feito', { label: 'Desfazer', run: () => field.focus() }));
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull());
+    await settle();
+    expect(field).toHaveFocus();
+  });
+
+  it('an action whose screen moves focus a moment later (a microtask) keeps it there', async () => {
+    const user = userEvent.setup();
+    page();
+    const field = screen.getByRole('textbox', { name: 'Campo' });
+    act(() => useToast.getState().show('Feito', { label: 'Abrir', run: () => queueMicrotask(() => field.focus()) }));
+    await user.click(screen.getByRole('button', { name: 'Abrir' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Abrir' })).toBeNull());
+    await settle();
+    expect(field).toHaveFocus();
+  });
+
+  it('focus he moved elsewhere before the toast leaves is not stolen', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      page();
+      act(() => useToast.getState().show('Feito', { label: 'Desfazer', run: () => {} }));
+      await user.tab();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Desfazer' })).toHaveFocus();
+      await user.click(screen.getByRole('textbox', { name: 'Campo' }));
+      act(() => { vi.advanceTimersByTime(4100); });
+      expect(screen.queryByText('Feito')).toBeNull();
+      await settle();
+      expect(screen.getByRole('textbox', { name: 'Campo' })).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

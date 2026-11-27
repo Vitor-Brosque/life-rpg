@@ -1,10 +1,10 @@
 import type {
-  CardioModality, DayKey, ExerciseSet, ID, TrainingCardio, TrainingDay, TrainingExercise, TrainingLog, TrainingPlan,
-  Workout, WorkoutKind,
+  BlockWeek, CardioModality, DayKey, Discomfort, DiscomfortSpot, ExerciseSet, ID, PlannedDetail, PlannedExercise,
+  TrainingBlock, TrainingCardio, TrainingDay, TrainingExercise, TrainingLog, TrainingPlan, TrainingTarget, Workout, WorkoutKind,
 } from './types';
-import { weekdayOf } from './dates';
+import { diffDays, weekdayOf } from './dates';
 import { normalize } from './parser';
-import { completedWeeks, type Period } from './periods';
+import { WEEKDAY_NAMES, completedWeeks, type Period } from './periods';
 import { WORKOUT_MAX_MIN } from './workouts';
 
 // Treino do dia (Acompanhamento A): the weekly plan, the day log (sets, skipped, swapped, cardio) and
@@ -28,22 +28,49 @@ export const INTENSITY_MAX = 10;
 export const EVOLUTION_SESSIONS = 8;
 export const CARDIO_WEEKS = 8;
 
+// Treino detalhado (2026-11-25): what the plan asks per exercise, the block, RIR and discomfort.
+export const PLANNED_SETS_MAX = 10;
+export const REST_MIN_SEC = 15;
+export const REST_MAX_SEC = 600;
+export const RIR_MAX = 5;               // 5 = "5 or more"
+export const PLAN_NOTE_MAX = 120;
+export const DISCOMFORT_NOTE_MAX = 120;
+export const BLOCK_WEEKS_MAX = 8;
+export const DISCOMFORT_SPOTS: readonly DiscomfortSpot[] = ['ombro', 'cotovelo', 'punho', 'lombar', 'joelho', 'canela', 'outro'];
+export const DISCOMFORT_LABEL: Record<DiscomfortSpot, string> = {
+  ombro: 'Ombro', cotovelo: 'Cotovelo', punho: 'Punho', lombar: 'Lombar', joelho: 'Joelho', canela: 'Canela', outro: 'Outro',
+};
+export const DISCOMFORT_NOTE_TEXT = 'Dor que persiste ou piora: procure avaliação profissional. O app só registra.';
+/** The rest buttons of the plan editor (seconds); "Outro" opens minimum and maximum. */
+export const REST_PRESETS: readonly { label: string; min: number; max?: number }[] = [
+  { label: '60 s', min: 60 }, { label: '90 s', min: 90 }, { label: '2 min', min: 120 }, { label: '2–3 min', min: 120, max: 180 },
+  { label: '3 min', min: 180 }, { label: '3–4 min', min: 180, max: 240 },
+];
+
+const ex = (name: string, sets: number, repsMin: number, repsMax: number, restMinSec: number, restMaxSec?: number): PlannedExercise =>
+  ({ name, sets, repsMin, repsMax, restMinSec, ...(restMaxSec !== undefined ? { restMaxSec } : {}) });
+
 /** An example 5-day split (invented, by muscle group), offered by "Usar a divisão de exemplo de 5 dias". */
 export const FIVE_DAY_SPLIT: readonly TrainingDay[] = [
   { weekday: 1, name: 'Peito e tríceps', exercises: [
-    'Supino reto', 'Supino inclinado', 'Crucifixo na máquina', 'Tríceps na polia', 'Tríceps testa',
+    ex('Supino reto', 3, 6, 10, 120, 180), ex('Supino inclinado', 3, 8, 12, 90), ex('Crucifixo na máquina', 3, 10, 15, 60),
+    ex('Tríceps na polia', 3, 10, 15, 60), ex('Tríceps testa', 2, 8, 12, 90),
   ] },
   { weekday: 2, name: 'Costas e bíceps', exercises: [
-    'Puxada frontal', 'Remada baixa', 'Remada curvada', 'Rosca direta', 'Rosca alternada',
+    ex('Puxada frontal', 3, 8, 12, 90), ex('Remada baixa', 3, 8, 12, 90), ex('Remada curvada', 3, 6, 10, 120, 180),
+    ex('Rosca direta', 3, 8, 12, 60), ex('Rosca alternada', 2, 10, 15, 60),
   ] },
   { weekday: 3, name: 'Pernas', exercises: [
-    'Agachamento livre', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Panturrilha em pé', 'Abdominal',
+    ex('Agachamento livre', 3, 6, 10, 120, 180), ex('Leg press', 3, 10, 15, 120), ex('Cadeira extensora', 3, 10, 15, 90),
+    ex('Mesa flexora', 3, 10, 15, 90), ex('Panturrilha em pé', 3, 10, 15, 60), ex('Abdominal', 3, 12, 20, 60),
   ] },
   { weekday: 4, name: 'Ombros', exercises: [
-    'Desenvolvimento com halteres', 'Elevação lateral', 'Elevação frontal', 'Crucifixo inverso', 'Encolhimento',
+    ex('Desenvolvimento com halteres', 3, 8, 12, 90), ex('Elevação lateral', 3, 12, 15, 60), ex('Elevação frontal', 2, 10, 15, 60),
+    ex('Crucifixo inverso', 3, 12, 15, 60), ex('Encolhimento', 3, 10, 15, 60),
   ] },
   { weekday: 5, name: 'Corpo inteiro', exercises: [
-    'Levantamento terra', 'Barra fixa', 'Flexão de braço', 'Afundo', 'Prancha',
+    ex('Levantamento terra', 3, 5, 8, 180), ex('Barra fixa', 3, 6, 10, 120), ex('Flexão de braço', 3, 10, 20, 60),
+    ex('Afundo', 2, 8, 12, 90), { name: 'Prancha', sets: 3, restMinSec: 60, note: '30 a 45 s por série' },
   ] },
 ];
 
@@ -63,6 +90,47 @@ export function exercisesFromText(text: string): string[] {
     .map((l) => cleanName(l, EXERCISE_NAME_MAX)).slice(0, EXERCISES_MAX);
 }
 
+// ------------------------------------------------------------------ the plan: exercises and block
+
+const isInt = (n: unknown, min: number, max: number): n is number => Number.isInteger(n) && (n as number) >= min && (n as number) <= max;
+
+/** A stored exercise as `PlannedExercise`: plans saved before 2026-11-25 hold a plain string. */
+export function plannedOf(x: PlannedExercise | string): PlannedExercise {
+  return typeof x === 'string' ? { name: x } : x;
+}
+
+/** What the plan asks besides the name (no empty fields). */
+export function plannedDetailOf(p: PlannedExercise): PlannedDetail {
+  const { name: _n, ...rest } = p;
+  return rest;
+}
+
+/**
+ * One planned exercise as stored: name cleaned (blank → undefined), each number kept only when valid,
+ * a reversed range swapped, a lone maximum kept, the note trimmed. Never throws.
+ */
+export function cleanPlanned(x: PlannedExercise | string): PlannedExercise | undefined {
+  const p = plannedOf(x);
+  const name = cleanName(p.name ?? '', EXERCISE_NAME_MAX);
+  if (!name) return undefined;
+  const out: PlannedExercise = { name };
+  if (isInt(p.sets, 1, PLANNED_SETS_MAX)) out.sets = p.sets;
+  let lo = isInt(p.repsMin, 1, REPS_MAX) ? p.repsMin : undefined;
+  let hi = isInt(p.repsMax, 1, REPS_MAX) ? p.repsMax : undefined;
+  if (lo !== undefined && hi !== undefined && lo > hi) [lo, hi] = [hi, lo];
+  if (lo !== undefined) out.repsMin = lo;
+  if (hi !== undefined) out.repsMax = hi;
+  let rlo = isInt(p.restMinSec, REST_MIN_SEC, REST_MAX_SEC) ? p.restMinSec : undefined;
+  let rhi = isInt(p.restMaxSec, REST_MIN_SEC, REST_MAX_SEC) ? p.restMaxSec : undefined;
+  if (rlo === undefined && rhi !== undefined) { rlo = rhi; rhi = undefined; }
+  if (rlo !== undefined && rhi !== undefined && rlo > rhi) [rlo, rhi] = [rhi, rlo];
+  if (rlo !== undefined) out.restMinSec = rlo;
+  if (rhi !== undefined && rhi !== rlo) out.restMaxSec = rhi;
+  const note = (p.note ?? '').trim().slice(0, PLAN_NOTE_MAX).trim();
+  if (note) out.note = note;
+  return out;
+}
+
 /**
  * The plan as stored: valid weekdays only, the last entry of a weekday wins, sorted by weekday. An
  * entry with no name and no exercises is a rest day (dropped); a missing name becomes "Treino".
@@ -72,32 +140,167 @@ export function normalizePlanDays(days: readonly TrainingDay[]): TrainingDay[] {
   for (const d of days) {
     if (!Number.isInteger(d.weekday) || d.weekday < 0 || d.weekday > 6) continue;
     const name = d.name.trim().slice(0, TRAINING_NAME_MAX).trim();
-    const exercises = d.exercises.map((e) => e.trim()).filter((e) => e !== '')
-      .map((e) => cleanName(e, EXERCISE_NAME_MAX)).slice(0, EXERCISES_MAX);
+    const exercises = (d.exercises as (PlannedExercise | string)[]).map(cleanPlanned)
+      .filter((e): e is PlannedExercise => e !== undefined).slice(0, EXERCISES_MAX);
     if (!name && exercises.length === 0) byWeekday.delete(d.weekday);
     else byWeekday.set(d.weekday, { weekday: d.weekday, name: name || 'Treino', exercises });
   }
   return [...byWeekday.values()].sort((a, b) => a.weekday - b.weekday);
 }
 
+/** The plan's days with every exercise as `PlannedExercise` (reads plans saved with plain strings). */
+export function planDaysOf(plan: Pick<TrainingPlan, 'days'> | undefined | null): TrainingDay[] {
+  return (plan?.days ?? []).map((d) => ({ ...d, exercises: (d.exercises as (PlannedExercise | string)[]).map(plannedOf) }));
+}
+
+/** A plan record read from storage: exercises as objects. Anything else is untouched. */
+export function readPlan<T extends Pick<TrainingPlan, 'days'>>(plan: T): T {
+  return { ...plan, days: planDaysOf(plan) };
+}
+
+export type PlanIssueKind = 'reps' | 'rest';
+export interface PlanIssue { weekday: number; index: number; kind: PlanIssueKind }
+export const PLAN_ISSUE_TEXT: Record<PlanIssueKind, string> = {
+  reps: 'Repetições: "de" e "até" entre 1 e 100, com "de" menor ou igual a "até".',
+  rest: 'Descanso: entre 15 s e 10 min, com o mínimo menor ou igual ao máximo.',
+};
+
+/** What the editor must refuse (instead of silently fixing): a reversed or out-of-range range. */
+export function planIssues(days: readonly TrainingDay[]): PlanIssue[] {
+  const out: PlanIssue[] = [];
+  for (const d of days) {
+    d.exercises.forEach((e, index) => {
+      if (!e.name?.trim()) return;
+      const reps = [e.repsMin, e.repsMax].filter((v) => v !== undefined);
+      if (reps.some((v) => !isInt(v, 1, REPS_MAX)) || (e.repsMin !== undefined && e.repsMax !== undefined && e.repsMin > e.repsMax)) {
+        out.push({ weekday: d.weekday, index, kind: 'reps' });
+      }
+      const rest = [e.restMinSec, e.restMaxSec].filter((v) => v !== undefined);
+      if (rest.some((v) => !isInt(v, REST_MIN_SEC, REST_MAX_SEC)) || (e.restMinSec !== undefined && e.restMaxSec !== undefined && e.restMinSec > e.restMaxSec)) {
+        out.push({ weekday: d.weekday, index, kind: 'rest' });
+      }
+    });
+  }
+  return out;
+}
+
+export type BlockIssueKind = 'start' | 'weeks' | 'rir' | 'cardio';
+export const BLOCK_ISSUE_TEXT: Record<BlockIssueKind, string> = {
+  start: 'Escolha a data de início do bloco.',
+  weeks: `O bloco tem de 1 a ${BLOCK_WEEKS_MAX} semanas.`,
+  rir: 'RIR: de 0 a 5, com "de" menor ou igual a "até".',
+  cardio: 'Cardio: de 1 a 300 minutos, com o mínimo menor ou igual ao máximo.',
+};
+
+/** The first problem of a block, or undefined. */
+export function blockIssue(block: TrainingBlock): { kind: BlockIssueKind; week?: number } | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(block.startDay ?? '')) return { kind: 'start' };
+  if (!Array.isArray(block.weeks) || block.weeks.length < 1 || block.weeks.length > BLOCK_WEEKS_MAX) return { kind: 'weeks' };
+  for (const [i, w] of block.weeks.entries()) {
+    if (!isInt(w.rirMin, 0, RIR_MAX) || !isInt(w.rirMax, 0, RIR_MAX) || w.rirMin > w.rirMax) return { kind: 'rir', week: i + 1 };
+    const c = [w.cardioMin, w.cardioMax].filter((v) => v !== undefined);
+    if (c.some((v) => !isInt(v, 1, WORKOUT_MAX_MIN)) || (w.cardioMin !== undefined && w.cardioMax !== undefined && w.cardioMin > w.cardioMax)) {
+      return { kind: 'cardio', week: i + 1 };
+    }
+  }
+  return undefined;
+}
+
+/** The block as stored (only fields that exist); a lone cardio maximum becomes the minimum. */
+export function cleanBlock(block: TrainingBlock): TrainingBlock {
+  return {
+    startDay: block.startDay,
+    weeks: block.weeks.slice(0, BLOCK_WEEKS_MAX).map((w) => {
+      const lo = w.cardioMin ?? w.cardioMax;
+      const hi = w.cardioMin !== undefined && w.cardioMax !== undefined && w.cardioMax !== w.cardioMin ? w.cardioMax : undefined;
+      return { rirMin: w.rirMin, rirMax: w.rirMax, ...(lo !== undefined ? { cardioMin: lo } : {}), ...(hi !== undefined ? { cardioMax: hi } : {}) };
+    }),
+  };
+}
+
+/** The block week covering `day` (1-based), or undefined before the start, after the last week or without a block. */
+export function blockWeekOf(block: TrainingBlock | undefined, day: DayKey): TrainingTarget | undefined {
+  if (!block || block.weeks.length === 0) return undefined;
+  const d = diffDays(block.startDay, day);
+  if (d < 0) return undefined;
+  const week = Math.floor(d / 7) + 1;
+  const w: BlockWeek | undefined = block.weeks[week - 1];
+  if (!w) return undefined;
+  return {
+    week, weeks: block.weeks.length, rirMin: w.rirMin, rirMax: w.rirMax,
+    ...(w.cardioMin !== undefined ? { cardioMin: w.cardioMin } : {}), ...(w.cardioMax !== undefined ? { cardioMax: w.cardioMax } : {}),
+  };
+}
+
 /** The plan's entry for the weekday of `day`; undefined = rest day, or no plan. */
 export function trainingDayOf(plan: Pick<TrainingPlan, 'days' | 'deleted'> | undefined, day: DayKey): TrainingDay | undefined {
   if (!plan || plan.deleted) return undefined;
-  return plan.days.find((d) => d.weekday === weekdayOf(day));
+  return planDaysOf(plan).find((d) => d.weekday === weekdayOf(day));
 }
 
 /**
  * Fields of a new day log, created on the first explicit action: the day's plan name and exercises
- * copied (ids `p0`, `p1`… by position, so the screen can show the plan before the log exists).
+ * copied (ids `p0`, `p1`… by position, so the screen can show the plan before the log exists), with what
+ * the plan asked of each exercise and the block week of the day.
  */
-export function startTrainingLog(day: DayKey, plan: Pick<TrainingPlan, 'days' | 'deleted'> | undefined):
-  Pick<TrainingLog, 'day' | 'planName' | 'exercises'> {
+export function startTrainingLog(day: DayKey, plan: Pick<TrainingPlan, 'days' | 'deleted' | 'block'> | undefined):
+  Pick<TrainingLog, 'day' | 'planName' | 'exercises' | 'target'> {
   const entry = trainingDayOf(plan, day);
+  const target = plan && !plan.deleted ? blockWeekOf(plan.block, day) : undefined;
   return {
     day,
     ...(entry ? { planName: entry.name } : {}),
-    exercises: (entry?.exercises ?? []).map((name, i) => ({ id: `p${i}`, name, sets: [] })),
+    exercises: (entry?.exercises ?? []).map((p, i) => {
+      const planned = plannedDetailOf(p);
+      return { id: `p${i}`, name: p.name, sets: [], ...(Object.keys(planned).length > 0 ? { planned } : {}) };
+    }),
+    ...(target ? { target } : {}),
   };
+}
+
+// ------------------------------------------------------------------ texts of the plan and of the block
+
+/** "45 s", "90 s", "2 min", "2 min 30 s". */
+const secText = (s: number): string =>
+  (s < 60 || (s <= 120 && s % 60 !== 0) ? `${s} s` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)} min ${s % 60} s`);
+
+/** "90 s", "2 min", "2–3 min", "60–90 s", "2 min 30 s a 4 min". */
+export function restText(minSec: number, maxSec?: number): string {
+  if (maxSec === undefined || maxSec === minSec) return secText(minSec);
+  if (minSec % 60 === 0 && maxSec % 60 === 0) return `${minSec / 60}–${maxSec / 60} min`;
+  if (maxSec <= 120) return `${minSec}–${maxSec} s`;
+  return `${secText(minSec)} a ${secText(maxSec)}`;
+}
+
+/** "3 × 6–8 · descanso 2–3 min", "3 × 8", "3 séries", "6–8 repetições"; '' when the plan asks nothing. */
+export function plannedText(p: PlannedDetail | undefined): string {
+  if (!p) return '';
+  const reps = p.repsMin !== undefined && p.repsMax !== undefined && p.repsMin !== p.repsMax
+    ? `${p.repsMin}–${p.repsMax}` : String(p.repsMax ?? p.repsMin ?? '');
+  const head = p.sets !== undefined
+    ? (reps ? `${p.sets} × ${reps}` : `${p.sets} ${p.sets === 1 ? 'série' : 'séries'}`)
+    : (reps ? `${reps} repetições` : '');
+  const rest = p.restMinSec !== undefined ? `descanso ${restText(p.restMinSec, p.restMaxSec)}` : '';
+  return [head, rest].filter(Boolean).join(' · ');
+}
+
+const rangeText = (lo: number, hi: number): string => (lo === hi ? String(lo) : `${lo}–${hi}`);
+export const rirValueText = (rir: number): string => (rir >= RIR_MAX ? `${RIR_MAX}+` : String(rir));
+
+/** "RIR ~2" / "RIR 1–2". */
+export const targetRirText = (t: Pick<TrainingTarget, 'rirMin' | 'rirMax'>): string =>
+  (t.rirMin === t.rirMax ? `RIR ~${t.rirMin}` : `RIR ${t.rirMin}–${t.rirMax}`);
+
+/** "30 min" / "20–25 min"; '' without cardio. */
+export function targetCardioText(t: Pick<TrainingTarget, 'cardioMin' | 'cardioMax'>): string {
+  if (t.cardioMin === undefined) return '';
+  return `${t.cardioMax !== undefined ? rangeText(t.cardioMin, t.cardioMax) : t.cardioMin} min`;
+}
+
+/** "Semana 2 de 4 · RIR ~2 · cardio 30 min". */
+export function targetText(t: TrainingTarget): string {
+  const cardio = targetCardioText(t);
+  return [`Semana ${t.week} de ${t.weeks}`, targetRirText(t), cardio ? `cardio ${cardio}` : ''].filter(Boolean).join(' · ');
 }
 
 // ------------------------------------------------------------------ sets
@@ -117,14 +320,21 @@ export function parseKg(text: string): number | undefined | null {
   return v <= KG_MAX ? v : null;
 }
 
-/** A set from the two fields of the form, or what is wrong with them. */
-export function parseSet(repsText: string, kgText: string): ExerciseSet | SetIssue {
+/** A set from the fields of the form (RIR from its buttons, optional), or what is wrong with them. */
+export function parseSet(repsText: string, kgText: string, rir?: number): ExerciseSet | SetIssue {
   const t = repsText.trim();
   const reps = Number(t);
   if (!/^\d+$/.test(t) || reps < 1 || reps > REPS_MAX) return 'reps';
   const kg = parseKg(kgText);
   if (kg === null) return 'kg';
-  return kg === undefined ? { reps } : { reps, kg };
+  const withRir = rir !== undefined && isInt(rir, 0, RIR_MAX) ? { rir } : {};
+  return kg === undefined ? { reps, ...withRir } : { reps, kg, ...withRir };
+}
+
+/** "RIR 2, 2, 1" (a set without RIR shows "–"); '' when no set has RIR. */
+export function setsRirText(sets: readonly ExerciseSet[]): string {
+  if (!sets.some((s) => s.rir !== undefined)) return '';
+  return `RIR ${sets.map((s) => (s.rir !== undefined ? rirValueText(s.rir) : '–')).join(', ')}`;
 }
 
 const kgText = (kg: number): string => `${String(kg).replace('.', ',')} kg`;
@@ -198,6 +408,20 @@ export function withoutExtra(log: Exercises, id: ID): Exercises {
   return { exercises: log.exercises.filter((e) => e.id !== id || !e.extra) };
 }
 
+/** "Senti desconforto": where and an optional note; undefined removes it. */
+export function withDiscomfort(log: Exercises, id: ID, d: Discomfort | undefined): Exercises {
+  return mapExercise(log, id, (e) => {
+    const { discomfort: _d, ...rest } = e;
+    if (!d || !DISCOMFORT_SPOTS.includes(d.spot)) return rest;
+    const note = (d.note ?? '').trim().slice(0, DISCOMFORT_NOTE_MAX).trim();
+    return { ...rest, discomfort: { spot: d.spot, ...(note ? { note } : {}) } };
+  });
+}
+
+/** "desconforto: ombro (pegou no fim)". */
+export const discomfortText = (d: Discomfort): string =>
+  `desconforto: ${DISCOMFORT_LABEL[d.spot].toLocaleLowerCase('pt-BR')}${d.note ? ` (${d.note})` : ''}`;
+
 /** The name the sets belong to: the replacement when swapped. */
 export const performedName = (e: Pick<TrainingExercise, 'name' | 'status' | 'replacedBy'>): string =>
   (e.status === 'trocado' && e.replacedBy ? e.replacedBy : e.name);
@@ -269,6 +493,9 @@ export interface ExerciseSession {
   sets: ExerciseSet[];
   best?: { kg: number; reps: number };     // heaviest set (most reps at that load); only sets with a load
   volume: number;                          // Σ reps × kg of the sets with a load
+  planned?: PlannedDetail;                 // what the plan asked that day (not for a swapped exercise)
+  target?: TrainingTarget;                 // the block week of that day
+  discomfort?: Discomfort;
 }
 
 const nameKey = (s: string): string => normalize(s.trim()).replace(/\s+/g, ' ');
@@ -294,10 +521,15 @@ function sessionsByName(logs: readonly TrainingLog[], until: DayKey): Map<string
       const list = out.get(key) ?? [];
       const same = list[list.length - 1];
       const sets = same?.day === log.day ? [...same.sets, ...e.sets] : [...e.sets];
+      const planned = e.status === 'feito' ? (e.planned ?? (same?.day === log.day ? same.planned : undefined)) : undefined;
+      const discomfort = e.discomfort ?? (same?.day === log.day ? same.discomfort : undefined);
       const session: ExerciseSession = {
         day: log.day, name, sets,
         ...(bestOf(sets) ? { best: bestOf(sets)! } : {}),
         volume: sets.reduce((v, s) => v + (s.kg !== undefined ? s.reps * s.kg : 0), 0),
+        ...(planned ? { planned } : {}),
+        ...(log.target ? { target: log.target } : {}),
+        ...(discomfort ? { discomfort } : {}),
       };
       if (same?.day === log.day) list[list.length - 1] = session;
       else list.push(session);
@@ -313,7 +545,30 @@ export function lastSession(logs: readonly TrainingLog[], name: string, day: Day
   return [...list].reverse().find((s) => s.day < day);
 }
 
-export const lastSessionText = (s: ExerciseSession): string => `Última: ${setsText(s.sets)}`;
+/** "Última: 3 × 8 · 40 kg · RIR 2, 2, 1". */
+export const lastSessionText = (s: ExerciseSession): string =>
+  `Última: ${[setsText(s.sets), setsRirText(s.sets)].filter(Boolean).join(' · ')}`;
+
+/**
+ * "Pronto para subir a carga" (treino detalhado §4): the session reached the top of the planned range in every
+ * planned set, at one load, and — when the session had a block week — with RIR at or above its minimum in each
+ * of those sets. `fallback` is today's plan for the exercise, used when the session predates the copied request.
+ * Returns the reason shown beside the tag, or undefined when the rule does not close.
+ */
+export function progressionReason(s: ExerciseSession, fallback?: PlannedDetail): string | undefined {
+  const p = s.planned ?? fallback;
+  const top = p?.repsMax ?? p?.repsMin;
+  if (!p?.sets || top === undefined) return undefined;
+  const sets = s.sets.slice(0, p.sets);
+  if (sets.length < p.sets) return undefined;
+  if (!sets.every((x) => x.reps >= top)) return undefined;
+  if (!sets.every((x) => x.kg === sets[0]!.kg)) return undefined;
+  if (s.target && !sets.every((x) => x.rir !== undefined && x.rir >= s.target!.rirMin)) return undefined;
+  const [, m, d] = s.day.split('-');
+  const wd = WEEKDAY_NAMES[weekdayOf(s.day)]!.slice(0, 3);
+  const done = [setsText(sets), setsRirText(sets)].filter(Boolean).join(', ');
+  return `Na última (${wd} ${d}/${m}): ${done}. Faixa até ${top}${s.target ? '' : ' (sem meta de RIR)'}.`;
+}
 
 export interface ExerciseHistory { key: string; name: string; sessions: ExerciseSession[] }
 

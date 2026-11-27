@@ -19,11 +19,15 @@ import { useMissionSheet } from '../mission/MissionSheet';
 import { AssessmentSheet } from './AssessmentSheet';
 import { classLine, inDaysText } from './FacultyLines';
 import { useProblemSetSheet } from './ProblemSetSheet';
+import { NotebookPanel } from './NotebookPanel';
+import { StudyDocsPanel } from './StudyDocsPanel';
+import { StudyFilesPanel } from '../pdf/StudyFilesPanel';
+import { SubjectChatPanel } from './SubjectChatPanel';
 import './faculty.css';
 
 const BACK = <Link className="deck__back" href="/estudo/materias">← Matérias</Link>;
 
-/** "/estudo/materias/:id": a subject's avaliações, exercises and topics. Opening it writes nothing. */
+/** "/estudo/materias/:id": a subject's chat, caderno, PDFs, apostilas, avaliações, exercises and topics. Opening it writes nothing. */
 export function SubjectDetailScreen({ id }: { id: string }) {
   const data = useFacultyData();
   if (!data) return <section className="screen study" aria-busy="true" aria-label="Disciplina" />;
@@ -36,10 +40,10 @@ export function SubjectDetailScreen({ id }: { id: string }) {
       </section>
     );
   }
-  return <Detail data={data} id={id} title={journey.title} />;
+  return <Detail data={data} id={id} title={journey.title} chatUrl={journey.chatUrl} />;
 }
 
-function Detail({ data, id, title }: { data: FacultyData; id: string; title: string }) {
+function Detail({ data, id, title, chatUrl }: { data: FacultyData; id: string; title: string; chatUrl?: string }) {
   const { today, dayStartHour } = data;
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const toast = useToast.getState();
@@ -71,6 +75,11 @@ function Detail({ data, id, title }: { data: FacultyData; id: string; title: str
       {BACK}
       <h1 id="subject-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>{title}</h1>
       <p className="subject__line">{`Aula: ${classLine({ title }, data)}`}</p>
+
+      <SubjectChatPanel journeyId={id} title={title} {...(chatUrl ? { chatUrl } : {})} />
+      <NotebookPanel journeyId={id} />
+      <StudyFilesPanel journeyId={id} />
+      <StudyDocsPanel journeyId={id} />
 
       <Panel variant="stone" className="study-section stack">
         <h2 className="study__subtitle">Avaliações</h2>

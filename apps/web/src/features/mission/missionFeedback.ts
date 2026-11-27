@@ -104,14 +104,15 @@ export async function planWithFeedback(
   say('snooze');
 }
 
-/** "Parcial": the mission goes back to open with what came out noted (not a postponement). */
+/** "Parcial": the mission goes back to open with what came out noted (not a postponement); "Investiguei" says so. */
 export async function partialWithFeedback(
-  id: string, input: { result?: string; next?: string; when: PartialWhen }, today: DayKey,
+  id: string, input: { result?: string; next?: string; when: PartialWhen; investigated?: boolean }, today: DayKey,
 ): Promise<void> {
   await closePartial(id, input);
-  toast(input.when === 'later' ? 'Parcial anotada. Ela volta em 3 horas.'
-    : input.when === 'tomorrow' ? 'Parcial anotada. Guardada para amanhã.'
-      : `Parcial anotada. Guardada para ${formatDay(input.when.date, today)}.`);
+  const lead = input.investigated ? 'Investigação anotada.' : 'Parcial anotada.';
+  toast(input.when === 'later' ? `${lead} Ela volta em 3 horas.`
+    : input.when === 'tomorrow' ? `${lead} Guardada para amanhã.`
+      : `${lead} Guardada para ${formatDay(input.when.date, today)}.`);
 }
 
 /** Mission → journey (checklist items become its missions). */

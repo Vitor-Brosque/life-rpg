@@ -272,14 +272,16 @@ a.btn { text-decoration: none; }
 
 /* ------------------------------------------------------------------- Toast */
 
+/* Phones: right above the nav and its bar, beside the "+" (not stacked above it), so on a short
+   screen the message stays below the mission card's buttons instead of over them. */
 .toast-host {
   position: fixed;
   left: 0; right: 0;
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-h) + var(--space-3));
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-bar-h) + var(--space-3));
   z-index: var(--z-toast);
   display: flex;
   justify-content: center;
-  padding: 0 var(--space-4);
+  padding: 0 calc(var(--space-4) + var(--dock-fab-w)) 0 var(--space-4);
   pointer-events: none;
 }
 .toast {
@@ -297,11 +299,11 @@ a.btn { text-decoration: none; }
   pointer-events: auto;
   animation: toast-in 160ms steps(4);
 }
-.toast__msg { flex: 1; }
+.toast__msg { flex: 1; align-self: stretch; display: flex; align-items: center; cursor: pointer; }
 .toast .btn--ghost { --btn-fg: var(--gold); }
 @keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (min-width: 1200px) {
-  .toast-host { left: var(--sidebar-w); bottom: calc(var(--dock-h) + var(--space-5)); }
+  .toast-host { left: var(--sidebar-w); bottom: calc(var(--dock-h) + var(--space-5)); padding: 0 var(--space-4); }
 }
 
 /* --------------------------------------------------------------- Companion */

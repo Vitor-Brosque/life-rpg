@@ -1,5 +1,6 @@
 import { PracticeScreen } from '../features/practice/PracticeScreen';
 import { PracticeListScreen } from '../features/practice/PracticeListScreen';
+import { SpeechScreen } from '../features/speech/SpeechScreen';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { db } from '../db/db';
@@ -11,6 +12,9 @@ import { CharacterScreen } from '../features/character/CharacterScreen';
 import { DiaryScreen } from '../features/diary/DiaryScreen';
 import { DiaryEditorScreen } from '../features/diary/DiaryEditor';
 import { DiaryTrashScreen } from '../features/diary/DiaryTrash';
+import { ReportScreen } from '../features/diary/ReportScreen';
+import { ObservationScreen } from '../features/diary/ObservationScreen';
+import { StrategiesScreen } from '../features/diary/StrategiesScreen';
 import { JourneyDetail } from '../features/journeys/JourneyDetail';
 import { SketchListScreen } from '../features/sketch/SketchListScreen';
 import { SketchScreen } from '../features/sketch/SketchScreen';
@@ -20,8 +24,12 @@ import { MapScreen } from '../features/world/MapScreen';
 import { CorpoScreen } from '../features/corpo/CorpoScreen';
 import { TrainingPlanScreen } from '../features/corpo/TrainingPlanScreen';
 import { TrainingScreen } from '../features/corpo/TrainingScreen';
+import { FoodsScreen } from '../features/nutrition/FoodsScreen';
+import { NutritionScreen } from '../features/nutrition/NutritionScreen';
+import { NutritionTargetsScreen } from '../features/nutrition/NutritionTargetsScreen';
 import { PatternsScreen } from '../features/patterns/PatternsScreen';
 import { DayCloseSheetHost } from '../features/dayClose/DayCloseSheet';
+import { SituationSheetHost } from '../features/speech/SituationSheet';
 import { SleepSheetHost } from '../features/corpo/SleepSheet';
 import { WorkoutSheetHost } from '../features/corpo/WorkoutSheet';
 import { MissionSheetHost } from '../features/mission/MissionSheet';
@@ -36,7 +44,12 @@ import { StudyScreen } from '../features/study/StudyScreen';
 import { ProblemSetSheetHost } from '../features/faculty/ProblemSetSheet';
 import { SubjectDetailScreen } from '../features/faculty/SubjectDetailScreen';
 import { SubjectsScreen } from '../features/study/SubjectsScreen';
+import { StudyDocScreen } from '../features/study/StudyDocScreen';
+import { MaterialsScreen } from '../features/pdf/MaterialsScreen';
+import { PdfReaderScreen } from '../features/pdf/PdfReaderScreen';
+import { RecallSheetHost } from '../features/pdf/RecallSheet';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { ProposalScreen } from '../features/assist/ProposalScreen';
 import { WorldWatcher } from '../features/world/WorldWatcher';
 import { TimerBar } from '../timer/TimerBar';
 import { TimerHost } from '../timer/TimerSheet';
@@ -78,7 +91,7 @@ export function App() {
   }
   return (
     <>
-      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/lousa/') || location.startsWith('/diario/') || location.startsWith('/casa/compras') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
+      <Layout floating={location.startsWith('/estudo/revisar') || location.startsWith('/estudo/pdf/') || location.startsWith('/lousa/') || location.startsWith('/diario/') || location.startsWith('/casa/compras') ? undefined : <CaptureFab />} aboveNav={<TimerBar />}>
         <Switch>
           <Route path="/"><AgoraScreen /></Route>
           <Route path="/planejar"><PlanScreen /></Route>
@@ -89,8 +102,12 @@ export function App() {
           <Route path="/estudo/revisar"><ReviewSession /></Route>
           <Route path="/estudo/materias"><SubjectsScreen /></Route>
           <Route path="/estudo/materias/:id">{(p) => <SubjectDetailScreen key={p.id} id={p.id} />}</Route>
+          <Route path="/estudo/apostila/:id">{(p) => <StudyDocScreen key={p.id} id={p.id} />}</Route>
+          <Route path="/estudo/materiais"><MaterialsScreen /></Route>
+          <Route path="/estudo/pdf/:id">{(p) => <PdfReaderScreen key={p.id} id={p.id} />}</Route>
           <Route path="/estudo/lousas"><SketchListScreen /></Route>
           <Route path="/estudo/praticas"><PracticeListScreen /></Route>
+          <Route path="/estudo/fala"><SpeechScreen /></Route>
           <Route path="/lousa/:id">{(params) => <SketchScreen key={params.id} id={params.id} />}</Route>
           <Route path="/pratica/:id">{(params) => <PracticeScreen key={params.id} id={params.id} />}</Route>
           <Route path="/estudo/nota/nova"><NoteEditor /></Route>
@@ -99,14 +116,21 @@ export function App() {
           <Route path="/jornadas/:id">{(params) => <JourneyDetail id={params.id} />}</Route>
           <Route path="/diario"><DiaryScreen /></Route>
           <Route path="/diario/apagadas"><DiaryTrashScreen /></Route>
+          <Route path="/diario/relatorios"><ReportScreen /></Route>
+          <Route path="/diario/estrategias"><StrategiesScreen /></Route>
+          <Route path="/diario/observacao"><ObservationScreen /></Route>
           <Route path="/diario/:id">{(params) => <DiaryEditorScreen key={params.id} id={params.id} />}</Route>
           <Route path="/personagem"><CharacterScreen /></Route>
           <Route path="/mapa"><MapScreen /></Route>
+          <Route path="/corpo/nutricao/alimentos"><FoodsScreen /></Route>
+          <Route path="/corpo/nutricao/metas"><NutritionTargetsScreen /></Route>
+          <Route path="/corpo/nutricao"><NutritionScreen /></Route>
           <Route path="/corpo/treino"><TrainingScreen /></Route>
           <Route path="/corpo/plano"><TrainingPlanScreen /></Route>
           <Route path="/corpo"><CorpoScreen /></Route>
           <Route path="/padroes"><PatternsScreen /></Route>
           <Route path="/ajustes"><SettingsScreen /></Route>
+          <Route path="/propostas/:id">{(params) => <ProposalScreen key={params.id} id={params.id} />}</Route>
           <Route path="/painel"><PainelScreen /></Route>
           <Route><NotFound /></Route>
         </Switch>
@@ -116,8 +140,10 @@ export function App() {
       <PartialSheetHost />
       <SleepSheetHost />
       <DayCloseSheetHost />
+      <SituationSheetHost />
       <WorkoutSheetHost />
       <ProblemSetSheetHost />
+      <RecallSheetHost />
       <TimerHost />
       <ResumePromptHost />
       <CheckinCardHost />

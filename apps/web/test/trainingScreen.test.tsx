@@ -346,7 +346,7 @@ describe('revisão — treino', () => {
 
 describe('bloco Treino do Agora', () => {
   const TREINO = block({
-    id: 'b2', name: 'Treino', order: 1, targetStart: '12:30', durationMin: 120, minimumMin: 45, kind: 'body', areaId: 'area-vigor',
+    id: 'b2', name: 'Treino', order: 1, targetStart: '11:45', durationMin: 90, minimumMin: 35, kind: 'body', areaId: 'area-vigor',
   });
   const occurrence = (day: number): BlockOccurrence => ({
     block: TREINO, day: `2026-11-${day}`, plannedStart: at(day, 12, 30), plannedEnd: at(day, 14, 30),
@@ -392,5 +392,81 @@ describe('bloco Treino do Agora', () => {
     await screen.findByRole('group', { name: 'Treino de hoje' });
     expect(screen.queryByText('Descanso da musculação.')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Abrir treino' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Treino detalhado (2026-11-25)', () => {
+  const BLOCK = { startDay: '2026-11-09', weeks: [{ rirMin: 3, rirMax: 3, cardioMin: 20, cardioMax: 25 }, { rirMin: 2, rirMax: 2 }] };
+
+  it('shows the plan request, the block week and the weekly cardio target', async () => {
+    await applyFiveDaySplit();
+    await saveTrainingPlan((await db.trainingPlans.get('plan'))!.days, BLOCK);
+    renderScreen();
+    const a = await card('Agachamento livre');
+    expect(within(a).getByText('3 × 6–10 · descanso 2–3 min')).toBeInTheDocument();
+    expect(screen.getByText('Semana 1 de 2 · RIR ~3 · cardio 20–25 min')).toBeInTheDocument();
+    expect(screen.getByText('Meta da semana: 20–25 min')).toBeInTheDocument();
+  });
+
+  it('saves the RIR of a set from its buttons, shows it and starts the rest countdown', async () => {
+    const user = userEvent.setup();
+    await applyFiveDaySplit();
+    renderScreen();
+    const a = await card('Agachamento livre');
+    await user.type(within(a).getByLabelText('Repetições de Agachamento livre'), '8');
+    await user.type(within(a).getByLabelText('Carga (kg) de Agachamento livre'), '60');
+    await user.click(within(within(a).getByRole('group', { name: 'RIR da próxima série de Agachamento livre' })).getByRole('button', { name: 'RIR 2' }));
+    await user.click(within(a).getByRole('button', { name: 'Salvar série de Agachamento livre' }));
+    await waitFor(async () => expect((await db.trainingLogs.get('training-2026-11-11'))!.exercises[0]!.sets).toEqual([{ reps: 8, kg: 60, rir: 2 }]));
+    expect(await within(a).findByText('Série 1: 8 × 60 kg · RIR 2')).toBeInTheDocument();
+    const bar = screen.getByRole('region', { name: 'Descanso' });
+    expect(within(bar).getByText('2:00')).toBeInTheDocument();
+    expect(within(bar).getByText('Descanso · Agachamento livre')).toBeInTheDocument();
+    vi.setSystemTime(at(11, 12, 42) + 1000);
+    expect(await within(bar).findByText('Pode ir', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(within(bar).getByText('até 3:00 · Agachamento livre')).toBeInTheDocument();
+    await user.click(within(bar).getByRole('button', { name: 'Pular' }));
+    expect(screen.queryByRole('region', { name: 'Descanso' })).not.toBeInTheDocument();
+  });
+
+  it('tags the exercise when the last session reached the top of the range at the week RIR', async () => {
+    await applyFiveDaySplit();
+    await saveTrainingPlan((await db.trainingPlans.get('plan'))!.days, BLOCK);
+    await put('trainingLogs', newRecord<TrainingLog>({
+      id: 'training-2026-11-10', day: '2026-11-10', planName: 'Costas e bíceps',
+      target: { week: 1, weeks: 2, rirMin: 3, rirMax: 3 },
+      exercises: [{ id: 'p0', name: 'Agachamento livre', status: 'feito', planned: { sets: 3, repsMin: 6, repsMax: 10 },
+        sets: [{ reps: 10, kg: 60, rir: 3 }, { reps: 10, kg: 60, rir: 3 }, { reps: 10, kg: 60, rir: 4 }] }],
+    }));
+    renderScreen();
+    const a = await card('Agachamento livre');
+    expect(within(a).getByText('Pronto para subir a carga')).toBeInTheDocument();
+    expect(within(a).getByText(/Na última \(ter 10\/11\): 3 × 10 · 60 kg, RIR 3, 3, 4\. Faixa até 10\./)).toBeInTheDocument();
+    expect(within(await card('Leg press')).queryByText('Pronto para subir a carga')).not.toBeInTheDocument();
+  });
+
+  it('records a discomfort with where and a note, and removes it', async () => {
+    const user = userEvent.setup();
+    await applyFiveDaySplit();
+    renderScreen();
+    const a = await card('Leg press');
+    await user.click(within(a).getByRole('button', { name: 'Senti desconforto em Leg press' }));
+    expect(within(a).getByText('Dor que persiste ou piora: procure avaliação profissional. O app só registra.')).toBeInTheDocument();
+    await user.click(within(a).getByRole('button', { name: 'Joelho' }));
+    await user.type(within(a).getByLabelText('Nota do desconforto em Leg press'), 'no fim da série');
+    await user.click(within(a).getByRole('button', { name: 'Salvar desconforto em Leg press' }));
+    expect(await within(a).findByText('desconforto: joelho (no fim da série)')).toBeInTheDocument();
+    expect((await db.trainingLogs.get('training-2026-11-11'))!.exercises[1]!.discomfort).toEqual({ spot: 'joelho', note: 'no fim da série' });
+    await user.click(within(a).getByRole('button', { name: 'Editar desconforto em Leg press' }));
+    await user.click(within(a).getByRole('button', { name: 'Tirar desconforto' }));
+    await waitFor(async () => expect((await db.trainingLogs.get('training-2026-11-11'))!.exercises[1]!.discomfort).toBeUndefined());
+  });
+
+  it('a plan saved before the detailed format (plain strings) still draws and logs', async () => {
+    await put('trainingPlans', newRecord({ id: 'plan', days: [{ weekday: 3, name: 'Pernas', exercises: ['Agachamento livre', 'Leg press'] }] } as never));
+    renderScreen();
+    expect(await screen.findAllByRole('article')).toHaveLength(2);
+    await addSet('2026-11-11', 'p1', { reps: 12 });
+    expect((await db.trainingLogs.get('training-2026-11-11'))!.exercises.map((e) => e.name)).toEqual(['Agachamento livre', 'Leg press']);
   });
 });

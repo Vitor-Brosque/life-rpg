@@ -13,6 +13,8 @@ export interface FakeMicOptions {
   isTypeSupported?: (type: string) => boolean;
   /** The recorder delivers no data (empty recording). */
   empty?: boolean;
+  /** The bytes the recorder delivers (default WEBM_BYTES). */
+  bytes?: Uint8Array<ArrayBuffer>;
 }
 
 /** A microphone and a MediaRecorder that deliver WEBM_BYTES when stopped. */
@@ -41,7 +43,7 @@ export function installFakeMic(opts: FakeMicOptions = {}) {
       if (this.state === 'inactive') return;
       this.state = 'inactive';
       queueMicrotask(() => {
-        this.ondataavailable?.({ data: new Blob(opts.empty ? [] : [WEBM_BYTES], { type: this.mimeType }) });
+        this.ondataavailable?.({ data: new Blob(opts.empty ? [] : [opts.bytes ?? WEBM_BYTES], { type: this.mimeType }) });
         this.onstop?.();
       });
     }

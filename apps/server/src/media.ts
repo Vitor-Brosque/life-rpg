@@ -2,10 +2,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { MEDIA_MAX_BYTES, isMediaHash, sniffMediaType, type MediaType } from '@life/shared';
+import { MEDIA_UPLOAD_MAX_BYTES, isMediaHash, mediaMaxBytes, sniffMediaType, type MediaType } from '@life/shared';
 
 // Media files (Marco 3c, spec §5): content-addressed and immutable, `<dataDir>/media/<sha256>`.
-// The format is read from the bytes (allowlist), never from what the client declares.
+// The format is read from the bytes (allowlist), never from what the client declares. Each format has its limit
+// (PDFs da aula 2026-11-26 §2.2): 8 MB for images and audio, 50 MB for a PDF, 4 MB for a PDF's extracted text.
 
 export type MediaPutResult = 'created' | 'exists' | 'invalid_hash' | 'empty' | 'too_large' | 'hash_mismatch' | 'unsupported_type';
 
@@ -24,10 +25,12 @@ export class MediaStore {
   put(hash: string, body: Uint8Array): MediaPutResult {
     if (!isMediaHash(hash)) return 'invalid_hash';
     if (body.length === 0) return 'empty';
-    if (body.length > MEDIA_MAX_BYTES) return 'too_large';
+    if (body.length > MEDIA_UPLOAD_MAX_BYTES) return 'too_large';
     if (this.has(hash)) return 'exists';
     if (createHash('sha256').update(body).digest('hex') !== hash) return 'hash_mismatch';
-    if (!sniffMediaType(body)) return 'unsupported_type';
+    const type = sniffMediaType(body);
+    if (!type) return 'unsupported_type';
+    if (body.length > mediaMaxBytes(type)) return 'too_large';
     mkdirSync(this.dir, { recursive: true });
     // Written aside, then renamed: a crash never leaves half a file under the final name.
     const tmp = join(this.dir, `.${hash}.${randomBytes(4).toString('hex')}.tmp`);
@@ -89,10 +92,11 @@ const PUT_STATUS = { invalid_hash: 400, empty: 400, hash_mismatch: 400, too_larg
 
 /** PUT/GET /media/:hash inside the authenticated /api plugin (the token hook already ran). */
 export function registerMediaRoutes(app: FastifyInstance, media: MediaStore): void {
-  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: MEDIA_MAX_BYTES },
+  // The largest format (a PDF) bounds the body; the store then applies each format's own limit.
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: MEDIA_UPLOAD_MAX_BYTES },
     (_req, body, done) => done(null, body));
 
-  app.put('/media/:hash', { bodyLimit: MEDIA_MAX_BYTES }, async (request, reply) => {
+  app.put('/media/:hash', { bodyLimit: MEDIA_UPLOAD_MAX_BYTES }, async (request, reply) => {
     const { hash } = request.params as { hash: string };
     if (!Buffer.isBuffer(request.body)) return reply.code(415).send({ error: 'unsupported_type' });
     const result = media.put(hash, request.body);

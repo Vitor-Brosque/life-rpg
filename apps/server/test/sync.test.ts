@@ -380,6 +380,124 @@ describe('SSE stream', () => {
     expect(changes.find((c) => c.record.id === 'd2')!.record).toMatchObject({ deleted: true, text: '' });
   });
 
+  it('syncs strategies (strategies): a testing one, a trashed decided one and one deleted for good', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false, source: 'ia', startDay: '2026-11-23', reviewDay: '2026-12-07' };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'strategies', record: { ...r, id: 's1', title: 'Celular em outro cômodo', sourceNote: 'Claude', status: 'testando', link: { kind: 'block', id: 'b1' } } },
+        { table: 'strategies', record: { ...r, id: 's2', title: 'Biblioteca', status: 'mantida', decidedDay: '2026-11-23', decisionNote: 'Funcionou.', trashedAt: 5 } },
+        { table: 'strategies', record: { ...r, id: 's3', title: '', status: 'testando', deleted: true } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 's1')).toMatchObject({ table: 'strategies', record: { sourceNote: 'Claude', link: { kind: 'block', id: 'b1' } } });
+    expect(changes.find((c) => c.record.id === 's2')).toMatchObject({ table: 'strategies', record: { status: 'mantida', trashedAt: 5 } });
+    expect(changes.find((c) => c.record.id === 's3')!.record).toMatchObject({ deleted: true, title: '' });
+  });
+
+  it('syncs goals and seasons (goals, seasons)', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'goals', record: { ...r, id: 'g1', title: 'Carreira em Dados', why: 'Gosto de dados', horizon: '2027', status: 'ativo', order: 0 } },
+        { table: 'seasons', record: {
+          ...r, id: 'se1', title: 'Consistência', focus: [{ text: 'Tech' }, { link: { kind: 'goal', id: 'g1' } }], startDay: '2026-11-23',
+          plannedWeeks: 6, status: 'encerrada', endedDay: '2027-01-03', review: { progress: 'Todo dia', obstacle: '', next: '', answeredAt: 5 },
+        } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'g1')).toMatchObject({ table: 'goals', record: { horizon: '2027', status: 'ativo' } });
+    expect(changes.find((c) => c.record.id === 'se1')).toMatchObject({
+      table: 'seasons', record: { focus: [{ text: 'Tech' }, { link: { kind: 'goal', id: 'g1' } }], review: { progress: 'Todo dia' } },
+    });
+  });
+
+  it('syncs speech sessions, situations and programs', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'speechSessions', record: {
+          ...r, id: 'sp1', day: '2026-11-23', kind: 'leitura', passage: 'feira',
+          recordings: [{ hash: 'a'.repeat(64), durationMs: 61000, at: 5, keep: true }], ratings: { clareza: 4 }, closedAt: 9,
+        } },
+        { table: 'speechSituations', record: { ...r, id: 'si1', day: '2026-11-23', at: 7, context: 'aula', repeats: 0, note: 'Perguntei' } },
+        { table: 'speechPrograms', record: {
+          ...r, id: 'pr1', startDay: '2026-11-23', week: 3, status: 'ativo',
+          phaseNotes: { 1: { text: 'Mais calmo', day: '2026-11-30', answeredAt: 8 } },
+        } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'sp1')).toMatchObject({
+      table: 'speechSessions', record: { recordings: [{ durationMs: 61000, keep: true }], ratings: { clareza: 4 }, closedAt: 9 },
+    });
+    expect(changes.find((c) => c.record.id === 'si1')).toMatchObject({ table: 'speechSituations', record: { context: 'aula', repeats: 0 } });
+    expect(changes.find((c) => c.record.id === 'pr1')).toMatchObject({
+      table: 'speechPrograms', record: { week: 3, phaseNotes: { 1: { text: 'Mais calmo' } } },
+    });
+  });
+
+  it('syncs the nutrition tables (foods, nutritionTargets, foodLogs, pantry, weighIns)', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false };
+    const per100 = { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 };
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'foods', record: { ...r, id: 'f1', name: 'Arroz', per100, basis: 'pronto', source: 'tabela', group: 'carboidrato', like: 'gosto', unit: { name: 'colher', grams: 25 } } },
+        { table: 'nutritionTargets', record: { ...r, id: 'ntarget-2026-11-25', from: '2026-11-25', byWeekday: Array(7).fill({ protein: 160, carbs: 250, fat: 60 }) } },
+        { table: 'foodLogs', record: { ...r, id: 'fl1', day: '2026-11-25', meal: 'almoco', foodId: 'f1', name: 'Arroz', per100, basis: 'pronto', estimate: false, grams: 150, status: 'comido', order: 0 } },
+        { table: 'pantry', record: { ...r, id: 'pantry-f1', foodId: 'f1', confirmedDay: '2026-11-25', grams: 350 } },
+        { table: 'weighIns', record: { ...r, id: 'w1', day: '2026-11-25', kg: 72.4 } },
+        { table: 'weighIns', record: { ...r, id: 'w2', day: '2026-11-24', kg: 72.9, deleted: true } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'f1')).toMatchObject({ table: 'foods', record: { per100, unit: { name: 'colher', grams: 25 } } });
+    expect(changes.find((c) => c.record.id === 'ntarget-2026-11-25')).toMatchObject({ table: 'nutritionTargets', record: { from: '2026-11-25' } });
+    expect(changes.find((c) => c.record.id === 'fl1')).toMatchObject({ table: 'foodLogs', record: { meal: 'almoco', grams: 150, status: 'comido' } });
+    expect(changes.find((c) => c.record.id === 'pantry-f1')).toMatchObject({ table: 'pantry', record: { grams: 350 } });
+    expect(changes.find((c) => c.record.id === 'w1')).toMatchObject({ table: 'weighIns', record: { kg: 72.4 } });
+    expect(changes.find((c) => c.record.id === 'w2')!.record.deleted).toBe(true);
+  });
+
+  it('syncs the caderno tables (subjectNotebooks, studyDocs) and the study profile', async () => {
+    const { app } = await make();
+    const r = { createdAt: 1, updatedAt: 10, deleted: false };
+    const markdown = '# Normalização\n'.repeat(2500);
+    const push = await app.inject({
+      method: 'POST', url: '/api/sync', headers: auth,
+      payload: { deviceId: 'a', cursor: 0, changes: [
+        { table: 'subjectNotebooks', record: { ...r, id: 'notebook-bd', journeyId: 'bd', plan: 'Ementa', bibliography: [{ title: 'Sistemas de Banco de Dados', kind: 'basica' }] } },
+        { table: 'studyDocs', record: { ...r, id: 'doc1', journeyId: 'bd', title: 'Normalização passo a passo', markdown, source: 'ChatGPT' } },
+        { table: 'studyDocs', record: { ...r, id: 'doc2', journeyId: 'bd', title: 'Apagada', markdown: 'x', source: 'Você', deleted: true } },
+        { table: 'profile', record: { ...r, id: 'me', name: 'Lia', look: { skin: 0, hair: 0, hairColor: 0, outfit: 0 }, companionName: 'Brasa', onboarded: true, studyProfile: 'Aprendo com exemplos.' } },
+      ] },
+    });
+    expect(push.statusCode).toBe(200);
+    const pull = await app.inject({ method: 'POST', url: '/api/sync', headers: auth, payload: { deviceId: 'b', cursor: 0, changes: [] } });
+    const changes = (pull.json() as { changes: Array<{ table: string; record: { id: string; deleted: boolean } }> }).changes;
+    expect(changes.find((c) => c.record.id === 'notebook-bd')).toMatchObject({ table: 'subjectNotebooks', record: { plan: 'Ementa', bibliography: [{ title: 'Sistemas de Banco de Dados', kind: 'basica' }] } });
+    expect(changes.find((c) => c.record.id === 'doc1')).toMatchObject({ table: 'studyDocs', record: { markdown, source: 'ChatGPT' } });
+    expect(changes.find((c) => c.record.id === 'doc2')!.record.deleted).toBe(true);
+    expect(changes.find((c) => c.record.id === 'me')).toMatchObject({ table: 'profile', record: { studyProfile: 'Aprendo com exemplos.' } });
+  });
+
   it('the same migrated entry pushed by a second device is not a new revision', async () => {
     const { app } = await make();
     const entry = { id: 'diary-close-2026-11-10', createdAt: 9, updatedAt: 9, deleted: false, day: '2026-11-10', at: 5, kind: 'fechamento', text: 'x', themes: [], links: [], private: false };

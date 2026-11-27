@@ -277,11 +277,11 @@ export type PartialWhen = 'later' | 'tomorrow' | { date: DayKey };
  * next action as its first step. Progress, not a postponement: `postponeCount` does not change.
  */
 export const closePartial = (
-  id: string, input: { result?: string; next?: string; when: PartialWhen },
+  id: string, input: { result?: string; next?: string; when: PartialWhen; investigated?: boolean },
 ): Promise<void> => withLock(`mission:${id}`, () => closePartialLocked(id, input));
 
 async function closePartialLocked(
-  id: string, input: { result?: string; next?: string; when: PartialWhen },
+  id: string, input: { result?: string; next?: string; when: PartialWhen; investigated?: boolean },
 ): Promise<void> {
   const m = await db.missions.get(id);
   if (!m) throw new Error(`mission ${id} not found`);
@@ -299,7 +299,7 @@ async function closePartialLocked(
   }
   await patch<Mission>('missions', id, changes);
   await logEvent('partial', id, {
-    option: input.when, ...(result ? { result } : {}), ...(next ? { next } : {}),
+    option: input.when, ...(result ? { result } : {}), ...(next ? { next } : {}), ...(input.investigated ? { investigated: true } : {}),
   });
 }
 

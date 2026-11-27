@@ -1,8 +1,9 @@
-import type { DayKey, ExerciseSet, ID, TrainingCardio, TrainingDay, TrainingLog, TrainingPlan } from '@life/shared';
+import type { DayKey, Discomfort, ExerciseSet, ID, TrainingBlock, TrainingCardio, TrainingDay, TrainingLog, TrainingPlan } from '@life/shared';
 import {
-  CARDIO_ISSUE_TEXT, EFFORT_MAX, FIVE_DAY_SPLIT, SETS_MAX, TRAINING_PLAN_ID, WORKOUT_MAX_MIN, adoptableWorkout, cardioIssue,
-  logicalTimestamp, normalizePlanDays, startTrainingLog, trainingLogId, ulid, withExtra, withReplaced, withSet, withSetAt,
-  withSkipped, withStatusCleared, withoutExtra, withoutSet,
+  BLOCK_ISSUE_TEXT, CARDIO_ISSUE_TEXT, EFFORT_MAX, FIVE_DAY_SPLIT, PLAN_ISSUE_TEXT, SETS_MAX, TRAINING_PLAN_ID, WORKOUT_MAX_MIN,
+  adoptableWorkout, blockIssue, cardioIssue, cleanBlock, logicalTimestamp, normalizePlanDays, planIssues, startTrainingLog,
+  trainingLogId, ulid, withDiscomfort, withExtra, withReplaced, withSet, withSetAt, withSkipped, withStatusCleared, withoutExtra,
+  withoutSet,
 } from '@life/shared';
 import { db } from '../db/db';
 import { mutate, newRecord, put, upsert } from '../db/repo';
@@ -23,13 +24,26 @@ export const applyFiveDaySplit = (): Promise<TrainingPlan> => withLock('training
   const prev = await db.trainingPlans.get(TRAINING_PLAN_ID);
   if (prev && !prev.deleted) return prev;
   return put('trainingPlans', newRecord<TrainingPlan>({
-    id: TRAINING_PLAN_ID, days: FIVE_DAY_SPLIT.map((d) => ({ ...d, exercises: [...d.exercises] })),
+    id: TRAINING_PLAN_ID, days: FIVE_DAY_SPLIT.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e })) })),
   }));
 });
 
-/** Saves the plan (normalised). Day logs keep the names they copied: history is not rewritten. */
-export const saveTrainingPlan = (days: TrainingDay[]): Promise<TrainingPlan> => withLock('training-plan', () =>
-  upsert<TrainingPlan>('trainingPlans', TRAINING_PLAN_ID, { days: normalizePlanDays(days) }, { days: [] }));
+/**
+ * Saves the plan (normalised) and its block. A reversed or out-of-range number is refused, never fixed silently;
+ * `block` undefined removes the block, and leaving the argument out keeps the current one. Day logs keep what
+ * they copied: history is not rewritten.
+ */
+export function saveTrainingPlan(days: TrainingDay[], block?: TrainingBlock | null): Promise<TrainingPlan> {
+  const issue = planIssues(days)[0];
+  if (issue) return Promise.reject(new TrainingValidationError(PLAN_ISSUE_TEXT[issue.kind]));
+  if (block) {
+    const b = blockIssue(block);
+    if (b) return Promise.reject(new TrainingValidationError(b.week ? `Semana ${b.week}: ${BLOCK_ISSUE_TEXT[b.kind]}` : BLOCK_ISSUE_TEXT[b.kind]));
+  }
+  const fields: Partial<TrainingPlan> = { days: normalizePlanDays(days) };
+  if (block !== undefined) fields.block = block ? cleanBlock(block) : undefined;
+  return withLock('training-plan', () => upsert<TrainingPlan>('trainingPlans', TRAINING_PLAN_ID, fields, { days: [] }));
+}
 
 /** The live log of `day`, created from the plan when missing. Call inside withLock(LOCK). */
 async function ensureLog(day: DayKey): Promise<TrainingLog> {
@@ -58,6 +72,8 @@ export const replaceExercise = (day: DayKey, exerciseId: ID, name: string) => ed
 export const clearExerciseStatus = (day: DayKey, exerciseId: ID) => edit(day, (l) => withStatusCleared(l, exerciseId));
 export const addExtraExercise = (day: DayKey, name: string) => edit(day, (l) => withExtra(l, `x-${ulid()}`, name));
 export const removeExtraExercise = (day: DayKey, exerciseId: ID) => edit(day, (l) => withoutExtra(l, exerciseId));
+/** "Senti desconforto": where and a note; undefined removes it. */
+export const setDiscomfort = (day: DayKey, exerciseId: ID, d: Discomfort | undefined) => edit(day, (l) => withDiscomfort(l, exerciseId, d));
 
 /** Esforço / recuperação, 1–5; undefined removes it. */
 export function setTrainingFeel(day: DayKey, field: 'effort' | 'recovery', value?: number): Promise<TrainingLog> {

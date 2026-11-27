@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { DayKey, SleepLog, SleepSettings, TrainingLog, TrainingPlan, Workout } from '@life/shared';
-import { TRAINING_PLAN_ID, sleepSettingsOf, trainingLogId } from '@life/shared';
+import { TRAINING_PLAN_ID, readPlan, sleepSettingsOf, trainingLogId } from '@life/shared';
 import { db } from './db';
 import { useSettings } from './hooks';
 
@@ -28,7 +28,8 @@ export function useWorkouts(): Workout[] | undefined {
 export function useTrainingPlan(): TrainingPlan | null | undefined {
   return useLiveQuery(async () => {
     const p = await db.trainingPlans.get(TRAINING_PLAN_ID);
-    return p && !p.deleted ? p : null;
+    // Plans saved before 2026-11-25 hold plain strings: the screens always see objects.
+    return p && !p.deleted ? readPlan(p) : null;
   });
 }
 

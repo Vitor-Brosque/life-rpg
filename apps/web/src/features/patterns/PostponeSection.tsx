@@ -6,7 +6,7 @@ import { useMissionSheet } from '../mission/MissionSheet';
 import { EvidenceLine } from './Evidence';
 import type { PatternsView } from './patternData';
 import { atypicalWeeksText, bucketLine, hypothesisGateText, postponeTotalsText, reasonsText } from './patternText';
-import { UseAsExperiment } from './UseAsExperiment';
+import { TestAsStrategy } from './TestAsStrategy';
 
 const MISSIONS_SHOWN = 5;
 
@@ -78,7 +78,7 @@ export function PostponeSection({ view }: { view: PatternsView }) {
                 <EvidenceLine kind="observado">{h.basis}</EvidenceLine>
                 <EvidenceLine kind="experimento">{h.experiment}</EvidenceLine>
                 <div className="hypothesis__actions">
-                  <UseAsExperiment text={h.experiment} />
+                  <TestAsStrategy text={h.experiment} />
                   {h.missionId && (
                     <Button size="sm" variant="ghost" aria-label={`Abrir missão: ${postpone.missions.find((m) => m.missionId === h.missionId)?.title ?? ''}`.replace(/: $/, '')}
                       onClick={() => openMission(h.missionId!)}>Abrir missão</Button>

@@ -26,6 +26,18 @@
 .rich__math--block { overflow-x: auto; text-align: center; }
 .rich__math-src { font-family: ui-monospace, Consolas, monospace; }
 mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-weight: 700; box-shadow: inset 0 -2px 0 var(--gold-dark); }
+/* Document mode (caderno, perfil de estudo, apostilas): headings, rules and http(s) links. */
+.rich .rich__h { margin: var(--space-2) 0 0; color: var(--text); font-size: 1.0625rem; line-height: 1.3; }
+.rich h2.rich__h { font-size: 1.25rem; }
+.rich h3.rich__h { font-size: 1.125rem; }
+.rich__hr { width: 100%; margin: var(--space-2) 0; border: 0; border-top: 2px solid var(--outline); }
+.rich__link { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Apostila (spec 2026-11-26 §5.2). The print sheet is in styles/base.css: its colour rules outrank these screen rules
+   by specificity (keep any new screen colour here below (0,3,0), or add its print rule there). */
+.studydoc__meta { margin: 0; color: var(--text-dim); }
+.studydoc__body { min-width: 0; }
+.studydoc__body .rich { font-size: 1.0625rem; line-height: 1.55; }
 
 /* ------------------------------------------------------------------ code editor */
 
@@ -126,12 +138,21 @@ mark.cloze { padding: 0 2px; background: transparent; color: var(--gold); font-w
 .reveal__label { margin: 0 0 var(--space-1); color: var(--text-dim); font-size: 0.8125rem; font-weight: 700; }
 .reveal__mine { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .reveal__extra { color: var(--text-dim); }
+/*
+ * Sticks above the fixed bottom nav on phones (≥ 1200 px the nav is a sidebar: only the dock),
+ * on a solid band so a long answer does not show between or under the buttons.
+ */
 .rating {
   position: sticky;
-  bottom: calc(var(--dock-h, 0px) + var(--space-2));
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-h, 0px));
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--bg);
+}
+@media (min-width: 1200px) {
+  .rating { bottom: var(--dock-h, 0px); }
 }
 .rating__btn {
   display: flex;

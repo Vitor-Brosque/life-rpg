@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
-import type { CardFace } from '@life/shared';
+import { Link, useSearch } from 'wouter';
+import { useLiveQuery } from 'dexie-react-hooks';
+import type { CardFace, NoteSource } from '@life/shared';
+import { db } from '../../db/db';
 import { SpeakButton } from '../media/SpeakButton';
 import { CodeView, Rich } from './Rich';
 
@@ -11,6 +14,27 @@ export interface RevealPanelProps {
   covered: boolean[];
   onToggle(index: number): void;
   speechLang?: string;
+  /** PDFs da aula: the card was made from a PDF page ("Ver no PDF, p. N"). */
+  source?: NoteSource;
+}
+
+/**
+ * "Ver no PDF, p. 12" (spec 2026-11-26 §1.5): opens the reader at that page; nothing while the PDF is gone or unknown
+ * here. The review's deck ("Revisar este baralho") goes along, so "← Revisão" comes back to the same review.
+ */
+export function PdfSourceLink({ source }: { source: NoteSource }) {
+  const deck = new URLSearchParams(useSearch()).get('baralho');
+  const exists = useLiveQuery(async () => {
+    const f = await db.studyFiles.get(source.fileId);
+    return !!f && !f.deleted;
+  }, [source.fileId]);
+  if (!exists) return null;
+  const href = `/estudo/pdf/${source.fileId}?pagina=${source.page}&voltar=revisao${deck ? `&baralho=${encodeURIComponent(deck)}` : ''}`;
+  return (
+    <Link className="btn btn--ghost btn--sm reveal__source" href={href}>
+      {`Ver no PDF, p. ${source.page}`}
+    </Link>
+  );
 }
 
 /** Key points of a topic as checkboxes, with "N de M cobertos". */
@@ -34,7 +58,7 @@ function Checklist({ points, covered, onToggle }: { points: string[]; covered: b
  * The revealed side: the answer — a topic's key points to tick — next to the user's own answer
  * (rendered with Markdown and formulas; side by side on wide screens), plus "Por quê?".
  */
-export function RevealPanel({ face, answer, cloze, covered, onToggle, speechLang }: RevealPanelProps) {
+export function RevealPanel({ face, answer, cloze, covered, onToggle, speechLang, source }: RevealPanelProps) {
   const wrote = answer.trim() !== '';
   let correct: ReactNode = null;
   if (face.code) correct = <CodeView code={face.code.solution} lang={face.code.lang} />;
@@ -56,6 +80,7 @@ export function RevealPanel({ face, answer, cloze, covered, onToggle, speechLang
       {face.extra && (
         <div className="reveal__extra"><h3 className="reveal__label">Por quê?</h3><Rich text={face.extra} /></div>
       )}
+      {source && <div><PdfSourceLink source={source} /></div>}
     </div>
   );
 }

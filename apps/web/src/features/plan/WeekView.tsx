@@ -15,6 +15,7 @@ import { useMissionSheet } from '../mission/MissionSheet';
 import { AtypicalWeekSheet } from './AtypicalWeekSheet';
 import { CommitmentSheet } from './CommitmentSheet';
 import { DayContainer } from './DayContainer';
+import { SeasonCard } from './SeasonCard';
 import {
   backlogMissions, dayLabel, DRAG_INSTRUCTIONS, missionsOnDay, occurrencesOn, planCollision, recentlyDropped,
   usePlanData, usePlanSensors,
@@ -140,6 +141,7 @@ export function WeekView() {
 
   return (
     <div className="week">
+      <SeasonCard today={today} />
       <div className="week-atypical">
         <Button size="sm" aria-label={`Semana atípica, semana de ${viewedWeek!.slice(8, 10)}/${viewedWeek!.slice(5, 7)}${atypical ? `: ${atypical.reason}` : ''}`}
           onClick={() => setAtypicalOpen(true)}>

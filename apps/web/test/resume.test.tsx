@@ -70,7 +70,7 @@ describe('"Encerrar bloco"', () => {
     expect(session).toMatchObject({ nextAction: 'Escrever o teste do parser', endedAt: at(11, 9, 30) });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // Tech is over: the next block comes up.
-    expect(await screen.findByText('Próximo: Treino às 12:30 · 3h livres')).toBeInTheDocument();
+    expect(await screen.findByText('Próximo: Treino às 11:45 · 2h15 livres')).toBeInTheDocument();
   });
 
   it('"Encerrar sem anotar" ends the block without a note', async () => {

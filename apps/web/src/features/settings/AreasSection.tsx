@@ -5,22 +5,11 @@ import { useAreas } from '../../db/hooks';
 import { newRecord, patch, put } from '../../db/repo';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
+import { AREA_COLORS, createArea } from '../../domain/areaActions';
 import { EditableField } from '../mission/EditableField';
 import { SettingsSection } from './SettingsSection';
 
-/** Area colours offered in Ajustes (the seed areas use the first six). */
-export const AREA_COLORS: Array<{ color: string; name: string }> = [
-  { color: '#e5675d', name: 'Vermelho' },
-  { color: '#7fb7e6', name: 'Azul' },
-  { color: '#a98be0', name: 'Lilás' },
-  { color: '#e0a84a', name: 'Âmbar' },
-  { color: '#6fbf8a', name: 'Verde' },
-  { color: '#e68fb5', name: 'Rosa' },
-  { color: '#5fc7c0', name: 'Turquesa' },
-  { color: '#f08a4b', name: 'Laranja' },
-  { color: '#c9a27e', name: 'Areia' },
-  { color: '#9aa6b8', name: 'Cinza' },
-];
+export { AREA_COLORS };
 
 function saveArea(id: string, changes: Partial<Area>): Promise<void> {
   return patch<Area>('areas', id, changes).then(() => undefined, (e: unknown) => {
@@ -87,10 +76,7 @@ function NewAreaForm({ areas, onDone }: { areas: Area[]; onDone(): void }) {
   const ready = name.trim() !== '' && attribute.trim() !== '';
   const create = async () => {
     if (!ready) return;
-    const used = new Set(areas.filter((a) => !a.archived).map((a) => a.color.toLowerCase()));
-    const color = AREA_COLORS.find((c) => !used.has(c.color))?.color ?? AREA_COLORS[0]!.color;
-    const order = areas.reduce((mx, a) => Math.max(mx, a.order + 1), 0);
-    await put('areas', newRecord<Area>({ name: name.trim(), attribute: attribute.trim(), color, icon: 'star', order, archived: false }));
+    await createArea(name, attribute);
     onDone();
   };
   return (

@@ -33,11 +33,17 @@ function isActive(location: string, item: NavItem): boolean {
 /**
  * App shell. Mobile: content + fixed bottom nav with safe-area insets.
  * ≥ 1200 px: left sidebar nav. The dock (floating + aboveNav) height is published as
- * the CSS variable --dock-h so content padding and toasts stay clear of it.
+ * the CSS variable --dock-h so content padding stays clear of it. On a phone a toast sits lower,
+ * beside the "+": --dock-bar-h is the height of the aboveNav slot alone and --dock-fab-w the width
+ * to keep free at the right (0 with no floating element).
  */
+const FAB_GAP = 8;
+
 export function Layout({ children, aboveNav, floating }: LayoutProps) {
   const [location] = useLocation();
   const dockRef = useRef<HTMLDivElement>(null);
+  const floatingRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   // Commitment reminders (server push) follow commitments, settings and the day.
   useCommitmentReminders();
   // The wind-down push (Marco 4) follows the sleep setting, the day and tonight's "Deitei".
@@ -47,11 +53,18 @@ export function Layout({ children, aboveNav, floating }: LayoutProps) {
     const dock = dockRef.current;
     if (!dock || typeof ResizeObserver === 'undefined') return;
     const root = document.documentElement;
-    const ro = new ResizeObserver(() => root.style.setProperty('--dock-h', `${dock.offsetHeight}px`));
-    ro.observe(dock);
+    const floating = floatingRef.current;
+    const bar = barRef.current;
+    const ro = new ResizeObserver(() => {
+      const fab = floating?.offsetWidth ?? 0; // 0 while the slot is empty (hidden)
+      root.style.setProperty('--dock-h', `${dock.offsetHeight}px`);
+      root.style.setProperty('--dock-bar-h', `${bar?.offsetHeight ?? 0}px`);
+      root.style.setProperty('--dock-fab-w', `${fab > 0 ? fab + FAB_GAP : 0}px`);
+    });
+    for (const el of [dock, floating, bar]) if (el) ro.observe(el);
     return () => {
       ro.disconnect();
-      root.style.removeProperty('--dock-h');
+      for (const name of ['--dock-h', '--dock-bar-h', '--dock-fab-w']) root.style.removeProperty(name);
     };
   }, []);
 
@@ -80,8 +93,8 @@ export function Layout({ children, aboveNav, floating }: LayoutProps) {
       </nav>
       <main id="conteudo" className="app-main" tabIndex={-1}>{children}</main>
       <div className="app-dock" ref={dockRef}>
-        <div className="app-dock__floating">{floating}</div>
-        <div className="app-dock__above-nav">{aboveNav}</div>
+        <div className="app-dock__floating" ref={floatingRef}>{floating}</div>
+        <div className="app-dock__above-nav" ref={barRef}>{aboveNav}</div>
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ export interface WeekObjectivesProps {
 }
 
 /**
- * Step 2 "Objetivos": per main block, last week's open objectives first (kept — copied into this
+ * Step 2 "Objetivos da semana": per main block, last week's open objectives first (kept — copied into this
  * week — unless Soltar is tapped), then up to 3 in total — one empty field at a time.
  */
 export function WeekObjectives({ groups, carry, onDone, onLater }: WeekObjectivesProps) {
@@ -60,7 +60,7 @@ export function WeekObjectives({ groups, carry, onDone, onLater }: WeekObjective
 
   return (
     <section className="week-card__section" aria-labelledby={titleId}>
-      <h3 id={titleId} className="week-card__subtitle" tabIndex={-1} data-week-step="">Objetivos</h3>
+      <h3 id={titleId} className="week-card__subtitle" tabIndex={-1} data-week-step="">Objetivos da semana</h3>
       <p className="week-card__note">
         {groups.length > 0
           ? 'De 1 a 3 por bloco principal, todos opcionais. Eles aparecem na faixa do bloco.'

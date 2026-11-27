@@ -4,16 +4,18 @@ import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { safeRun } from '../../ui/safeRun';
 import { useMediaQuery } from '../../ui/useMediaQuery';
 import { useCaptureStore } from '../capture/CaptureBar';
-import { DayCloseCard, DayCloseLink } from '../dayClose/DayCloseCard';
+import { DayCloseLink } from '../dayClose/DayCloseCard';
 import { useMissionSheet } from '../mission/MissionSheet';
 import { PAINEL_QUERY, PainelScreen } from '../painel/PainelScreen';
 import { useMonthCycle } from '../patterns/monthCycle';
+import { useWeekLineTexts } from '../../db/strategyData';
 import { activeAtypical, useWeekCycle } from '../week/weekCycle';
 import { WeekLine } from '../week/WeekLine';
 import { AgoraNow, showsMainCard } from './AgoraNow';
 import { CareStrip } from './CareStrip';
 import { pickDayMode } from './blockFeedback';
-import { MorningCard } from './MorningCard';
+import { MomentCards, chooseMoment } from './MomentCards';
+import { ProposalCard } from '../assist/ProposalCard';
 import { ShrinkDialog } from './ShrinkDialog';
 import { SnoozeDialog } from './SnoozeDialog';
 import { StatusStrip } from './StatusStrip';
@@ -40,6 +42,7 @@ function AgoraView() {
   const dayType = useDayType(today);
   const { plan, current, next } = useBlocksNow(now);
   const cycle = useWeekCycle(today, dayType);
+  const lines = useWeekLineTexts(today, cycle.week?.experiment);
   const month = useMonthCycle(today, dayType);
   const free = dayType.mode === 'free';
 
@@ -62,9 +65,9 @@ function AgoraView() {
       <h1 id="agora-title" className="visually-hidden" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Agora</h1>
       <StatusStrip engine={engine} block={current} now={now} />
       <CareStrip now={now} inCommitment={!!engine.currentCommitment} />
-      <WeekLine experiment={cycle.week?.experiment} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? cycle.open : undefined} />
-      <MorningCard today={today} dayType={dayType} cycle={cycle} month={month} review={review} />
-      <DayCloseCard today={today} mode={dayType.mode} now={now} />
+      <WeekLine experiment={lines.experiment} strategies={lines.strategies} atypical={activeAtypical(cycle.week, today)} onOpen={cycle.showLink ? () => { chooseMoment(today, 'semana'); cycle.open(); } : undefined} />
+      <MomentCards today={today} now={now} dayType={dayType} cycle={cycle} month={month} review={review} />
+      <ProposalCard today={today} />
 
       <AgoraNow
         agora={agora}

@@ -11,6 +11,7 @@ import { plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { SketchesPanel } from '../sketch/SketchesPanel';
 import { PracticePanel } from '../practice/PracticePanel';
+import { SpeechPanel } from '../speech/SpeechPanel';
 import { DeckSheet } from './DeckSheet';
 import { ForecastBars } from './ForecastBars';
 import { StudyPrefsSheet } from './StudyPrefsSheet';
@@ -72,6 +73,7 @@ export function StudyScreen() {
             {active.length > 0 && <Button size="sm" icon="plus" onClick={() => navigate(newCardHref)}>Novo card</Button>}
             <Button size="sm" variant="ghost" onClick={() => setDeckSheet(true)}>Novo baralho</Button>
             <Button size="sm" variant="ghost" onClick={() => navigate('/estudo/materias')}>Matérias</Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate('/estudo/materiais')}>Materiais</Button>
             {cardsAi && <Button size="sm" variant="ghost" onClick={() => setSuggest(true)}>Sugerir cards</Button>}
           </div>
         </div>
@@ -103,6 +105,7 @@ export function StudyScreen() {
       </Panel>
 
       <PracticePanel />
+      <SpeechPanel />
       <SketchesPanel />
 
       {input.cards.length > 0 && (

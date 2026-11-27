@@ -80,13 +80,26 @@ export function syncText(s: SyncStatus): string {
 function SyncIndicator() {
   const status = useSyncStatus();
   const text = syncText(status);
+  // The message opened from here follows the status while it is on screen ("Sem conexão" must not
+  // linger once it has synced); a message from anywhere else is never replaced.
+  const shown = useRef<number | undefined>(undefined);
+  const show = (): void => {
+    useToast.getState().show(text);
+    shown.current = useToast.getState().toast?.id;
+  };
+  useEffect(() => {
+    const current = useToast.getState().toast;
+    if (shown.current === undefined || current?.id !== shown.current || current.msg === text) return;
+    useToast.getState().show(text);
+    shown.current = useToast.getState().toast?.id;
+  }, [text]);
   return (
     <button
       type="button"
       className={`sync-indicator sync-indicator--${status.state}`}
       aria-label={text}
       title={text}
-      onClick={() => useToast.getState().show(text)}
+      onClick={show}
     >
       <Icon name="sync" size={24} />
     </button>

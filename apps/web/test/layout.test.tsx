@@ -1,5 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { act, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import { Layout } from '../src/app/Layout';
@@ -84,5 +86,50 @@ describe('ErrorBoundary', () => {
   it('Padrões (/padroes) belongs to Personagem', () => {
     renderAt('/padroes', <Layout>x</Layout>);
     expect(screen.getByRole('link', { name: 'Personagem' })).toHaveAttribute('aria-current', 'page');
+  });
+});
+
+describe('messages and the dock on a phone', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it('publishes the sizes of the dock, of the bar above the nav and of the "+" slot, and clears them on unmount', () => {
+    const callbacks: Array<() => void> = [];
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb: () => void) { callbacks.push(cb); }
+      observe(): void {}
+      disconnect(): void {}
+    });
+    // jsdom has no layout: give the slots a size.
+    const sized = (sizes: Record<string, number>) => function (this: HTMLElement): number {
+      return Object.entries(sizes).find(([cls]) => this.classList.contains(cls))?.[1] ?? 0;
+    };
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(sized({ 'app-dock': 112, 'app-dock__above-nav': 40 }));
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(sized({ 'app-dock__floating': 60 }));
+    const root = document.documentElement.style;
+    const { unmount } = renderAt('/', <Layout floating={<button type="button">+</button>} aboveNav={<div>cronômetro</div>}>x</Layout>);
+    act(() => { for (const cb of callbacks) cb(); });
+    expect(root.getPropertyValue('--dock-h')).toBe('112px');
+    expect(root.getPropertyValue('--dock-bar-h')).toBe('40px');
+    expect(root.getPropertyValue('--dock-fab-w')).toBe('68px'); // the button plus the gap kept beside it
+
+    // No "+" on screen: nothing is reserved beside the message.
+    width.mockImplementation(() => 0);
+    act(() => { for (const cb of callbacks) cb(); });
+    expect(root.getPropertyValue('--dock-fab-w')).toBe('0px');
+
+    unmount();
+    for (const name of ['--dock-h', '--dock-bar-h', '--dock-fab-w']) expect(root.getPropertyValue(name)).toBe('');
+  });
+
+  // jsdom has no layout: the placement is checked in the stylesheet itself.
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/pixel.css'), 'utf8');
+  const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+
+  it('the message sits right above the nav and its bar, beside the "+", not stacked above it', () => {
+    const host = /\.toast-host\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(/bottom:\s*([^;]+);/.exec(host)?.[1]).toBe('calc(var(--nav-h) + var(--safe-bottom) + var(--dock-bar-h) + var(--space-3))');
+    expect(/padding:\s*([^;]+);/.exec(host)?.[1]).toBe('0 calc(var(--space-4) + var(--dock-fab-w)) 0 var(--space-4)');
+    expect(tokens).toMatch(/--dock-bar-h:\s*0px;/);
+    expect(tokens).toMatch(/--dock-fab-w:\s*0px;/);
   });
 });

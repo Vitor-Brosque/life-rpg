@@ -24,8 +24,8 @@ const CHECKLIST = [
   { id: 'b', text: 'Escrever o teste', done: false },
 ];
 const ROUTINE = block({
-  id: 'b0', name: 'Início do dia', order: -1, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine',
-  checklist: [{ id: 'c1', text: 'Higiene', done: false }, { id: 'c2', text: 'Café', done: false }],
+  id: 'b0', name: 'Início do dia', order: -1, targetStart: '08:00', durationMin: 30, minimumMin: 15, kind: 'routine',
+  checklist: [{ id: 'c1', text: 'Beber água', done: false }, { id: 'c2', text: 'Separar o material', done: false }],
 });
 
 beforeEach(async () => {
@@ -65,7 +65,7 @@ async function startedAt(id: string, h: number, m: number, nowH: number, nowM: n
 describe('a block past its time (overrun)', () => {
   it('says the time is over and "Encerrar e seguir para Treino" ends it (with the note prompt)', async () => {
     const user = userEvent.setup();
-    await startedAt('b1', 9, 0, 12, 10);
+    await startedAt('b1', 8, 30, 11, 25);
     renderAgora();
     const b = await banner();
     expect(within(b).getByRole('heading', { name: 'Tech' })).toBeInTheDocument();
@@ -76,12 +76,12 @@ describe('a block past its time (overrun)', () => {
 
     const dialog = await prompt();
     await user.click(within(dialog).getByRole('button', { name: 'Encerrar sem anotar' }));
-    await waitFor(async () => expect((await session('b1'))?.endedAt).toBe(at(11, 12, 10)));
-    expect(await screen.findByText('Próximo: Treino às 12:30 · 20 min livres')).toBeInTheDocument();
+    await waitFor(async () => expect((await session('b1'))?.endedAt).toBe(at(11, 11, 25)));
+    expect(await screen.findByText('Próximo: Treino às 11:45 · 20 min livres')).toBeInTheDocument();
   });
 
   it('with no block after it the button is "Encerrar bloco"', async () => {
-    await startedAt('b5', 18, 0, 18, 50);
+    await startedAt('b5', 16, 45, 17, 25);
     renderAgora();
     const b = await banner();
     expect(within(b).getByRole('heading', { name: 'Compl' })).toBeInTheDocument();
@@ -92,18 +92,18 @@ describe('a block past its time (overrun)', () => {
   it('a routine block ends without the note prompt and the next block comes up', async () => {
     const user = userEvent.setup();
     await db.blocks.put(ROUTINE);
-    await startedAt('b0', 8, 30, 9, 10);
+    await startedAt('b0', 8, 0, 8, 40);
     renderAgora();
     const b = await banner();
     expect(within(b).getByText('O horário do bloco acabou')).toBeInTheDocument();
     await user.click(within(b).getByRole('button', { name: 'Encerrar e seguir para Tech' }));
-    await waitFor(async () => expect((await session('b0'))?.endedAt).toBe(at(11, 9, 10)));
+    await waitFor(async () => expect((await session('b0'))?.endedAt).toBe(at(11, 8, 40)));
     expect(screen.queryByRole('dialog', { name: 'Onde parou?' })).not.toBeInTheDocument();
     expect(await within(await banner()).findByRole('heading', { name: 'Tech' })).toBeInTheDocument();
   });
 
   it('an open session 30+ min past its end is closed by the plan: no banner for it', async () => {
-    await startedAt('b1', 9, 0, 12, 31);
+    await startedAt('b1', 8, 30, 11, 46);
     renderAgora();
     const b = await banner();
     expect(within(b).getByRole('heading', { name: 'Treino' })).toBeInTheDocument();
@@ -115,16 +115,16 @@ describe('routine checklist', () => {
   it('all items ticked: "Concluir rotina" ends the routine, no prompt', async () => {
     const user = userEvent.setup();
     await db.blocks.put(ROUTINE);
-    vi.setSystemTime(at(11, 8, 40));
+    vi.setSystemTime(at(11, 8, 10));
     renderAgora();
     const b = await banner();
     expect(within(b).queryByRole('button', { name: 'Concluir rotina' })).not.toBeInTheDocument();
-    await user.click(within(b).getByRole('checkbox', { name: 'Higiene' }));
-    await user.click(within(b).getByRole('checkbox', { name: 'Café' }));
+    await user.click(within(b).getByRole('checkbox', { name: 'Beber água' }));
+    await user.click(within(b).getByRole('checkbox', { name: 'Separar o material' }));
     await user.click(within(b).getByRole('button', { name: 'Concluir rotina' }));
-    await waitFor(async () => expect(await session('b0')).toMatchObject({ startedAt: at(11, 8, 40), endedAt: at(11, 8, 40) }));
+    await waitFor(async () => expect(await session('b0')).toMatchObject({ startedAt: at(11, 8, 10), endedAt: at(11, 8, 10) }));
     expect(screen.queryByRole('dialog', { name: 'Onde parou?' })).not.toBeInTheDocument();
-    expect(await screen.findByText('Próximo: Tech às 09:00 · 20 min livres')).toBeInTheDocument();
+    expect(await screen.findByText('Próximo: Tech às 08:30 · 20 min livres')).toBeInTheDocument();
   });
 });
 
@@ -142,7 +142,7 @@ describe('"Pular hoje"', () => {
     expect(screen.queryByRole('dialog', { name: 'Onde parou?' })).not.toBeInTheDocument();
     const neutral = await said('blockSkip');
     await waitFor(() => expect(neutral).toContain(useCompanion.getState().message));
-    expect(await screen.findByText('Próximo: Treino às 12:30 · 3h livres')).toBeInTheDocument();
+    expect(await screen.findByText('Próximo: Treino às 11:45 · 2h15 livres')).toBeInTheDocument();
   });
 
   it('once started, "Encerrar bloco" replaces "Pular hoje"', async () => {
@@ -178,7 +178,7 @@ describe('"Onde parou?" from Encerrar', () => {
 
   it('prefills today\'s note of the block first', async () => {
     const user = userEvent.setup();
-    await startedAt('b1', 9, 0, 9, 30);
+    await startedAt('b1', 8, 30, 9, 30);
     await parser();
     await saveNextAction({ blockId: 'b1', text: 'Rodar o teste do parser' });
     expect(field(await openPrompt(user))).toHaveValue('Rodar o teste do parser');
@@ -186,14 +186,14 @@ describe('"Onde parou?" from Encerrar', () => {
 
   it('then the mission\'s first step, before the checklist', async () => {
     const user = userEvent.setup();
-    await startedAt('b1', 9, 0, 9, 30);
+    await startedAt('b1', 8, 30, 9, 30);
     await parser();
     expect(field(await openPrompt(user))).toHaveValue('Abrir o arquivo do parser');
   });
 
   it('with the timer running for the block\'s mission, Encerrar finishes the timer first: one prompt', async () => {
     const user = userEvent.setup();
-    await startedAt('b1', 9, 0, 9, 30);
+    await startedAt('b1', 8, 30, 9, 30);
     const m = await parser();
     useTimer.getState().start('free', { missionId: m.id });
     vi.setSystemTime(at(11, 9, 50));
@@ -209,19 +209,19 @@ describe('"Onde parou?" from Encerrar', () => {
 
 describe('between blocks with a commitment first', () => {
   it('names the commitment and hides "Começar Treino agora"', async () => {
-    vi.setSystemTime(at(11, 12, 15));
-    await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '12:20', end: '12:28' });
+    vi.setSystemTime(at(11, 11, 30));
+    await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '11:35', end: '11:43' });
     renderAgora();
     const between = await screen.findByRole('region', { name: 'Entre blocos' });
-    expect(within(between).getByText('Próximo: Dentista às 12:20 · 5 min livres')).toBeInTheDocument();
+    expect(within(between).getByText('Próximo: Dentista às 11:35 · 5 min livres')).toBeInTheDocument();
     expect(within(between).queryByRole('button', { name: 'Começar Treino agora' })).not.toBeInTheDocument();
   });
 
   it('with no commitment before it, the next block and "Começar Treino agora"', async () => {
-    vi.setSystemTime(at(11, 12, 15));
+    vi.setSystemTime(at(11, 11, 30));
     renderAgora();
     const between = await screen.findByRole('region', { name: 'Entre blocos' });
-    expect(within(between).getByText('Próximo: Treino às 12:30 · 15 min livres')).toBeInTheDocument();
+    expect(within(between).getByText('Próximo: Treino às 11:45 · 15 min livres')).toBeInTheDocument();
     expect(within(between).getByRole('button', { name: 'Começar Treino agora' })).toBeInTheDocument();
   });
 });
@@ -231,7 +231,7 @@ describe('status strip inside a block', () => {
     await setDayMode('normal');
     renderAgora();
     await banner();
-    expect(await screen.findByText('2h30 até o fim do bloco')).toBeInTheDocument();
+    expect(await screen.findByText('1h45 até o fim do bloco')).toBeInTheDocument();
     expect(screen.queryByText(/livre até/)).not.toBeInTheDocument();
   });
 });

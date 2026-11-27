@@ -11,7 +11,7 @@ import { ensureSeed } from '../src/db/seed';
 import { setDayMode } from '../src/domain/actions';
 import { AgoraScreen } from '../src/features/agora/AgoraScreen';
 import { useAgoraSession } from '../src/features/agora/useAgora';
-import { readMonthDraft, useMonthSession } from '../src/features/patterns/monthCycle';
+import { MONTH_LATER_KEY, readMonthDraft, useMonthSession } from '../src/features/patterns/monthCycle';
 import { PatternsScreen } from '../src/features/patterns/PatternsScreen';
 import { useWeekSession } from '../src/features/week/weekCycle';
 import { ToastHost } from '../src/ui/Toast';
@@ -67,7 +67,7 @@ describe('month card on the Agora', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Reflexão de outubro' })).not.toBeInTheDocument());
   });
 
-  it('"Agora não" hides it until the app opens again; "Pular este mês" for good', async () => {
+  it('"Agora não" hides it for the rest of the day, even after reopening; "Pular este mês" for good', async () => {
     const user = userEvent.setup();
     await xpOn('2026-10-20');
     await setDayMode('normal');
@@ -75,7 +75,15 @@ describe('month card on the Agora', () => {
     await user.click(within(await monthCard()).getByRole('button', { name: 'Agora não' }));
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Reflexão de outubro' })).not.toBeInTheDocument());
     first.unmount();
-    useMonthSession.setState({ dismissed: undefined, started: undefined });   // a new app session
+    useMonthSession.setState({ dismissed: undefined, started: undefined });   // a new app session, same day
+    const again = renderAgora();
+    await agoraReady();
+    await waitFor(async () => expect(await db.meta.get(MONTH_LATER_KEY)).toBeDefined());
+    expect(screen.queryByRole('region', { name: 'Reflexão de outubro' })).not.toBeInTheDocument();
+    again.unmount();
+    await at(5);   // the next day it is back
+    await setDayMode('normal');
+    useMonthSession.setState({ dismissed: undefined, started: undefined });
     const second = renderAgora();
     await user.click(within(await monthCard()).getByRole('button', { name: 'Começar' }));
     await user.click(await within(await monthCard()).findByRole('button', { name: 'Pular este mês' }));

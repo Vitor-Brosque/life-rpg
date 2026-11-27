@@ -71,6 +71,20 @@ describe('useRecorder', () => {
     expect(result.current.state).toMatchObject({ kind: 'done', capped: true, durationMs: 120_000 });
     expect(mic.track.stop).toHaveBeenCalled();
   });
+  it('maxMs moves the cap: a 3-minute recorder is still recording at 2 minutes and ends capped at 3', async () => {
+    vi.useFakeTimers();
+    mic = installFakeMic();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:rec/3');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const { result } = renderHook(() => useRecorder(180_000));
+    act(() => result.current.start());
+    await flush();
+    act(() => { vi.advanceTimersByTime(125_000); });
+    expect(result.current.state).toEqual({ kind: 'recording', elapsedMs: 125_000 });
+    act(() => { vi.advanceTimersByTime(55_000); });
+    await flush();
+    expect(result.current.state).toMatchObject({ kind: 'done', capped: true, durationMs: 180_000 });
+  });
   it('a failure while setting up the recorder frees the microphone and shows the calm message', async () => {
     mic = installFakeMic();
     vi.spyOn(MediaRecorder.prototype, 'start').mockImplementation(() => { throw new Error('start failed'); });

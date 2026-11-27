@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { create } from 'zustand';
 import type { BlockOutcome, ChecklistItem, ID } from '@life/shared';
-import { BLOCK_OUTCOMES, BLOCK_OUTCOME_LABEL, RESULT_MAX, isOfBlock } from '@life/shared';
+import { BLOCK_OUTCOMES, BLOCK_OUTCOME_LABEL, INVESTIGATED_HINT, RESULT_MAX, isOfBlock } from '@life/shared';
 import { readCurrentBlock } from '../../db/dayPlan';
 import { db } from '../../db/db';
 import { refreshNow } from '../../db/hooks';
@@ -109,6 +109,7 @@ function ResumeForm({ request, onDone }: { request: ResumeRequest; onDone(): voi
                 </Chip>
               ))}
             </div>
+            {outcome === 'investiguei' && <p className="resume-form__hint">{INVESTIGATED_HINT}</p>}
           </fieldset>
           <label className="field" htmlFor={resultId}>
             <span className="field__label">O que saiu? (opcional)</span>

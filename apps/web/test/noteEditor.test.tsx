@@ -148,6 +148,19 @@ describe('NoteEditor', () => {
     await vi.waitFor(() => expect(window.location.pathname).toBe(`/estudo/baralho/${d.id}`));
   });
 
+  it('a draft that already has its back and deck (sent by a chat) only asks to check and save', async () => {
+    const user = userEvent.setup();
+    const d = await saveDeck({ name: 'Banco de Dados' });
+    const draft = await saveNote({ type: 'topic', front: 'Formas normais', back: '1FN\n2FN\n3FN', draft: true, deckId: d.id });
+    go(`/estudo/nota/${draft.id}`);
+    render(<NoteEditor id={draft.id} />);
+    expect(await screen.findByText('Rascunho. Confira a frente e o verso e salve para ele entrar na revisão.')).toBeInTheDocument();
+    expect(screen.queryByText(/Rascunho capturado/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+    await vi.waitFor(async () => expect(await db.notes.get(draft.id)).toMatchObject({ draft: false, deckId: d.id }));
+    expect((await db.cards.toArray()).filter((c) => c.noteId === draft.id && !c.deleted)).toHaveLength(1);
+  });
+
   it('delete with undo', async () => {
     const user = userEvent.setup();
     const d = await saveDeck({ name: 'SQL' });

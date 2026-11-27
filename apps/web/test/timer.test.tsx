@@ -250,7 +250,7 @@ describe('syncCommitmentReminders', () => {
   it('schedules future reminders for today and tomorrow and cancels stale ones', async () => {
     const fetchMock = mockFetch();
     await setMeta('syncToken', 'tok');
-    await createCommitment({ title: 'Café', date: '2026-11-11', start: '09:00' }); // already past
+    await createCommitment({ title: 'Padaria', date: '2026-11-11', start: '09:00' }); // already past
     const dentist = await createCommitment({ title: 'Dentista', date: '2026-11-11', start: '15:00' });
     const yoga = await createCommitment({ title: 'Yoga', date: '2026-11-01', start: '07:30', weekdays: [4] }); // Thu 12/11
     await createCommitment({ title: 'Sem aviso', date: '2026-11-11', start: '18:00', remind: false });

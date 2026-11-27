@@ -209,6 +209,18 @@ describe('celebrations', () => {
     expect(r.seen.outfits).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(r.seen.stages['area-ordem']).toBe(0);
   });
+  it('recent XP not earned on this device (it came by sync) grows the world silently', () => {
+    const seen: WorldSeen = { stages: { 'area-vigor': 0, 'area-ordem': 0 }, outfits: [0, 1, 2, 3, 4, 5], news: [] };
+    const pulled = [xp(25, { id: 'remote-1', areaId: 'area-vigor', at: NOW - 1000 }), xp(280, { id: 'remote-2', at: NOW - 1000 })];
+    const synced = worldProgress(seen, worldSnapshot(areas, pulled, new Set()), NOW);
+    expect(synced.celebrate).toEqual([]);
+    expect(synced.seen.stages['area-vigor']).toBe(1);
+    expect(synced.seen.outfits).toContain(6);
+    expect(synced.seen.news).toEqual([]);
+    // The same growth from XP this device wrote is celebrated as before.
+    const mine = worldProgress(seen, worldSnapshot(areas, pulled, new Set(['remote-1'])), NOW);
+    expect(mine.celebrate.map((n) => n.kind)).toEqual(['stage', 'outfit']);
+  });
   it('news expire after 3 days; junk in storage is cleaned', () => {
     const seen: WorldSeen = { stages: {}, outfits: [], news: [{ kind: 'outfit', outfit: 6, at: NOW - NEWS_TTL_MS - 1 }] };
     expect(activeNews(seen, NOW)).toEqual([]);

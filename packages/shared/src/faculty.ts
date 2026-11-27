@@ -1,9 +1,10 @@
 import type {
   Area, AssessmentKind, Block, Card, Commitment, DayKey, Deck, FocusSession, HHmm, ID, Journey, Mission, PracticeSession,
-  ProblemSet, Review, SubjectTopic, TopicLevel,
+  ProblemSet, Review, StudyFile, StudyFileProgress, SubjectTopic, TopicLevel,
 } from './types';
 import { addDays, dayKeyOf, diffDays, weekdayOf } from './dates';
 import { assessmentDay, occurrencesOn } from './engine';
+import { httpsUrlIssue } from './notebook';
 import { compactTitle, normalize } from './parser';
 import { WEEKDAY_NAMES } from './periods';
 
@@ -25,6 +26,15 @@ export const NO_CONTACT_MIN = 5;
 export const ASSESSMENT_WINDOW_DAYS = 14;
 /** Look-back of the contact search (bounds the loops). */
 export const CONTACT_LOOKBACK_DAYS = 180;
+/** The subject's chat link ("Chat da disciplina"): an https:// address up to this many characters. */
+export const CHAT_URL_MAX = 500;
+
+/** What is wrong with a chat link, if anything (the text is shown as is). An empty link is fine: it removes the link. */
+export const chatUrlIssue = (url: string): string | undefined => httpsUrlIssue(url, CHAT_URL_MAX);
+
+/** The stored link when it can be opened (an https:// address), else undefined. */
+export const openableChatUrl = (j: Pick<Journey, 'chatUrl'>): string | undefined =>
+  j.chatUrl && chatUrlIssue(j.chatUrl) === undefined ? j.chatUrl.trim() : undefined;
 
 export interface SubjectTemplate { title: string; weekdays: number[]; start: HHmm; end: HHmm }
 
@@ -142,11 +152,15 @@ export interface ContactData {
   focus: readonly FocusSession[];
   problemSets: readonly ProblemSet[];
   topics: readonly SubjectTopic[];
+  /** PDFs da aula (2026-11-26 §1.7): reading a subject's PDF counts as contact (the lastReadAt of its progress). */
+  studyFiles?: readonly StudyFile[];
+  /** Where she stopped in each PDF (id = the StudyFile's id). Absent = none. */
+  studyFileProgress?: readonly StudyFileProgress[];
 }
 
 /**
  * Last day with contact: a review in its decks, a practice session (created or ended), a mission of it
- * concluded, a focus session on one of its missions, an exercise log, or a topic level change.
+ * concluded, a focus session on one of its missions, an exercise log, a topic level change, or reading one of its PDFs.
  */
 export function lastContactDay(journeyId: ID, data: ContactData): DayKey | undefined {
   const day = (ts: number): DayKey => dayKeyOf(ts, data.dayStartHour);
@@ -171,6 +185,11 @@ export function lastContactDay(journeyId: ID, data: ContactData): DayKey | undef
   for (const t of data.topics) {
     if (t.deleted || t.journeyId !== journeyId) continue;
     for (const mark of t.marks) days.push(day(mark.at));
+  }
+  const readAt = new Map((data.studyFileProgress ?? []).filter((p) => !p.deleted && p.lastReadAt !== undefined).map((p) => [p.id, p.lastReadAt!]));
+  for (const f of data.studyFiles ?? []) {
+    const at = readAt.get(f.id);
+    if (!f.deleted && f.journeyId === journeyId && at !== undefined) days.push(day(at));
   }
   return days.reduce<DayKey | undefined>((max, d) => (max === undefined || d > max ? d : max), undefined);
 }

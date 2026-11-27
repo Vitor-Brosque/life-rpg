@@ -194,7 +194,7 @@ describe('PlanScreen', () => {
     await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: 'Rotina', selected: true })).toHaveFocus();
     await user.keyboard('{ArrowRight}');
-    expect(screen.getByRole('tab', { name: 'Jornadas', selected: true })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Objetivos', selected: true })).toHaveFocus();
     expect(await screen.findByRole('button', { name: 'Nova jornada' })).toBeInTheDocument();
     await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: 'Casa', selected: true })).toHaveFocus();

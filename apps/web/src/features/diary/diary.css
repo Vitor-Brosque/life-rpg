@@ -32,3 +32,27 @@
 .diary-editor__kept-title { margin: 0; font-weight: 600; }
 .diary-editor__kept-text { margin: 0; white-space: pre-line; overflow-wrap: anywhere; color: var(--text-dim); }
 .diary-export__preview { max-height: 40vh; overflow: auto; margin: 0; padding: var(--space-3); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; background: var(--stone); }
+
+/* Relatórios (2026-11-23): choices, the entries to tick, the preview. */
+.report__group { display: flex; flex-direction: column; gap: var(--space-2); }
+.report__entries { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.report__entry { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; overflow-wrap: anywhere; cursor: pointer; }
+.report__entry input { flex-shrink: 0; width: 24px; height: 24px; }
+.report__preview { max-height: 60vh; }
+.strategy-item__open { display: flex; flex-direction: column; gap: 4px; min-height: 44px; padding: 0; color: var(--text); font: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.strategy-item__open:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.strategy-item__title { font-weight: 600; overflow-wrap: anywhere; }
+.strategy-form input[type='text'], .strategy-form select, .strategy-form textarea { width: 100%; }
+.strategy-form__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+.strategy-form__chips legend { padding: 0; margin-bottom: 6px; }
+.strategy-form__hint { flex-basis: 100%; margin: 0; }
+.strategy-form__due { margin: 0; color: var(--gold); font-weight: 600; }
+.strategy-form__issue { margin: 0; min-height: 1.25em; font-weight: 600; }
+
+.diary-observation { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--stone); }
+.diary-observation__title { margin: 0; font-size: 1rem; color: var(--gold); }
+.diary-observation p { margin: 0; }
+.observation__lines { display: grid; gap: var(--space-2); margin: 0; }
+.observation__line { display: grid; gap: 2px; }
+.observation__line dt { color: var(--text-dim); font-size: 0.875rem; }
+.observation__line dd { margin: 0; overflow-wrap: anywhere; }

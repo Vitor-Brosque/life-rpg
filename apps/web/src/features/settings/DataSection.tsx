@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { EXPORT_MEDIA_MAX_BYTES } from '@life/shared';
 import { useId, useState, type ChangeEvent } from 'react';
-import { canShareFiles, deliverExport, prepareExport, type PreparedExport } from '../../db/exportData';
+import { PDF_EXPORT_NOTE, canShareFiles, deliverExport, prepareExport, type PreparedExport } from '../../db/exportData';
+import { db } from '../../db/db';
 import { mediaUsage } from '../../db/media';
 import { Button } from '../../ui/Button';
 import { formatBytes } from '../../ui/format';
@@ -15,6 +16,8 @@ export function DataSection() {
   const [busy, setBusy] = useState(false);
   const toast = useToast((s) => s.show);
   const usage = useLiveQuery(() => mediaUsage(), []);
+  // PDFs of Materiais exist (on this device or only on the PC): the export leaves their files out.
+  const hasPdfs = useLiveQuery(async () => (await db.studyFiles.toArray()).some((f) => !f.deleted), [], false);
 
   const [preparing, setPreparing] = useState(false);
   const [ready, setReady] = useState<PreparedExport | undefined>(undefined);
@@ -86,13 +89,14 @@ export function DataSection() {
           : ready ? `Exportação pronta. Toque em "Compartilhar arquivo" para salvar em Arquivos ou enviar.${ready.mediaNote ? ` ${ready.mediaNote}` : ''}`
             : ''}
       </p>
-      {usage && usage.count > 0 && (
+      {usage && usage.count > usage.pdfCount && (
         <p className="settings-hint">
-          {usage.bytes <= EXPORT_MEDIA_MAX_BYTES
-            ? `Imagens e áudios (${formatBytes(usage.bytes)}) entram na exportação.`
+          {usage.bytes - usage.pdfBytes <= EXPORT_MEDIA_MAX_BYTES
+            ? `Imagens e áudios (${formatBytes(usage.bytes - usage.pdfBytes)}) entram na exportação.`
             : 'Imagens e áudios passam de 25 MB: entram na exportação até esse limite, primeiro os que ainda esperam o envio ao servidor. Os demais continuam guardados neste aparelho e, com a sincronização, no servidor.'}
         </p>
       )}
+      {(hasPdfs || (usage && usage.pdfCount > 0)) && <p className="settings-hint">{PDF_EXPORT_NOTE}</p>}
     </SettingsSection>
   );
 }

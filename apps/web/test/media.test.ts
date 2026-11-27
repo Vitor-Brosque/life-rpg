@@ -42,7 +42,7 @@ describe('storeMedia', () => {
     expect((await storeMedia(b.buffer, { upload: false })).created).toBe(false);
     expect((await storeMedia(big.subarray(10, 42), { upload: false })).created).toBe(false);
     expect((await db.mediaData.get(sha256Hex(b)))!.bytes.byteLength).toBe(32);
-    expect(await mediaUsage()).toEqual({ count: 1, bytes: 32, pending: 1 });
+    expect(await mediaUsage()).toEqual({ count: 1, bytes: 32, pending: 1, pdfCount: 0, pdfBytes: 0 });
   });
   it('refuses empty, unknown and oversized input; a wrong expected hash is a plain error', async () => {
     await expect(storeMedia(new Uint8Array(), { upload: true })).rejects.toThrow('O arquivo está vazio.');
@@ -285,11 +285,12 @@ describe('study fields', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(f).toHaveBeenCalledTimes(dead.length);
   });
-  it('upload timeout grows with the size, 60 s to 180 s', () => {
+  it('upload timeout grows with the size, 60 s to 10 minutes (a 50 MB PDF)', () => {
     expect(uploadTimeoutMs(1000)).toBe(70_000);
     expect(uploadTimeoutMs(3 * 1024 * 1024)).toBe(90_000);
     expect(uploadTimeoutMs(8 * 1024 * 1024)).toBe(140_000);
-    expect(uploadTimeoutMs(50 * 1024 * 1024)).toBe(180_000);
+    expect(uploadTimeoutMs(50 * 1024 * 1024)).toBe(560_000);
+    expect(uploadTimeoutMs(80 * 1024 * 1024)).toBe(600_000);
   });
   it('a file whose upload times out goes to the back of the queue, so the others get their turn', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });

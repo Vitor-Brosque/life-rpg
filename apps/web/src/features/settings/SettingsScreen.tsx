@@ -13,6 +13,7 @@ import { CompanionSection, DaySection, FocusSection } from './PreferenceSections
 import { StorageSection } from './StorageSection';
 import { SettingsSection } from './SettingsSection';
 import { SyncSection } from './SyncSection';
+import { AssistSection } from '../assist/AssistSection';
 import './settings.css';
 
 /**
@@ -41,6 +42,7 @@ export function SettingsScreen() {
         <div className="settings__col">
           <SyncSection />
           {aiAvailable && <AiSection settings={settings} />}
+          <AssistSection />
           <NotificationsSection settings={settings} />
           <SleepSection settings={settings} />
           <StorageSection />

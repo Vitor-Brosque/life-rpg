@@ -117,20 +117,20 @@ describe('Corpo — treino', () => {
 });
 
 const TREINO = block({
-  id: 'b2', name: 'Treino', order: 1, targetStart: '12:30', durationMin: 120, minimumMin: 45, kind: 'body', areaId: 'area-vigor',
+  id: 'b2', name: 'Treino', order: 1, targetStart: '11:45', durationMin: 90, minimumMin: 35, kind: 'body', areaId: 'area-vigor',
 });
 const occurrence = (p: Partial<BlockOccurrence> = {}): BlockOccurrence => ({
-  block: TREINO, day: '2026-11-13', plannedStart: at(13, 12, 30), plannedEnd: at(13, 14, 30),
-  start: at(13, 12, 30), end: at(13, 14, 30), version: 'normal', shrunk: false, state: 'current', ...p,
+  block: TREINO, day: '2026-11-13', plannedStart: at(13, 11, 45), plannedEnd: at(13, 13, 15),
+  start: at(13, 11, 45), end: at(13, 13, 15), version: 'normal', shrunk: false, state: 'current', ...p,
 });
 
 describe('Bloco Treino', () => {
   it('suggests the minutes since the block started and highlights the minimum cardio in the minimum version', async () => {
     const user = userEvent.setup();
-    vi.setSystemTime(at(13, 13, 15));
+    vi.setSystemTime(at(13, 12, 30));
     const occ = occurrence({
       version: 'minimum',
-      session: { id: 'bs-b2-2026-11-13', createdAt: 1, updatedAt: 1, deleted: false, blockId: 'b2', day: '2026-11-13', startedAt: at(13, 12, 30), version: 'minimum' },
+      session: { id: 'bs-b2-2026-11-13', createdAt: 1, updatedAt: 1, deleted: false, blockId: 'b2', day: '2026-11-13', startedAt: at(13, 11, 45), version: 'minimum' },
     });
     renderAt('/', <BodyBlockPanel occurrence={occ} now={Date.now()} />);
     const group = await screen.findByRole('group', { name: 'Treino de hoje' });
@@ -148,12 +148,12 @@ describe('Bloco Treino', () => {
   });
 
   it('the banner shows the group only for body blocks, with the gentle line on normal days', async () => {
-    const view = renderAt('/', <BlockBanner occurrence={occurrence()} now={at(13, 12, 40)} />);
+    const view = renderAt('/', <BlockBanner occurrence={occurrence()} now={at(13, 12, 0)} />);
     const group = await screen.findByRole('group', { name: 'Treino de hoje' });
     expect(within(group).getByText('Sem vontade de cardio? A versão mínima é 10 min.')).toBeInTheDocument();
     view.unmount();
-    const focus = block({ id: 'b1', name: 'Tech', order: 0, targetStart: '09:00', durationMin: 180, minimumMin: 45, kind: 'focus' });
-    renderAt('/', <BlockBanner occurrence={occurrence({ block: focus })} now={at(13, 12, 40)} />);
+    const focus = block({ id: 'b1', name: 'Tech', order: 0, targetStart: '08:30', durationMin: 165, minimumMin: 40, kind: 'focus' });
+    renderAt('/', <BlockBanner occurrence={occurrence({ block: focus })} now={at(13, 12, 0)} />);
     await screen.findByRole('region', { name: 'Bloco atual' });
     expect(screen.queryByRole('group', { name: 'Treino de hoje' })).not.toBeInTheDocument();
   });

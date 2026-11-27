@@ -37,10 +37,10 @@ describe('closeNoteEntry (Dexie v10)', () => {
 });
 
 describe('themes, days and weeks', () => {
-  it('twelve themes with their labels', () => {
+  it('thirteen themes with their labels', () => {
     expect(DIARY_THEMES.map((t) => DIARY_THEME_LABEL[t])).toEqual([
       'Faculdade', 'Carreira', 'Projetos', 'Estudo', 'Saúde', 'Treino', 'Sono',
-      'Relacionamentos', 'Família', 'Lazer', 'Sentimentos', 'Ideias',
+      'Relacionamentos', 'Família', 'Lazer', 'Sentimentos', 'Ideias', 'Comunicação',
     ]);
   });
   it('weeks run Monday to Sunday', () => {

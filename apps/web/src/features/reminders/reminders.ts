@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Commitment, DayKey, DayMode, SleepLog, SleepSettings, StudyInput, StudySettings } from '@life/shared';
 import {
-  addDays, defaultDayMode, logicalTimestamp, occurrencesOn, remainingOf, sleepNightOf, sleepSettingsOf, studyPlan, studySettingsOf, weekdayOf,
+  aboutMinutesText, addDays, defaultDayMode, logicalTimestamp, occurrencesOn, remainingOf, sleepNightOf, sleepSettingsOf, studyPlan, studySettingsOf, weekdayOf,
 } from '@life/shared';
 import { db } from '../../db/db';
 import { useDayMode, useSettings, useToday } from '../../db/hooks';
@@ -219,7 +219,7 @@ export function desiredStudyReminders(p: StudyReminderInput): ScheduledReminder[
     let body: string;
     if (i === 0) {
       if (p.mode === 'free' || p.goalMet || p.remaining.count <= 0) continue;
-      body = `Revisão de hoje: ${plural(p.remaining.count, 'card', 'cards')}, uns ${p.remaining.minutes} min.`;
+      body = `Revisão de hoje: ${plural(p.remaining.count, 'card', 'cards')}, ${aboutMinutesText(p.remaining.minutes)}.`;
     } else {
       if (defaultDayMode(day) === 'free') continue;
       if (!((p.forecast.find((f) => f.day === day)?.min ?? 0) > 0)) continue;

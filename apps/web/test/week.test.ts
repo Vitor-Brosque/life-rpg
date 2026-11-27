@@ -14,7 +14,7 @@ beforeEach(async () => {
   await ensureSeed();
   await db.blocks.put({
     id: 'b3', createdAt: 1, updatedAt: 1, deleted: false, name: 'Facul', weekdays: [1, 2, 3, 4, 5], order: 0,
-    targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study', protected: true, checklist: [],
+    targetStart: '13:45', durationMin: 90, minimumMin: 30, kind: 'study', protected: true, checklist: [],
     archived: false, areaId: 'area-facul',
   });
 });
@@ -52,16 +52,19 @@ describe('weeks', () => {
     expect(await toggleObjective(WEEK, 'missing')).toEqual({ xp: 0 });
   });
 
-  it('saveWeekReview stores the review and the experiment, creating the week when needed', async () => {
+  it('saveWeekReview stores the review (creating the week); the adjustment becomes a testing strategy, not the week experiment', async () => {
     await saveWeekReview(WEEK, { worked: 'começar cedo', obstacle: 'celular', adjustment: ' celular em outro cômodo ' });
     const w = await db.weeks.get(WEEK);
     expect(w).toMatchObject({
       objectives: [],
       review: { worked: 'começar cedo', obstacle: 'celular', adjustment: ' celular em outro cômodo ', answeredAt: Date.now() },
-      experiment: 'celular em outro cômodo',
     });
+    expect(w!.experiment).toBeUndefined();
+    expect(await db.strategies.toArray()).toEqual([
+      expect.objectContaining({ title: 'celular em outro cômodo', source: 'ideia', status: 'testando' }),
+    ]);
     await setObjectives(WEEK, [{ blockId: 'b3', text: 'Lista 5', done: false }]);
-    expect((await db.weeks.get(WEEK))!.experiment).toBe('celular em outro cômodo');
+    expect((await db.weeks.get(WEEK))!.experiment).toBeUndefined();
   });
 
   it('useWeek reads the current week by default', async () => {

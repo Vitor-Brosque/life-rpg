@@ -130,7 +130,7 @@ textarea { resize: vertical; line-height: 1.4; }
   grid-template-columns: repeat(5, minmax(0, 1fr));
   height: var(--nav-h);
   margin: 0;
-  padding: 0;
+  padding: 0 var(--space-1);
   list-style: none;
 }
 .app-nav__link {
@@ -207,7 +207,7 @@ textarea { resize: vertical; line-height: 1.4; }
     font-size: 1.375rem;
     font-weight: 700;
   }
-  .app-nav__list { display: flex; flex-direction: column; gap: var(--space-1); height: auto; }
+  .app-nav__list { display: flex; flex-direction: column; gap: var(--space-1); height: auto; padding: 0; }
   .app-nav__link {
     flex-direction: row;
     justify-content: flex-start;
@@ -258,3 +258,23 @@ textarea { resize: vertical; line-height: 1.4; }
 }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 legend { padding: 0; margin-bottom: 6px; }
+
+/* "Salvar como PDF" of an apostila (spec 2026-11-26 §5.2): while the apostila screen is open, the print sheet has only
+   its title, source, day and text, dark on white, with no navigation, dock, toast or buttons.
+   This file loads before the feature styles (study.css), so a tie in specificity would lose to the screen colours
+   (the headings came out #ece6d6 on white). Every colour rule for the text starts with `.studydoc .studydoc__body`
+   and so outranks its screen rule (at most `.rich .rich__h` or `mark.cloze`) whatever the order of the stylesheets. */
+@media print {
+  body:has(.studydoc) { background: #fff; }
+  body:has(.studydoc) :is(.app-nav, .app-dock, .toast-host, .skip-link) { display: none !important; }
+  body:has(.studydoc) .app-main { margin: 0; padding: 0; min-height: 0; }
+  .studydoc { max-width: none; color: #000; }
+  .studydoc :is(.studydoc__actions, .deck__back) { display: none !important; }
+  .studydoc :is(h1, .studydoc__meta) { color: #000; }
+  .studydoc .studydoc__body :is(.rich, .rich__h, .rich__link, .rich__code, .rich__pre, .rich__math, .rich__math-src, .tok, .cloze, .rich__media-box) { color: #000; }
+  .studydoc .studydoc__body .rich__pre { background: #fff; box-shadow: 0 0 0 1px #888; white-space: pre-wrap; break-inside: avoid; }
+  .studydoc .studydoc__body .rich__code { background: #eee; }
+  .studydoc .studydoc__body .rich__h { break-after: avoid; }
+  .studydoc .studydoc__body .rich__hr { border-top-color: #888; }
+  .studydoc .studydoc__body .cloze { box-shadow: none; }
+}

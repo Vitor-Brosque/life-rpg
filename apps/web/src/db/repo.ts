@@ -1,5 +1,5 @@
-import type { BaseRecord, SyncChange, SyncTable } from '@life/shared';
-import { SYNC_TABLES, shouldAccept, ulid } from '@life/shared';
+import type { BaseRecord, SpeechRecording, SpeechSession, SyncChange, SyncTable } from '@life/shared';
+import { SYNC_TABLES, shouldAccept, ulid, unionRecordings } from '@life/shared';
 import { db, tableOf } from './db';
 
 const listeners = new Set<() => void>();
@@ -171,29 +171,68 @@ export async function softDelete(table: SyncTable, id: string): Promise<void> {
 
 const warnedTables = new Set<string>();
 
+/** True when `next` holds a recording `prev` lacks, or the cap on one (order does not count). Guardar follows the version that wins. */
+function gainedRecordings(prev: readonly SpeechRecording[], next: readonly SpeechRecording[]): boolean {
+  const before = new Map(prev.map((r) => [r.hash, r]));
+  return next.some((r) => {
+    const b = before.get(r.hash);
+    return !b || (!!r.capped && !b.capped);
+  });
+}
+
+/** The result of applying one remote record: `accepted` (the remote version won) and `queued` (a merge was queued to push). */
+export interface RemoteApplied { accepted: boolean; queued: boolean }
+
 /**
  * Apply a record from the server (no outbox, no change notification). A table this version does
  * not have (synced by a newer client) is skipped with one warning per table.
+ *
+ * Speech sessions (I2): when a live remote version meets a live local one, the recordings are a
+ * grow-only set merged by hash (`unionRecordings`), whichever version wins the other fields. When
+ * the merge adds something the winning version lacked, it is stored with a newer `updatedAt` and
+ * queued, so it reaches the server and the other device; equal lists write nothing (no ping-pong).
  */
-export async function applyRemote(change: SyncChange): Promise<boolean> {
+export async function applyRemoteChange(change: SyncChange): Promise<RemoteApplied> {
   const { table, record } = change;
   if (!(SYNC_TABLES as readonly string[]).includes(table) || !db.tables.some((x) => x.name === table)) {
     if (!warnedTables.has(table)) {
       warnedTables.add(table);
       console.warn(`sync: skipping changes for unknown table "${table}"`);
     }
-    return false;
+    return { accepted: false, queued: false };
   }
   const t = tableOf(table);
   return db.transaction('rw', t, db.outbox, async () => {
-    const pending = await db.outbox.get(`${table}:${record.id}`);
-    if (pending && pending.updatedAt >= record.updatedAt) return false;
+    const key = `${table}:${record.id}`;
+    const pending = await db.outbox.get(key);
     const local = (await t.get(record.id)) as BaseRecord | undefined;
-    if (!shouldAccept(record, local)) return false;
+    const merging = table === 'speechSessions' && !!local && !local.deleted && !record.deleted;
+    const recs = (r: BaseRecord | undefined): SpeechRecording[] => (r as SpeechSession | undefined)?.recordings ?? [];
+    const queue = async (saved: BaseRecord): Promise<void> => {
+      await t.put(saved);
+      await db.outbox.put({ key, table, id: saved.id, updatedAt: saved.updatedAt });
+    };
+    if ((pending && pending.updatedAt >= record.updatedAt) || !shouldAccept(record, local)) {
+      // The local version (or a pending local change) is newer: it keeps its fields, and gains the remote's recordings.
+      if (!merging || !local || !gainedRecordings(recs(local), recs(record))) return { accepted: false, queued: false };
+      const updatedAt = Math.max(Date.now(), local.updatedAt + 1);
+      await queue({ ...local, recordings: unionRecordings(recs(local), recs(record)), updatedAt } as SpeechSession);
+      return { accepted: false, queued: true };
+    }
+    if (merging && gainedRecordings(recs(record), recs(local))) {
+      const updatedAt = Math.max(Date.now(), record.updatedAt + 1);
+      await queue({ ...record, recordings: unionRecordings(recs(record), recs(local)), updatedAt } as SpeechSession);
+      return { accepted: true, queued: true };
+    }
     await t.put(record);
     if (pending) await db.outbox.delete(pending.key); // superseded by the newer remote version
-    return true;
+    return { accepted: true, queued: false };
   });
+}
+
+/** `applyRemoteChange`, resolving true when the remote version won. */
+export async function applyRemote(change: SyncChange): Promise<boolean> {
+  return (await applyRemoteChange(change)).accepted;
 }
 
 /**

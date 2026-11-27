@@ -1,5 +1,7 @@
 import { useId } from 'react';
 import type { DayKey, DayMode } from '@life/shared';
+import { observationDayText, observationOf, observationState } from '@life/shared';
+import { useSettings } from '../../db/hooks';
 import { dismissDayClose } from '../../domain/dayCloseActions';
 import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
@@ -15,11 +17,14 @@ import './dayClose.css';
 export function DayCloseCard({ today, mode, now }: { today: DayKey; mode: DayMode; now: number }) {
   const due = useDayCloseDue(today, mode, now);
   const headingId = useId();
+  const settings = useSettings();
   if (!due) return null;
+  const obs = observationState(observationOf(settings), today);
   return (
     <Panel variant="stone" role="region" aria-labelledby={headingId} className="day-close-card">
       <h2 id={headingId} className="day-close-card__title">Como foi hoje?</h2>
       <p className="day-close-card__text">Dois minutos para fechar o dia. Tudo é opcional.</p>
+      {obs.kind === 'active' && <p className="day-close-card__observation">{observationDayText(obs.day)}</p>}
       <div className="day-close-card__actions">
         <Button variant="primary" onClick={() => useDayCloseSheet.getState().open()}>Abrir</Button>
         <Button variant="ghost" onClick={(e) => {

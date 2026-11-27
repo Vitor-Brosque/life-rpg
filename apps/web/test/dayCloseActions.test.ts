@@ -5,7 +5,7 @@ import { newRecord, put } from '../src/db/repo';
 import { ensureSeed } from '../src/db/seed';
 import {
   CorrectionError, closeDay, correctBlockTimes, correctFocusMinutes, deleteFocusSession, dismissDayClose,
-  restoreFocusSession, retroBlock,
+  restoreFocusSession, retroBlock, saveDayChoices,
 } from '../src/domain/dayCloseActions';
 import { saveSleepTimes, setSleepQuality } from '../src/domain/sleepActions';
 import { at, seedBlocks } from './blockFixture';
@@ -27,7 +27,23 @@ const session = (blockId: string, extra: Partial<BlockSession>) =>
 const xpCount = async () => (await db.xpEvents.toArray()).filter((x) => !x.deleted).length;
 
 describe('closeDay and dismissDayClose', () => {
-  it('keeps the first close time and replaces tiredness; the observation is the fechamento entry, with no length limit', async () => {
+  it('writes only the choices present: a key with undefined clears it, a missing key keeps it', async () => {
+    await closeDay(DAY, { tiredness: 'muito', mood: 'ok', load: 'pesada' });
+    await closeDay(DAY, { mood: 'bem', load: undefined, concentration: 'dificil' });
+    const ds = (await db.dayState.get(DAY))!;
+    expect(ds).toMatchObject({ tiredness: 'muito', mood: 'bem', concentration: 'dificil', closedAt: at(11, 23, 30) });
+    expect(ds.load).toBeUndefined();
+  });
+
+  it('saveDayChoices writes the given choices without closing the day, and nothing without keys', async () => {
+    await saveDayChoices(DAY, {});
+    expect(await db.dayState.get(DAY)).toBeUndefined();
+    await saveDayChoices(DAY, { concentration: 'boa' });
+    expect(await db.dayState.get(DAY)).toMatchObject({ concentration: 'boa' });
+    expect((await db.dayState.get(DAY))!.closedAt).toBeUndefined();
+  });
+
+  it('keeps the first close time; only the choices given are written; the observation is the fechamento entry, with no length limit', async () => {
     const first = await closeDay(DAY, { tiredness: 'medio', note: ' Dia corrido ' });
     expect(first).toMatchObject({ closedAt: at(11, 23, 30), tiredness: 'medio' });
     expect(first.closeNote).toBeUndefined();
@@ -37,8 +53,8 @@ describe('closeDay and dismissDayClose', () => {
     vi.setSystemTime(at(11, 23, 50));
     const second = await closeDay(DAY, { note: 'x'.repeat(300) });
     expect(second.closedAt).toBe(at(11, 23, 30));
-    expect(second.tiredness).toBeUndefined();
-    expect((await db.dayState.get(DAY))!.tiredness).toBeUndefined();
+    expect(second.tiredness).toBe('medio');
+    expect((await db.dayState.get(DAY))!.tiredness).toBe('medio');
     const entry = (await db.diaryEntries.get('diary-close-2026-11-11'))!;
     expect(entry.text).toHaveLength(300);
     expect(entry).toMatchObject({ at: at(11, 23, 30), editedAt: at(11, 23, 50) });

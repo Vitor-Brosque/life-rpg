@@ -55,8 +55,6 @@
 .watch-compact { display: flex; flex-direction: column; gap: var(--space-2); }
 .watch-compact p { margin: 0; }
 .use-experiment:focus:not(:focus-visible) { outline: none; }
-.use-experiment__ask { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.use-experiment__ask p { flex-basis: 100%; margin: 0; }
 
 /* Adiamentos. */
 .postpone__missions, .postpone__buckets, .postpone__past { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
@@ -88,3 +86,4 @@
 .plan-done__areas, .plan-done__days, .plan-done__day-areas { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--space-1); }
 .plan-done__day-areas { margin-top: 2px; color: var(--text-dim); font-size: 0.9em; }
 .plan-done__caption { margin: 0; color: var(--text-dim); font-size: 0.9em; }
+.watch-notice__season { margin: 0; color: var(--text-dim); font-size: 0.875rem; }

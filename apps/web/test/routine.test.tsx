@@ -106,8 +106,8 @@ describe('routine editor', () => {
     render(<RoutineScreen />);
     expect(await screen.findByRole('tab', { name: 'qua', selected: true })).toBeInTheDocument();
     const tech = await card('Tech');
-    expect(tech).toHaveTextContent('09:00');
-    expect(tech).toHaveTextContent('3h · mín 45 min');
+    expect(tech).toHaveTextContent('08:30');
+    expect(tech).toHaveTextContent('2h45 · mín 40 min');
     expect(await card('Facul')).toHaveTextContent('1h30 · mín 30 min');
     expect(await card('Facul')).toHaveTextContent('protegido');
     expect(await card('Treino')).toHaveTextContent('Corpo');
@@ -124,20 +124,20 @@ describe('routine editor', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Editar bloco' });
     const min = within(dialog).getByLabelText('Versão mínima (min)');
     const save = within(dialog).getByRole('button', { name: 'Salvar' });
-    expect(min).toHaveValue(45);
+    expect(min).toHaveValue(40);
 
     fireEvent.change(min, { target: { value: '200' } });
-    expect(within(dialog).getByText('A versão mínima não pode passar da duração (3h).')).toBeInTheDocument();
+    expect(within(dialog).getByText('A versão mínima não pode passar da duração (2h45).')).toBeInTheDocument();
     expect(save).toBeDisabled();
     fireEvent.click(save);
     fireEvent.change(min, { target: { value: '4' } });
     expect(within(dialog).getByText('A versão mínima precisa ter pelo menos 5 min.')).toBeInTheDocument();
     expect(save).toBeDisabled();
-    fireEvent.change(min, { target: { value: '45' } });
+    fireEvent.change(min, { target: { value: '40' } });
     fireEvent.change(within(dialog).getByLabelText('Duração (min)'), { target: { value: '30' } });
     expect(within(dialog).getByText('A versão mínima não pode passar da duração (30 min).')).toBeInTheDocument();
     expect(save).toBeDisabled();
-    expect((await db.blocks.get('b1'))?.minimumMin).toBe(45);
+    expect((await db.blocks.get('b1'))?.minimumMin).toBe(40);
 
     fireEvent.change(within(dialog).getByLabelText('Duração (min)'), { target: { value: '150' } });
     fireEvent.change(min, { target: { value: '60' } });
@@ -155,7 +155,7 @@ describe('routine editor', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Novo bloco' });
     expect(within(dialog).getByRole('button', { name: 'Salvar' })).toBeDisabled();
     await user.type(within(dialog).getByLabelText('Nome'), 'Leitura');
-    fireEvent.change(within(dialog).getByLabelText('Início'), { target: { value: '12:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Início'), { target: { value: '11:15' } });
     await user.click(within(dialog).getByRole('button', { name: /rotina/ }));
     await user.type(within(dialog).getByLabelText('Novo passo'), 'Alongar{Enter}');
     expect(within(dialog).getByText('Alongar')).toBeInTheDocument();
@@ -165,7 +165,7 @@ describe('routine editor', () => {
     await waitFor(async () => expect((await live()).some((b) => b.name === 'Leitura')).toBe(true));
     const leitura = (await live()).find((b) => b.name === 'Leitura')!;
     expect(leitura).toMatchObject({
-      targetStart: '12:00', weekdays: [1, 2, 3, 4, 5], kind: 'routine', areaId: 'area-intelecto',
+      targetStart: '11:15', weekdays: [1, 2, 3, 4, 5], kind: 'routine', areaId: 'area-intelecto',
       durationMin: 60, minimumMin: 15, protected: false,
     });
     expect(leitura.checklist.map((c) => c.text)).toEqual(['Alongar']);
@@ -283,8 +283,8 @@ describe('WeekView blocks', () => {
     render(<WeekView />);
     const today = await screen.findByRole('region', { name: 'qua 11/11' });
     const tech = await within(today).findByText('Tech');
-    expect(tech.closest('li')).toHaveTextContent('09:00');
-    expect(within(today).getByText('Compl').closest('li')).toHaveTextContent('18:00');
+    expect(tech.closest('li')).toHaveTextContent('08:30');
+    expect(within(today).getByText('Compl').closest('li')).toHaveTextContent('16:50');
     expect(within(today).getByText('Aula')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /sáb 14\/11/ }));
     const saturday = await screen.findByRole('region', { name: 'sáb 14/11' });
@@ -293,11 +293,11 @@ describe('WeekView blocks', () => {
   });
 
   it('mutes a block that does not fit its day', async () => {
-    // A long commitment on Thursday leaves no room for the 18:00 block before the class.
+    // A long commitment on Thursday leaves no room for the 16:50 block before the class.
     await seedBlocks();
     await db.commitments.put({
       id: 'c-long', createdAt: 1, updatedAt: 1, deleted: false, title: 'Consulta', date: '2026-11-12',
-      start: '17:30', end: '19:00', remind: false,
+      start: '16:30', end: '19:00', remind: false,
     });
     const user = userEvent.setup();
     render(<WeekView />);

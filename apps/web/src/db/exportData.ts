@@ -1,5 +1,5 @@
 import type { MediaType, SyncTable } from '@life/shared';
-import { EXPORT_MEDIA_MAX_BYTES, SYNC_TABLES, bytesToBase64 } from '@life/shared';
+import { EXPORT_MEDIA_MAX_BYTES, SYNC_TABLES, bytesToBase64, isStudyFileMedia } from '@life/shared';
 import { db, tableOf } from './db';
 import { mediaUsage } from './media';
 
@@ -11,11 +11,19 @@ export const mediaLeftOutNote = (n: number): string =>
   `${n} ${n === 1 ? 'mídia não coube' : 'mídias não couberam'} na exportação (limite de 25 MB). `
   + 'Continuam guardadas no aparelho e, com a sincronização, no servidor.';
 
-/** Media hashes in the order they are packed: waiting for the server first (oldest first), then the rest. */
+/** What the export screen says about the PDFs (PDFs da aula 2026-11-26 §2.8): they never go in the JSON. */
+export const PDF_EXPORT_NOTE = 'Os PDFs e o texto extraído deles ficam fora da exportação. Com a sincronização, o PC guarda uma cópia deles no backup diário.';
+
+/**
+ * Media hashes in the order they are packed: waiting for the server first (oldest first), then the rest. PDFs and their
+ * extracted texts are left out (up to 50 MB each: the export JSON would not fit a phone).
+ */
 async function mediaOrder(): Promise<string[]> {
-  const queued = (await db.mediaQueue.orderBy('addedAt').toArray()).map((q) => q.hash);
+  const infos = await db.mediaInfo.toArray();
+  const pdfs = new Set(infos.filter((m) => isStudyFileMedia(m.type)).map((m) => m.hash));
+  const queued = (await db.mediaQueue.orderBy('addedAt').toArray()).map((q) => q.hash).filter((h) => !pdfs.has(h));
   const inQueue = new Set(queued);
-  const rest = (await db.mediaInfo.toArray()).filter((m) => !inQueue.has(m.hash)).sort((x, y) => x.addedAt - y.addedAt).map((m) => m.hash);
+  const rest = infos.filter((m) => !inQueue.has(m.hash) && !pdfs.has(m.hash)).sort((x, y) => x.addedAt - y.addedAt).map((m) => m.hash);
   return [...queued, ...rest];
 }
 
@@ -23,6 +31,7 @@ async function mediaOrder(): Promise<string[]> {
  * Every record of every synced table (soft-deleted included), keyed by table name, plus the media
  * kept on this device in base64, as many as fit in `mediaCap` bytes: those still waiting for the
  * server first (only this device has them), then the others. `mediaNote` says how many were left out.
+ * PDFs and their extracted texts never go in (the StudyFile records do).
  */
 export async function collectExport(mediaCap: number = EXPORT_MEDIA_MAX_BYTES): Promise<ExportData> {
   const data = { exportedAt: Date.now() } as ExportData;

@@ -168,6 +168,18 @@ describe('options', () => {
     await waitFor(async () => expect((await entry('e1')).links).toHaveLength(2));
     expect(screen.getByRole('button', { name: 'Ligar a…' })).toBeEnabled();
   });
+
+  it('the Comunicação theme comes last and is saved like the others', async () => {
+    const user = userEvent.setup();
+    await seed('e1');
+    renderEditor('e1');
+    const themes = await screen.findByRole('group', { name: 'Temas' });
+    const chips = within(themes).getAllByRole('button');
+    expect(chips).toHaveLength(13);
+    expect(chips[12]).toHaveTextContent('Comunicação');
+    await user.click(within(themes).getByRole('button', { name: 'Comunicação' }));
+    await waitFor(async () => expect((await entry('e1')).themes).toEqual(['comunicacao']));
+  });
 });
 
 describe('Apagar and Apagadas recentemente', () => {

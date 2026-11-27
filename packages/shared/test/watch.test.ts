@@ -8,7 +8,7 @@ const tallies = (started: number[], planned: number | number[] = 5): WeekTally[]
   week: addDays('2026-09-28', 7 * i), started: s, planned: Array.isArray(planned) ? planned[i]! : planned,
 }));
 const habit = (weeks: WeekTally[], activeBefore = false): BlockHabit => ({
-  key: 'block:tech', name: 'Tech', minimumMin: 45, weeks, activeBefore,
+  key: 'block:tech', name: 'Tech', minimumMin: 40, weeks, activeBefore,
 });
 
 describe('habitAnchor', () => {
@@ -27,7 +27,7 @@ describe('habitAnchor', () => {
 describe('watchNotice', () => {
   it('week 5: the 5th week alone against weeks 1–4', () => {
     expect(watchNotice(habit(tallies([4, 4, 3, 4, 2])))).toEqual({
-      key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Tech', minimumMin: 45,
+      key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Tech', minimumMin: 40,
       anchor: '2026-09-28', weekNumber: 5,
       base: { started: 15, planned: 20 }, recent: { started: 2, planned: 5, weeks: 1 },
     });
@@ -64,7 +64,7 @@ describe('blockHabits and watchNotices', () => {
   // "Tech" Mon–Wed and "tech " Thu–Fri are one habit (same name). Fully started in weeks 1–4
   // (28/09–25/10), then only Monday and Tuesday in weeks 5–6 (26/10–08/11).
   const blocks = [
-    block({ id: 'b1', name: 'Tech', weekdays: [1, 2, 3], minimumMin: 45 }),
+    block({ id: 'b1', name: 'Tech', weekdays: [1, 2, 3], minimumMin: 40 }),
     block({ id: 'b2', name: 'tech ', weekdays: [4, 5], targetStart: '14:00' }),
     block({ id: 'old', name: 'Velho', archived: true, targetStart: '17:00' }),
     block({ id: 'r', name: 'Início do dia', kind: 'routine', targetStart: '08:00', durationMin: 30, minimumMin: 15 }),
@@ -83,13 +83,13 @@ describe('blockHabits and watchNotices', () => {
   it('groups by name, skips archived groups, counts whole weeks only', () => {
     const habits = blockHabits(data);
     expect(habits.map((h) => [h.key, h.name, h.minimumMin, h.weeks.length, h.activeBefore])).toEqual([
-      ['block:tech', 'Tech', 45, 6, false],
+      ['block:tech', 'Tech', 40, 6, false],
     ]);
     expect(habits[0]!.weeks.map((w) => [w.started, w.planned])).toEqual([[5, 5], [5, 5], [5, 5], [5, 5], [2, 5], [2, 5]]);
   });
   it('the notice, and nothing once dismissed', () => {
     expect(watchNotices(data)).toEqual([{
-      key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Tech', minimumMin: 45, anchor: '2026-09-28',
+      key: 'block:tech:2026-09-28', habitKey: 'block:tech', name: 'Tech', minimumMin: 40, anchor: '2026-09-28',
       weekNumber: 6, base: { started: 20, planned: 20 }, recent: { started: 4, planned: 10, weeks: 2 },
     }]);
     expect(watchNotices({ ...data, watchDismissed: ['block:tech:2026-09-28'] })).toEqual([]);

@@ -18,6 +18,8 @@ export interface ServerConfig {
   webDir?: string;
   dbPath: string;
   ai?: AiConfig;
+  /** Assistentes pelo MCP: the separate port (same host) for MCP and OAuth only; 0 = not started. */
+  assistPort?: number;
 }
 
 function aiConfig(env: NodeJS.ProcessEnv): AiConfig | undefined {
@@ -56,5 +58,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     webDir: env.LIFE_RPG_WEB_DIR || undefined,
     dbPath: join(dataDir, 'life-rpg.sqlite'),
     ai: aiConfig(env),
+    assistPort: (() => { const p = Number(env.LIFE_RPG_ASSIST_PORT ?? 8788); return Number.isInteger(p) && p >= 0 && p <= 65535 ? p : 8788; })(),
   };
 }

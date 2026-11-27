@@ -10,8 +10,13 @@ import type { Rect, SketchView } from './sketch';
 export const MEDIA_HASH_RE = /^[0-9a-f]{64}$/;
 export const isMediaHash = (s: string): boolean => MEDIA_HASH_RE.test(s);
 
-/** Largest file the server accepts (and the largest audio file the editor takes). */
+/** Largest image or audio file the server accepts (and the largest audio file the editor takes). */
 export const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+/** PDFs da aula (2026-11-26 §2.2): a PDF up to 50 MB; its extracted text up to 4 MB. */
+export const PDF_MAX_BYTES = 50 * 1024 * 1024;
+export const PDF_TEXT_MAX_BYTES = 4 * 1024 * 1024;
+/** The largest file of any accepted type (the server's body limit for media). */
+export const MEDIA_UPLOAD_MAX_BYTES = PDF_MAX_BYTES;
 /** Images: longest side after resizing, the size aimed at, the most kept, the most read. */
 export const IMAGE_MAX_SIDE = 1600;
 export const IMAGE_TARGET_BYTES = 300 * 1024;
@@ -24,9 +29,24 @@ export const AUDIO_BITS_PER_SECOND = 64_000;
 export const EXPORT_MEDIA_MAX_BYTES = 25 * 1024 * 1024;
 
 export type MediaKind = 'image' | 'audio';
+/** The extracted text of a PDF (studyFiles.ts): a JSON of the app's own, only the server reads it. */
+export const PDF_TEXT_TYPE = 'application/vnd.liferpg.pdftext+json';
+/** The first bytes of an extracted text, exactly (the JSON keeps its keys in this order). */
+export const PDF_TEXT_SIGNATURE = '{"lifeRpgPdfText":1,';
 export type MediaType =
   | 'image/jpeg' | 'image/png' | 'image/webp'
-  | 'audio/webm' | 'audio/mp4' | 'audio/ogg' | 'audio/mpeg';
+  | 'audio/webm' | 'audio/mp4' | 'audio/ogg' | 'audio/mpeg'
+  | 'application/pdf' | typeof PDF_TEXT_TYPE;
+
+/** The largest file of `type` the server and the app keep: 50 MB for a PDF, 4 MB for its text, 8 MB otherwise. */
+export function mediaMaxBytes(type: MediaType): number {
+  if (type === 'application/pdf') return PDF_MAX_BYTES;
+  if (type === PDF_TEXT_TYPE) return PDF_TEXT_MAX_BYTES;
+  return MEDIA_MAX_BYTES;
+}
+
+/** PDFs and their extracted texts: kept on the server and opened on demand, never prefetched or exported. */
+export const isStudyFileMedia = (type: string): boolean => type === 'application/pdf' || type === PDF_TEXT_TYPE;
 
 /** Encoding attempts, in order, until one fits IMAGE_TARGET_BYTES (spec §4.1). */
 export interface ImageAttempt { maxSide: number; quality: number }
@@ -67,6 +87,8 @@ export function sniffMediaType(b: Uint8Array): MediaType | undefined {
   if (at(b, 0, 'OggS')) return 'audio/ogg';
   if (at(b, 0, 'ID3')) return 'audio/mpeg';
   if (b[0] === 0xff && (b[1]! & 0xe0) === 0xe0 && (b[1]! & 0x06) !== 0) return 'audio/mpeg';
+  if (at(b, 0, '%PDF-')) return 'application/pdf';
+  if (at(b, 0, PDF_TEXT_SIGNATURE)) return PDF_TEXT_TYPE;
   return undefined;
 }
 
@@ -169,7 +191,7 @@ function inlineSpeech(nodes: MdInline[]): string {
   for (const n of nodes) {
     switch (n.t) {
       case 'text': case 'code': s += n.v; break;
-      case 'strong': case 'em': s += inlineSpeech(n.c); break;
+      case 'strong': case 'em': case 'link': s += inlineSpeech(n.c); break;
       case 'br': s += '\n'; break;
       case 'math': case 'img': case 'audio': break;
     }

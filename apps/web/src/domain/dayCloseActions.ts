@@ -1,5 +1,8 @@
-import type { BaseRecord, BlockSession, DayKey, DayState, FocusSession, HHmm, ID, SyncTable, Tiredness, XpEvent } from '@life/shared';
-import { FOCUS_ISSUE_TEXT, TIME_ISSUE_TEXT, correctedFocus, defaultDayMode, typedWindow } from '@life/shared';
+import type { BaseRecord, BlockSession, DayKey, DayState, FocusSession, HHmm, ID, SyncTable, XpEvent } from '@life/shared';
+import type { DayStateChoices } from '@life/shared';
+import {
+  DAY_STATE_KEYS, FOCUS_ISSUE_TEXT, TIME_ISSUE_TEXT, correctedFocus, defaultDayMode, pickChoices, typedWindow,
+} from '@life/shared';
 import { db } from '../db/db';
 import { patch, putAll, upsert } from '../db/repo';
 import { getToday, upsertDayState, withLock } from './common';
@@ -15,12 +18,13 @@ const sessionId = (blockId: ID, day: DayKey): string => `bs-${blockId}-${day}`;
 const startHour = async (): Promise<number> => (await db.settings.get('settings'))?.dayStartHour ?? 4;
 
 /**
- * "Fechar o dia": the first close time stays and tiredness is replaced (absent = removed). The observation,
- * when given, is the day's `fechamento` diary entry (saveCloseNote, with `noteShown`: the text it was written
- * over); DayState.closeNote is no longer written.
+ * "Fechar o dia": the first close time stays; of the four choices (cansaço, humor, sobrecarga, concentração) only those
+ * present in `input` are written (present with undefined clears one), so a choice he did not touch (maybe newer, from
+ * another device) is never replaced. The observation, when given, is the day's `fechamento` diary entry (saveCloseNote,
+ * with `noteShown`: the text it was written over); DayState.closeNote is no longer written.
  */
 export async function closeDay(
-  day: DayKey, input: { tiredness?: Tiredness; note?: string; noteShown?: string },
+  day: DayKey, input: Partial<DayStateChoices> & { note?: string; noteShown?: string },
 ): Promise<DayState> {
   if (input.note !== undefined) {
     await saveCloseNote(day, input.note, input.noteShown !== undefined ? { shown: input.noteShown } : {});
@@ -28,8 +32,14 @@ export async function closeDay(
   const prev = await db.dayState.get(day);
   return upsertDayState(day, {
     closedAt: (prev && !prev.deleted ? prev.closedAt : undefined) ?? Date.now(),
-    tiredness: input.tiredness,
+    ...pickChoices(input, DAY_STATE_KEYS.filter((k) => k in input)),
   });
+}
+
+/** The choices tapped in "Como foi hoje?" without closing the day ("Escrever no diário"); nothing without keys. */
+export async function saveDayChoices(day: DayKey, choices: Partial<DayStateChoices>): Promise<void> {
+  if (Object.keys(choices).length === 0) return;
+  await upsertDayState(day, choices);
 }
 
 /** "Agora não" on the evening card: hidden for the rest of that day, on every device. */

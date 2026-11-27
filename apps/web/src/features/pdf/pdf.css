@@ -1,0 +1,105 @@
+/* PDFs da aula (spec 2026-11-26): the PDF rows, "Adicionar PDF" and the reader. Works at 375 px without horizontal
+   page scroll: the zoom scrolls inside the reading area only. */
+
+.pdflist { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.pdfrow { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--bg-2); min-width: 0; }
+.pdfrow__main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.pdfrow__title { overflow-wrap: anywhere; }
+.pdfrow__meta { color: var(--text-dim); font-size: 0.875rem; }
+.pdfrow__here { padding: 0 6px; border: 2px solid var(--stone-light); font-size: 0.8125rem; }
+.pdfrow__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pdfrow__subject { max-width: 20rem; }
+
+.pdfadd__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
+.pdfadd__subject { flex: 1 1 12rem; max-width: 20rem; }
+.pdfadd__status { margin: 0; min-height: 1.25em; }
+.pdfadd__status:empty { display: none; }
+
+.pdfreader { min-width: 0; }
+.pdfreader__title { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.pdfreader__state { padding: var(--space-3); background: var(--bg-2); }
+.pdfreader__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.pdfreader__where { margin: 0; font-weight: 700; min-width: 7.5rem; }
+.pdfreader__goto { display: flex; align-items: center; gap: 4px; }
+.pdfreader__goto input { width: 5.5rem; min-height: 36px; }
+.pdfreader__zoom { display: flex; flex-wrap: wrap; gap: 4px; }
+/* The reading area fills the screen from its own top (measured by the reader into --reader-top) down to the bottom
+   padding of .app-main (the bottom bar, the dock and their gap; on wide screens the menu is at the side), so the page
+   itself does not scroll. */
+.pdfreader__viewport {
+  --reader-bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-h) + var(--space-5));
+  position: relative; /* the pages' offsetTop is measured from here */
+  height: calc(100vh - var(--reader-top, 200px) - var(--reader-bottom));
+  height: calc(100dvh - var(--reader-top, 200px) - var(--reader-bottom));
+  min-height: 240px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-2);
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 1200px) {
+  .pdfreader__viewport { --reader-bottom: calc(var(--dock-h) + var(--space-6) + var(--space-5)); }
+}
+.pdfreader__pages { display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; min-width: 100%; padding: 8px 0; }
+
+.pdfpage { position: relative; flex: none; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.4); }
+.pdfpage__canvas { display: block; }
+.pdfcard__origin { margin: 0; color: var(--text-dim); }
+
+/* PDF.js text layer (the selectable text over the drawn page), from pdf_viewer.css of pdfjs-dist 6.5.438. */
+.pdfpage .textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdfpage .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.pdfpage .textLayer > :not(.markedContent),
+.pdfpage .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdfpage .textLayer .markedContent { display: contents; }
+.pdfpage .textLayer span[role="img"] { -webkit-user-select: none; user-select: none; cursor: default; }
+.pdfpage .textLayer ::selection { background: rgb(0 0 255 / 0.25); color: transparent; }
+.pdfpage .textLayer br::selection { background: transparent; }
+.pdfpage .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pdfpage .textLayer.selecting .endOfContent { top: 0; }
+/* Pages with /Rotate: PDF.js marks the text layer with data-main-rotation (same rules as pdf_viewer.css). */
+.pdfpage .textLayer[data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+.pdfpage .textLayer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+.pdfpage .textLayer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }

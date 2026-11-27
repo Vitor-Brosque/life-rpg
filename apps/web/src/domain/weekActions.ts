@@ -1,24 +1,27 @@
 import type { DayKey, ID, Week, WeekObjective, WeekReview } from '@life/shared';
-import { OBJECTIVE_XP, ulid } from '@life/shared';
+import { OBJECTIVE_XP, adjustmentLines, strategyKey, ulid } from '@life/shared';
 import { db } from '../db/db';
 import { softDelete, upsert } from '../db/repo';
 import { awardXp, getToday, hasLiveXp, withLock } from './common';
+import { testStrategy } from './strategyActions';
 
 /** The week `weekId` (Monday DayKey) with `changes`, created empty when missing. */
 const upsertWeek = (weekId: DayKey, changes: Partial<Week>): Promise<Week> =>
   upsert<Week>('weeks', weekId, changes, { objectives: [] });
 
 /**
- * Stores the review; its adjustment becomes the week's experiment (shown on Agora). An empty
- * adjustment keeps an experiment the week already has (chosen in Padrões).
+ * Stores the review (the week is created when missing; its old `experiment`, if any, is left as it is). Then each line
+ * of the adjustment becomes a testing strategy (the same title already in test is reused): from Padrões when the line is
+ * one of `suggested` (a "Usar no ajuste" text or the old experiment that prefilled the field), else Ideia minha.
  */
-export async function saveWeekReview(weekId: DayKey, r: Omit<WeekReview, 'answeredAt'>): Promise<void> {
-  const adjustment = r.adjustment.trim();
-  await withLock(`week:${weekId}`, async () => {
-    const current = await db.weeks.get(weekId);
-    const kept = current && !current.deleted ? current.experiment : undefined;
-    await upsertWeek(weekId, { review: { ...r, answeredAt: Date.now() }, experiment: adjustment || kept });
-  });
+export async function saveWeekReview(
+  weekId: DayKey, r: Omit<WeekReview, 'answeredAt'>, opts: { suggested?: readonly string[] } = {},
+): Promise<void> {
+  await withLock(`week:${weekId}`, () => upsertWeek(weekId, { review: { ...r, answeredAt: Date.now() } }));
+  const suggested = new Set((opts.suggested ?? []).map(strategyKey));
+  for (const line of adjustmentLines(r.adjustment)) {
+    await testStrategy(line, suggested.has(strategyKey(line)) ? 'padroes' : 'ideia');
+  }
 }
 
 /** Replaces the week's objectives; new ones get an id, blank texts are dropped. */

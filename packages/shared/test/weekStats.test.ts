@@ -11,11 +11,11 @@ function blk(p: Partial<Block> & { id: string }): Block {
   };
 }
 const BLOCKS = [
-  blk({ id: 'b1', order: 0, targetStart: '09:00', durationMin: 180, minimumMin: 45 }),
-  blk({ id: 'b2', order: 1, targetStart: '12:30', durationMin: 120, minimumMin: 45, kind: 'body' }),
-  blk({ id: 'b3', order: 2, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study', protected: true }),
-  blk({ id: 'b4', order: 3, targetStart: '16:45', durationMin: 60, minimumMin: 25, kind: 'study' }),
-  blk({ id: 'b5', order: 4, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light' }),
+  blk({ id: 'b1', order: 0, targetStart: '08:30', durationMin: 165, minimumMin: 40 }),
+  blk({ id: 'b2', order: 1, targetStart: '11:45', durationMin: 90, minimumMin: 35, kind: 'body' }),
+  blk({ id: 'b3', order: 2, targetStart: '13:45', durationMin: 90, minimumMin: 30, kind: 'study', protected: true }),
+  blk({ id: 'b4', order: 3, targetStart: '15:30', durationMin: 60, minimumMin: 25, kind: 'study' }),
+  blk({ id: 'b5', order: 4, targetStart: '16:50', durationMin: 30, minimumMin: 10, kind: 'light' }),
 ];
 const aula: Commitment = {
   id: 'aula', createdAt: 1, updatedAt: 1, deleted: false, title: 'Aula', date: '2026-11-02',
@@ -47,7 +47,7 @@ describe('weekStats', () => {
   it('counts a week with a started Monday, a free Tuesday and today excluded', () => {
     const s = weekStats(input({
       dayStates: [free],
-      sessions: [sess('b1', 'normal', '09:00', '12:00'), sess('b2', 'minimum', '12:30', '13:15')],
+      sessions: [sess('b1', 'normal', '08:30', '11:15'), sess('b2', 'minimum', '11:45', '12:20')],
       checkins: [
         checkin('c1', 'start', ['ansiedade']), checkin('c2', 'start', ['ansiedade', 'tédio']),
         checkin('c3', 'escape', ['tédio']),
@@ -64,11 +64,11 @@ describe('weekStats', () => {
     expect(s.topFeeling).toBe('ansiedade');
   });
   it('routine blocks (checklists like "Início do dia") count neither as planned nor as started', () => {
-    const routine = blk({ id: 'r1', order: -1, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' });
+    const routine = blk({ id: 'r1', order: -1, targetStart: '08:00', durationMin: 30, minimumMin: 15, kind: 'routine' });
     const s = weekStats(input({
       blocks: [routine, ...BLOCKS],
       dayStates: [free],
-      sessions: [sess('r1', 'normal', '08:30', '09:00'), sess('b1', 'normal', '09:00', '12:00')],
+      sessions: [sess('r1', 'normal', '08:00', '08:30'), sess('b1', 'normal', '08:30', '11:15')],
     }));
     expect(s.planned).toBe(5);
     expect(s.started).toBe(1);
@@ -90,11 +90,11 @@ describe('weekStats', () => {
       blocks: [...BLOCKS, { ...BLOCKS[0]!, id: 'gone', deleted: true }],
       dayStates: [free],
       sessions: [
-        on(MON, 'b1', '09:00', '12:00', 'minimum'),
-        on('2026-11-10', 'b1', '09:00', '12:00'),          // Tuesday is free
-        on('2026-11-11', 'gone', '09:00', '10:00'),        // deleted block
-        { ...on('2026-11-12', 'b2', '12:30', '13:00'), deleted: true },
-        { ...on('2026-11-13', 'b3', '15:00', '15:30'), startedAt: undefined, skipped: true }, // "Pular hoje"
+        on(MON, 'b1', '08:30', '11:15', 'minimum'),
+        on('2026-11-10', 'b1', '08:30', '11:15'),          // Tuesday is free
+        on('2026-11-11', 'gone', '08:30', '09:30'),        // deleted block
+        { ...on('2026-11-12', 'b2', '11:45', '12:15'), deleted: true },
+        { ...on('2026-11-13', 'b3', '13:45', '14:15'), startedAt: undefined, skipped: true }, // "Pular hoje"
       ],
     }));
     expect(s.started).toBe(1);
@@ -143,11 +143,11 @@ describe('countedBlocksOn', () => {
   const D = '2026-11-09';
   const b = (p: Partial<Block> & { id: string }): Block => blk({ name: p.id, ...p });
   const blocks: Block[] = [
-    b({ id: 'r', order: 0, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' }),
-    b({ id: 'c1', order: 1, targetStart: '09:00', durationMin: 180, minimumMin: 45 }),
-    b({ id: 'c3', order: 2, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study' }),
-    b({ id: 'c9', order: 3, targetStart: '16:00', durationMin: 30, minimumMin: 10, kind: 'study', createdAt: timestampAt(D, '16:30') }),
-    b({ id: 'c5', order: 4, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light' }),
+    b({ id: 'r', order: 0, targetStart: '08:00', durationMin: 30, minimumMin: 15, kind: 'routine' }),
+    b({ id: 'c1', order: 1, targetStart: '08:30', durationMin: 165, minimumMin: 40 }),
+    b({ id: 'c3', order: 2, targetStart: '13:45', durationMin: 90, minimumMin: 30, kind: 'study' }),
+    b({ id: 'c9', order: 3, targetStart: '15:30', durationMin: 30, minimumMin: 10, kind: 'study', createdAt: timestampAt(D, '16:00') }),
+    b({ id: 'c5', order: 4, targetStart: '16:50', durationMin: 30, minimumMin: 10, kind: 'light' }),
     b({ id: 'c6', order: 5, targetStart: '19:30', durationMin: 30, minimumMin: 10, kind: 'light' }),
   ];
   const lived = (blockId: string, version: 'normal' | 'minimum', start: string, end: string): BlockSession => ({
@@ -156,7 +156,7 @@ describe('countedBlocksOn', () => {
   });
   const base = {
     day: D, blocks, commitments: [aula], dayStartHour: 4, dayEndHour: 0,
-    sessions: [lived('c1', 'normal', '09:00', '12:00'), lived('c3', 'minimum', '15:00', '15:30')],
+    sessions: [lived('c1', 'normal', '08:30', '11:15'), lived('c3', 'minimum', '13:45', '14:15')],
   };
 
   it('skips routine, no-room and created-later blocks; marks started and minimum', () => {
@@ -168,8 +168,8 @@ describe('countedBlocksOn', () => {
     expect(countedBlocksOn({ ...base, mode: 'free' })).toEqual([]);
   });
   it('ignores sessions of other days and deleted ones', () => {
-    const other = { ...lived('c5', 'normal', '18:00', '18:40'), id: 'x', day: '2026-11-10' };
-    const gone = { ...lived('c5', 'normal', '18:00', '18:40'), id: 'y', deleted: true };
+    const other = { ...lived('c5', 'normal', '16:50', '17:20'), id: 'x', day: '2026-11-10' };
+    const gone = { ...lived('c5', 'normal', '16:50', '17:20'), id: 'y', deleted: true };
     const out = countedBlocksOn({ ...base, mode: 'normal', sessions: [...base.sessions, other, gone] });
     expect(out.find((c) => c.block.id === 'c5')!.started).toBe(false);
   });

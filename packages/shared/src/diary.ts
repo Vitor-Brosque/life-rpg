@@ -1,6 +1,6 @@
 import type {
-  Block, BlockSession, Commitment, DayKey, DayMode, DayPlan, DayState, DiaryEntry, DiaryLink, DiaryTheme, HHmm, ID,
-  MonthReview, SleepLog, SleepQuality, Tiredness, TrainingLog, Week, Workout, WorkoutKind,
+  Block, BlockSession, Commitment, Concentration, DayKey, DayMode, DayPlan, DayState, DiaryEntry, DiaryLink, DiaryTheme, HHmm, ID,
+  Load, MonthReview, Mood, Season, SleepLog, SleepQuality, Tiredness, TrainingLog, Week, Workout, WorkoutKind,
 } from './types';
 import { addDays, dayKeyOf, daysInMonth, isValidDayKey, logicalTimestamp, timestampAt, weekdayOf } from './dates';
 import { weekDays } from './meals';
@@ -10,7 +10,7 @@ import { countedBlocksOn, weekKey } from './weekStats';
 import { blocksFromPlan, commitmentsFromPlan } from './daySnapshot';
 import { defaultDayMode } from './planDay';
 import { sleepMinutes } from './sleep';
-import { TIREDNESS_LABEL } from './dayClose';
+import { CONCENTRATION_LABEL, LOAD_LABEL, MOOD_LABEL, TIREDNESS_LABEL } from './dayClose';
 import { WORKOUT_LABEL } from './workouts';
 import { trainingCounts } from './training';
 
@@ -45,12 +45,12 @@ export function closeNoteEntry(
 
 export const DIARY_THEMES: readonly DiaryTheme[] = [
   'faculdade', 'carreira', 'projetos', 'estudo', 'saude', 'treino', 'sono',
-  'relacionamentos', 'familia', 'lazer', 'sentimentos', 'ideias',
+  'relacionamentos', 'familia', 'lazer', 'sentimentos', 'ideias', 'comunicacao',
 ];
 export const DIARY_THEME_LABEL: Record<DiaryTheme, string> = {
   faculdade: 'Faculdade', carreira: 'Carreira', projetos: 'Projetos', estudo: 'Estudo', saude: 'Saúde',
   treino: 'Treino', sono: 'Sono', relacionamentos: 'Relacionamentos', familia: 'Família', lazer: 'Lazer',
-  sentimentos: 'Sentimentos', ideias: 'Ideias',
+  sentimentos: 'Sentimentos', ideias: 'Ideias', comunicacao: 'Comunicação',
 };
 export const DIARY_LINKS_MAX = 3;
 export const DIARY_LINK_LABEL: Record<DiaryLink['kind'], string> = { mission: 'missão', journey: 'jornada' };
@@ -123,32 +123,32 @@ export function diaryPreview(text: string, lines = 3, max = 240): string {
 // ------------------------------------------------------------------ reviews written in a week
 
 export interface DiaryReviewRef {
-  kind: 'week' | 'month';
-  id: ID;                 // the Week id (its Monday) or the MonthReview id
+  kind: 'week' | 'month' | 'season';
+  id: ID;                 // the Week id (its Monday), the MonthReview id or the Season id
   day: DayKey;            // logical day it was answered
   at: number;             // answeredAt
-  title: string;          // "Nova semana" · "Reflexão de outubro"
+  title: string;          // "Nova semana" · "Reflexão de outubro" · 'Temporada "Consistência"'
   answers: Array<{ label: string; text: string }>;   // only the answered questions, in question order
 }
 
 const WEEK_ANSWERS = [['worked', 'O que funcionou'], ['obstacle', 'Maior obstáculo'], ['adjustment', 'Ajuste para testar']] as const;
 const MONTH_ANSWERS = [['progress', 'Avanços'], ['obstacle', 'O que atrapalhou'], ['next', 'Para o próximo mês']] as const;
+const SEASON_ANSWERS = [['progress', 'O que avançou'], ['obstacle', 'O que atrapalhou'], ['next', 'Para a próxima']] as const;
 
 function answered<K extends string>(src: Partial<Record<K, string>>, labels: ReadonlyArray<readonly [K, string]>): DiaryReviewRef['answers'] {
   return labels.map(([k, label]) => ({ label, text: (src[k] ?? '').trim() })).filter((a) => a.text !== '');
 }
 
 /**
- * The "Nova semana" answers and the month reflections answered (logical day of `answeredAt`) in the week of
- * `monday`, oldest first. Skipped reflections and reviews without any answer are left out.
+ * The "Nova semana" answers, the month reflections and the season reviews answered (logical day of `answeredAt`) from
+ * `from` to `to` (both included), oldest first. Skipped reflections and reviews without any written answer are left out.
  */
-export function diaryReviews(input: {
-  weeks: readonly Week[]; months: readonly MonthReview[]; monday: DayKey; dayStartHour: number;
+export function reviewsBetween(input: {
+  weeks: readonly Week[]; months: readonly MonthReview[]; seasons?: readonly Season[]; from: DayKey; to: DayKey; dayStartHour: number;
 }): DiaryReviewRef[] {
-  const end = addDays(input.monday, 6);
   const dayOf = (at: number): DayKey | undefined => {
     const day = dayKeyOf(at, input.dayStartHour);
-    return day >= input.monday && day <= end ? day : undefined;
+    return day >= input.from && day <= input.to ? day : undefined;
   };
   const out: DiaryReviewRef[] = [];
   for (const w of input.weeks) {
@@ -165,7 +165,24 @@ export function diaryReviews(input: {
       out.push({ kind: 'month', id: m.id, day, at: m.answeredAt, title: `Reflexão de ${monthName(m.month)}`, answers });
     }
   }
+  for (const s of input.seasons ?? []) {
+    if (s.deleted || !s.review) continue;
+    const day = dayOf(s.review.answeredAt);
+    const answers = answered(s.review, SEASON_ANSWERS);
+    const title = `Temporada "${s.title.replace(/\s+/g, ' ').trim()}"`;
+    if (day && answers.length > 0) out.push({ kind: 'season', id: s.id, day, at: s.review.answeredAt, title, answers });
+  }
   return out.sort((a, b) => a.at - b.at);
+}
+
+/** The reviews answered in the week of `monday` (reviewsBetween Monday to Sunday). */
+export function diaryReviews(input: {
+  weeks: readonly Week[]; months: readonly MonthReview[]; seasons?: readonly Season[]; monday: DayKey; dayStartHour: number;
+}): DiaryReviewRef[] {
+  return reviewsBetween({
+    weeks: input.weeks, months: input.months, seasons: input.seasons, from: input.monday, to: addDays(input.monday, 6),
+    dayStartHour: input.dayStartHour,
+  });
 }
 
 // ------------------------------------------------------------------ timeline and search
@@ -229,6 +246,9 @@ export interface DiaryAppDay {
   workouts?: Array<{ kind: WorkoutKind; minutes: number }>;
   sleep?: { bedAt: number; wakeAt: number; quality?: SleepQuality };
   tiredness?: Tiredness;
+  mood?: Mood;
+  load?: Load;
+  concentration?: Concentration;
 }
 
 export interface DiaryAppInput {
@@ -252,7 +272,7 @@ export interface DiaryAppInput {
  *   when the day has a plan photo or a block session;
  * - the training log (exercises done or swapped, cardio), else the day's workouts;
  * - the night before (night = the previous day) with both times, and its quality;
- * - the tiredness of "Como foi hoje?".
+ * - the tiredness, humor, sobrecarga and concentração of "Como foi hoje?".
  */
 export function diaryAppDays(input: DiaryAppInput): Record<DayKey, DiaryAppDay> {
   const states = new Map(input.dayStates.filter((d) => !d.deleted).map((d) => [d.id, d]));
@@ -295,6 +315,9 @@ export function diaryAppDays(input: DiaryAppInput): Record<DayKey, DiaryAppDay> 
       d.sleep = { bedAt: night.bedAt!, wakeAt: night.wakeAt!, ...(night.quality ? { quality: night.quality } : {}) };
     }
     if (state?.tiredness) d.tiredness = state.tiredness;
+    if (state?.mood) d.mood = state.mood;
+    if (state?.load) d.load = state.load;
+    if (state?.concentration) d.concentration = state.concentration;
     if (Object.keys(d).length > 0) out[day] = d;
   }
   return out;
@@ -305,7 +328,8 @@ const count = (n: number, one: string, many: string): string => `${n} ${n === 1 
 
 /**
  * "dia Normal · 4 de 5 blocos iniciados · treino: Peito e tríceps (5 exercícios feitos) · sono 23:40–07:10 (qualidade 4) ·
- * cansaço: médio" — only the parts that exist; undefined when nothing was recorded.
+ * cansaço: médio · humor: ok · sobrecarga: média · concentração: boa" — only the parts that exist; undefined when nothing
+ * was recorded.
  */
 export function appDayLine(d: DiaryAppDay): string | undefined {
   const parts: string[] = [];
@@ -324,6 +348,9 @@ export function appDayLine(d: DiaryAppDay): string | undefined {
     parts.push(`sono ${diaryClock(d.sleep.bedAt)}–${diaryClock(d.sleep.wakeAt)}${d.sleep.quality ? ` (qualidade ${d.sleep.quality})` : ''}`);
   }
   if (d.tiredness) parts.push(`cansaço: ${TIREDNESS_LABEL[d.tiredness].toLowerCase()}`);
+  if (d.mood) parts.push(`humor: ${MOOD_LABEL[d.mood].toLowerCase()}`);
+  if (d.load) parts.push(`sobrecarga: ${LOAD_LABEL[d.load].toLowerCase()}`);
+  if (d.concentration) parts.push(`concentração: ${CONCENTRATION_LABEL[d.concentration].toLowerCase()}`);
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 

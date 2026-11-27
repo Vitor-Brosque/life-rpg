@@ -8,7 +8,7 @@ import {
   SEMESTER_GRADE, assessmentKindOf, assessmentTitle, assessmentWhen, classOf, daysWithoutContact, facultyAreaOf, genericClass,
   isFacultyBlock, journeyByTitle, lastContactDay, nextAssessment, semesterSetup, studyDaysBetween, subjectHead,
   subjectSuggestions, problemSetIssue, problemSetText, topicLevelOf, topicsByLevel, topicsSummary, withTopicLevel, type ContactData,
-  TOPIC_MERGE_MS,
+  TOPIC_MERGE_MS, CHAT_URL_MAX, chatUrlIssue, openableChatUrl,
 } from '../src/faculty';
 import { base, mission, practice, review } from './patternFixture';
 
@@ -258,5 +258,22 @@ describe('avaliações are events with a date, not tasks', () => {
     expect(subjectSuggestions({ ...input, missions: [pulledBack] }).map((s) => [s.journey.id, s.text])).toEqual([['j2', 'Prova em 5 dias']]);
     // Without a deadline (older records), `date` is the day.
     expect(nextAssessment([prova({ date: '2026-11-16', deadline: undefined })], 'j2', WED)?.day).toBe('2026-11-16');
+  });
+});
+
+describe('chat da disciplina', () => {
+  it('chatUrlIssue: https:// up to 500 characters; empty removes the link', () => {
+    expect(chatUrlIssue('https://chatgpt.com/g/g-p-exemplo/project')).toBeUndefined();
+    expect(chatUrlIssue('  ')).toBeUndefined();
+    expect(chatUrlIssue('http://chatgpt.com/c/1')).toBe('O link precisa começar com https://.');
+    expect(chatUrlIssue('chatgpt.com/c/1')).toBe('O link precisa começar com https://.');
+    expect(chatUrlIssue('javascript:alert(1)')).toBe('O link precisa começar com https://.');
+    expect(chatUrlIssue(`https://exemplo.test/${'x'.repeat(CHAT_URL_MAX)}`)).toBe('O link pode ter até 500 caracteres.');
+    expect(chatUrlIssue('https://')).toBe('Esse link não parece um endereço válido.');
+  });
+  it('openableChatUrl: only a stored https:// link', () => {
+    expect(openableChatUrl({ chatUrl: 'https://chatgpt.com/c/1' })).toBe('https://chatgpt.com/c/1');
+    expect(openableChatUrl({ chatUrl: 'javascript:alert(1)' })).toBeUndefined();
+    expect(openableChatUrl({})).toBeUndefined();
   });
 });

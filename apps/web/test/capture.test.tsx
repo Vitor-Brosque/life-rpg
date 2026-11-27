@@ -58,6 +58,11 @@ describe('CaptureBar', () => {
     expect(await screen.findByText(/Capturada/)).toBeInTheDocument();
   });
 
+  it('the title field does not ask the browser for spelling underlines (they come out red)', async () => {
+    render(<CaptureBar open onClose={() => {}} />);
+    expect(await screen.findByRole('textbox', { name: 'Capturar' })).toHaveAttribute('spellcheck', 'false');
+  });
+
   it('Shift+Enter adds a new line instead of saving', async () => {
     const user = setup();
     render(<CaptureBar open onClose={() => {}} />);

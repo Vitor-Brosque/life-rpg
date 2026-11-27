@@ -13,13 +13,13 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'week', label: 'Semana' },
   { id: 'board', label: 'Quadro' },
   { id: 'routine', label: 'Rotina' },
-  { id: 'journeys', label: 'Jornadas' },
+  { id: 'journeys', label: 'Objetivos' },
   { id: 'casa', label: 'Casa' },
 ];
 const KEY = 'life-rpg.plan.tab';
 
 /** `?aba=` values (links back from /casa/…, /jornadas and a journey). */
-const ABA: Record<string, Tab> = { semana: 'week', quadro: 'board', rotina: 'routine', jornadas: 'journeys', casa: 'casa' };
+const ABA: Record<string, Tab> = { semana: 'week', quadro: 'board', rotina: 'routine', jornadas: 'journeys', objetivos: 'journeys', casa: 'casa' };
 
 function readTab(search: string): Tab {
   const asked = ABA[new URLSearchParams(search).get('aba') ?? ''];
@@ -33,7 +33,7 @@ function readTab(search: string): Tab {
   } catch { return 'week'; }
 }
 
-/** Planejar: missions across days (week) or by state (board), the block routine, the journeys and the house. */
+/** Planejar: missions across days (week) or by state (board), the block routine, the objectives and journeys and the house. */
 export function PlanScreen() {
   const search = useSearch();
   const [tab, setTab] = useState<Tab>(() => readTab(search));

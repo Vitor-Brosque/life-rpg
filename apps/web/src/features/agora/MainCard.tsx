@@ -7,6 +7,7 @@ import { Button } from '../../ui/Button';
 import { ENERGY_LABEL, formatDuration, formatPoints } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { useCompanion } from '../companion/store';
+import { PurposeChainLine } from '../journeys/PurposeChain';
 import { usePartialSheet } from '../mission/PartialSheet';
 import type { AgoraActions } from './useAgora';
 
@@ -47,6 +48,7 @@ function MissionView({ suggestion, area, canSkip, actions }: {
         <p className="main-card__plan">Plano: {cueBlock.name}</p>
       )}
 
+      <PurposeChainLine journeyId={m.journeyId} />
       <div className="main-card__tags">
         {m.status === 'doing' && <span className="tag tag--gold">Em andamento</span>}
         {m.durationMin !== undefined && (

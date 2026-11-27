@@ -1,0 +1,27 @@
+/* Assistentes pelo MCP (2026-11-25): the Agora card, the review screen and Ajustes → Assistentes. */
+.proposal-card { display: flex; flex-direction: column; gap: 6px; }
+.proposal-card__title { margin: 0; font-size: 1rem; color: var(--gold); }
+.proposal-card__meta { margin: 0; color: var(--text-dim); }
+.proposal-card__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.proposal__head { display: flex; flex-direction: column; gap: 4px; }
+.proposal__title { margin: 0; font-size: 1.15rem; font-weight: 700; }
+.proposal__summary { margin: 4px 0; white-space: pre-wrap; }
+.proposal__group { gap: 8px; }
+.proposal__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.proposal__item { padding: 10px; border: 2px solid var(--stone-light); }
+.proposal__check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.proposal__check input { width: 24px; height: 24px; flex: none; margin-top: 2px; }
+.proposal__line { margin: 0; }
+.proposal__result { color: var(--text-dim); }
+.proposal__detail { margin: 6px 0 0 34px; padding-left: 1em; color: var(--text-dim); font-size: 0.92em; }
+.proposal__why { margin: 6px 0 0 34px; color: var(--text-dim); font-style: italic; font-size: 0.92em; }
+.proposal__note { margin: 4px 0 0 34px; color: var(--gold); font-size: 0.9em; }
+.proposal__warn { margin: 0; padding: 8px 10px; border-left: 4px solid var(--ember); }
+.assist__steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 12px; }
+.assist__copy { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.assist__copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 6px 8px; background: var(--bg); border: 2px solid var(--stone-light); }
+.assist__notice { margin: 0; padding: 8px 10px; border-left: 4px solid var(--gold); }
+.assist__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.assist__list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.assist__list li > span:first-child { flex: 1; min-width: 16ch; }
+.assist__text { width: 100%; font-family: monospace; font-size: 0.85rem; resize: vertical; }

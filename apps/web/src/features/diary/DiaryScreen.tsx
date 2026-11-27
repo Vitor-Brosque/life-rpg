@@ -10,6 +10,7 @@ import { useDiaryEntries, useDiaryTrash, useDiaryWeek, useLinkNames } from '../.
 import { useToday } from '../../db/hooks';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
+import { ObservationCard } from './ObservationCard';
 import { DiaryExportSheet } from './DiaryExportSheet';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { formatDay, plural } from '../../ui/format';
@@ -51,9 +52,12 @@ export function DiaryScreen() {
       <div className="diary__bar">
         <Button variant="primary" icon="pen" onClick={() => navigate(`/diario/${ulid()}`)}>Escrever</Button>
         <Button disabled={!shown} onClick={() => setExporting(true)}>Exportar semana</Button>
+        <Link href="/diario/relatorios" className="btn btn--secondary btn--md">Relatórios</Link>
+        <Link href="/diario/estrategias" className="btn btn--secondary btn--md">Estratégias</Link>
         <input type="search" aria-label="Buscar no diário" placeholder="Buscar no diário" value={query}
           id="diary-search" onChange={(e) => setQuery(e.target.value)} />
       </div>
+      <ObservationCard />
       <DiaryFiltersPanel filters={filters} onChange={setFilters} />
       <KeptDrafts />
       {diaryFiltering(query, filters)

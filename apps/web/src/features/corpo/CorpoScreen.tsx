@@ -10,6 +10,7 @@ import { formatDuration, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
 import { useToast } from '../../ui/Toast';
+import { NutritionSection } from '../nutrition/NutritionSection';
 import { kindsText, rangeText, shortDay, spreadText } from './corpoFormat';
 import { SleepNights } from './SleepNights';
 import { TrainingEvolution } from './TrainingEvolution';
@@ -20,7 +21,7 @@ import './corpo.css';
 
 export const SYMPTOMS_NOTE = 'Sintomas como ronco, obstrução nasal ou bruxismo: procure avaliação profissional. O app só registra horários.';
 
-/** "/corpo": sleep regularity (observed) and the week's workouts (spec §6.3). */
+/** "/corpo": sleep regularity (observed), the week's workouts (spec §6.3) and the day's nutrition summary. */
 export function CorpoScreen() {
   const now = useNow();
   const today = useToday();
@@ -123,6 +124,8 @@ export function CorpoScreen() {
         )}
         <TrainingEvolution />
       </section>
+
+      <NutritionSection />
     </section>
   );
 }

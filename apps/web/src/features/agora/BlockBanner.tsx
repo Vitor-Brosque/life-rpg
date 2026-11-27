@@ -31,12 +31,14 @@ export interface BlockBannerProps {
   next?: BlockOccurrence;
   /** "Onde você parou" (the block's last note), under its name; the Painel shows it in Apoio instead. */
   note?: string;
-  /** This week: its objectives for the block (the experiment shows under the status strip). */
+  /** This week: its objectives for the block (the strategies in test and the old experiment show under the status strip; the linked strategy line is `strategy`). */
   week?: Week;
   /** Blocks whose objectives count as this one's (same name on other weekdays); default: itself. */
   blockIds?: ID[];
   /** Mission in focus (timer or main card): its next step prefills "Onde parou?". */
   focusMission?: Mission;
+  /** "Estratégia em teste: …" of the strategies linked to this block or its journey (strategiesForBlock). */
+  strategy?: string;
   /** Tighter variant (Painel column). */
   compact?: boolean;
 }
@@ -46,7 +48,7 @@ export interface BlockBannerProps {
  * whether it shrank), the week's objective for it, and Começar / Pular hoje / Versão mínima /
  * Encerrar / Escapei. Past its time it says so and offers to end it and go on to the next one.
  */
-export function BlockBanner({ occurrence, now, next, note, week, blockIds, focusMission, compact }: BlockBannerProps) {
+export function BlockBanner({ occurrence, now, next, note, week, blockIds, focusMission, strategy, compact }: BlockBannerProps) {
   const { block, session, day } = occurrence;
   const [busy, setBusy] = useState(false);
   const routine = useRoutineTicks(block, day);
@@ -124,6 +126,7 @@ export function BlockBanner({ occurrence, now, next, note, week, blockIds, focus
         <TimeLeft occurrence={occurrence} now={now} />
       )}
       {block.kind === 'body' && <BodyBlockPanel occurrence={occurrence} now={now} />}
+      {strategy && <p className="block-banner__strategy">{strategy}</p>}
 
       {objectives.length > 0 && week && (
         <div className="block-banner__group">

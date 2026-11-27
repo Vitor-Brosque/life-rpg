@@ -50,7 +50,7 @@ describe('"Encerrar bloco" outcome', () => {
     render(<><ResumePromptHost /><ToastHost /></>);
     const dialog = await openEnding();
     const outcomes = within(within(dialog).getByRole('group', { name: 'Como foi? (opcional)' }));
-    expect(outcomes.getAllByRole('button').map((b) => b.textContent)).toEqual(['Feito', 'Parcial', 'Não deu']);
+    expect(outcomes.getAllByRole('button').map((b) => b.textContent)).toEqual(['Feito', 'Parcial', 'Investiguei', 'Não deu']);
     await user.click(outcomes.getByRole('button', { name: 'Parcial' }));
     expect(outcomes.getByRole('button', { name: 'Parcial' })).toHaveAttribute('aria-pressed', 'true');
     await user.type(within(dialog).getByRole('textbox', { name: 'O que saiu? (opcional)' }), 'dedupe feito');

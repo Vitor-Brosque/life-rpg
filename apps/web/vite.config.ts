@@ -31,7 +31,13 @@ export default defineConfig({
           { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,woff2}'] },
+      injectManifest: {
+        // `mjs`: the PDF.js worker (legacy pdf.worker.min.mjs, ~1.33 MB), so the PDF reader opens offline (PDFs da aula
+        // §2.9); `wasm`: its two decoders of scanned pages (jbig2.wasm ~104 KB, openjpeg.wasm ~221 KB). The size limit
+        // covers them with room (Workbox's default is 2 MiB); the PDFs themselves are never precached.
+        globPatterns: ['**/*.{js,mjs,wasm,css,html,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       devOptions: { enabled: false },
     }),
   ],

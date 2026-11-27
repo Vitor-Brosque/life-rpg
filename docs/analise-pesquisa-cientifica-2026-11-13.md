@@ -1,6 +1,6 @@
 # LIFE RPG à luz da pesquisa científica (13/11/2026)
 
-Análise do app na versão 1.0.0 contra a base `Scientific_Life_System_Research` (64 fontes, matriz de afirmações A01–A17, revisões temáticas e documento de contradições). Segue as instruções de transferência da própria base: descrever os fluxos que existem, localizar o obstáculo, ligar cada proposta a IDs de fontes e propor um teste proporcional. Nada aqui foi implementado. Código e escopo ficam para depois da sua escolha.
+Análise do app na versão 1.0.0 contra a base `Scientific_Life_System_Research` (63 fontes, matriz de afirmações A01–A17, revisões temáticas e documento de contradições). Segue as instruções de transferência da própria base: descrever os fluxos que existem, localizar o obstáculo, ligar cada proposta a IDs de fontes e propor um teste proporcional. Nada aqui foi implementado. Código e escopo ficam para depois da sua escolha.
 
 **Como ler os IDs.** B = execução e hábitos, L = aprendizagem e atenção, H = sono, fadiga e exercício, D = intervenções digitais, A = afirmação da matriz. "Direta" quer dizer que a evidência testou algo parecido com o fluxo do app; "indireta" quer dizer que o mecanismo tem evidência, mas a interface é uma tradução nossa.
 

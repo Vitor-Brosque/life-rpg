@@ -127,10 +127,11 @@ describe('Capturar: Tarefa por toques', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
     await waitFor(async () => expect(await db.commitments.count()).toBe(1));
     const field = screen.getByRole('textbox', { name: 'Capturar' });
-    expect(field).toHaveFocus();
-    expect(field).toHaveValue('');
+    // The record lands before the form resets: wait for the screen, not only for the table.
+    await waitFor(() => expect(field).toHaveValue(''));
+    await waitFor(() => expect(field).toHaveFocus());
     expect(screen.getByRole('button', { name: 'Tarefa' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent('Compromisso salvo: dentista · hoje 15:00');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Compromisso salvo: dentista · hoje 15:00'));
   });
 
   it('o dia com que o "+" foi aberto continua depois de salvar', async () => {

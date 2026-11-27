@@ -1,0 +1,52 @@
+/* Comunicação oral: the Fala screen and the session sheet. No red anywhere. */
+
+.speech-suggestions { display: grid; gap: var(--space-2, 8px); margin: 0; padding: 0; list-style: none; }
+.speech-suggestions li { display: grid; gap: var(--space-1, 4px); justify-items: start; }
+.speech-suggestion__head { font-weight: 600; }
+.speech-suggestion__text { color: var(--text-dim); }
+
+.speech-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+button.row-card.speech-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.speech-row:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.speech-row__title { font-weight: 600; overflow-wrap: anywhere; }
+.speech-row__meta { display: block; color: var(--text-dim); font-size: 0.8125rem; }
+
+.speech-sheet input[type='text'], .speech-sheet select, .speech-sheet textarea { width: 100%; }
+.speech-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+.speech-chips legend { flex-basis: 100%; padding: 0; margin-bottom: 6px; }
+.speech-group { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+.speech-group__title { margin: 0; font-size: 1.0625rem; }
+.speech-recordings { display: grid; gap: var(--space-2, 8px); margin: 0; padding: 0; list-style: none; }
+.speech-recordings li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2, 8px); }
+.speech-recordings__fact { flex-basis: 100%; margin: 0; color: var(--text-dim); }
+
+.speech-reading { margin: 0; }
+.speech-reading blockquote { margin: 0; font: inherit; line-height: 1.6; }
+.speech-reading figcaption { margin-top: var(--space-1, 4px); color: var(--text-dim); font-size: 0.8125rem; }
+
+.speech-away { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.speech-compare { display: grid; gap: 12px; }
+@media (min-width: 600px) { .speech-compare { grid-template-columns: 1fr 1fr; } }
+.speech-compare__side { min-width: 0; }
+
+.speech-situations { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.speech-situations li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.speech-situations li > .muted { flex-basis: 100%; overflow-wrap: anywhere; }
+
+.speech-note { display: grid; gap: var(--space-2, 8px); justify-items: start; }
+.speech-note p { margin: 0; }
+.speech-why summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.speech-why summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }

@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { FIVE_DAY_SPLIT, WEEKDAY_NAMES, capitalize, trainingDayOf } from '@life/shared';
+import { FIVE_DAY_SPLIT, WEEKDAY_NAMES, blockWeekOf, capitalize, targetText, trainingDayOf } from '@life/shared';
 import { useTrainingLog, useTrainingPlan } from '../../db/corpoData';
 import { useToday } from '../../db/hooks';
 import { applyFiveDaySplit } from '../../domain/trainingActions';
@@ -22,12 +22,12 @@ export function TrainingToday() {
     return (
       <Panel variant="stone" className="corpo__minimum" role="region" aria-labelledby="plano-title">
         <h3 id="plano-title" className="corpo__subtitle">Plano de treino</h3>
-        <p>Monte o plano da semana: o nome de cada dia e os exercícios. Séries e cargas entram só quando você registrar.</p>
+        <p>Monte o plano da semana: o nome de cada dia, os exercícios e, se quiser, séries, repetições e descanso. As cargas entram só quando você registrar.</p>
         <details className="corpo__why">
           <summary>Ver a divisão de exemplo de 5 dias</summary>
           <ul className="training-split">
             {FIVE_DAY_SPLIT.map((d) => (
-              <li key={d.weekday}>{`${capitalize(WEEKDAY_NAMES[d.weekday]!)} — ${d.name}: ${d.exercises.join(', ')}`}</li>
+              <li key={d.weekday}>{`${capitalize(WEEKDAY_NAMES[d.weekday]!)} — ${d.name}: ${d.exercises.map((e) => e.name).join(', ')}`}</li>
             ))}
           </ul>
         </details>
@@ -52,10 +52,12 @@ export function TrainingToday() {
       </div>
     );
   }
-  const items = log?.exercises ?? (entry?.exercises ?? []).map((n, i) => ({ id: `p${i}`, name: n, sets: [], status: undefined, replacedBy: undefined }));
+  const items = log?.exercises ?? (entry?.exercises ?? []).map((p, i) => ({ id: `p${i}`, name: p.name, sets: [], status: undefined, replacedBy: undefined }));
+  const target = log?.target ?? blockWeekOf(plan.block, today);
   return (
     <div className="stack">
       <h3 className="corpo__subtitle">{`Treino de hoje: ${name}`}</h3>
+      {target && <p className="training__target">{targetText(target)}</p>}
       <ul className="training-today">
         {items.map((e) => (
           <li key={e.id}>

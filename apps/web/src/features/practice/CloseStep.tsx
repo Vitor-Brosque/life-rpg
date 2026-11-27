@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import type { Indicator, IndicatorKey, PracticeScore } from '@life/shared';
 import { INDICATORS, PRACTICE_LIMITS, rebuildFact } from '@life/shared';
 import { PracticeIncompleteError, concludePractice, reopenPractice, setPracticeRating, updatePractice } from '../../domain/practiceActions';
@@ -56,6 +57,7 @@ export function CloseStep({ session }: StepProps) {
         <div className="practice__done">
           <p>Sessão encerrada em {dayMonth(session.endedAt ?? session.updatedAt)}.</p>
           <Button onClick={(e) => { focusWhenGone(e.currentTarget, focusStepTitle); safeRun(reopenPractice(session.id)); }}>Reabrir sessão</Button>
+          <p className="practice__hint">Para treinar a fala com este tema: <Link href={`/estudo/fala?explicar=${encodeURIComponent(session.title)}`}>Explicar em voz alta</Link></p>
         </div>
       ) : (
         <>

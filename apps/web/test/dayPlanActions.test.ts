@@ -39,7 +39,7 @@ describe('the day plan snapshot', () => {
     expect((await db.dayPlans.get(DAY))!.mode).toBe('normal');
     await saveBlock({ id: 'b1', durationMin: 60 });
     const plan = (await db.dayPlans.get(DAY))!;
-    expect(plan.blocks.find((b) => b.blockId === 'b1')!.durationMin).toBe(180);
+    expect(plan.blocks.find((b) => b.blockId === 'b1')!.durationMin).toBe(165);
   });
 
   it('skipping a block and registering one later also take it', async () => {
@@ -47,7 +47,7 @@ describe('the day plan snapshot', () => {
     const afterSkip = await plans();
     expect(afterSkip.map((p) => [p.id, p.mode])).toEqual([[DAY, 'normal']]);
     vi.setSystemTime(at(12, 10, 0));
-    await retroBlock('b4', '09:00', '09:30');
+    await retroBlock('b4', '08:30', '09:00');
     expect((await plans()).map((p) => p.id).sort()).toEqual([DAY, '2026-11-12']);
     expect(await db.blockSessions.get('bs-b2-2026-11-11')).toMatchObject({ skipped: true });
     expect(await db.blockSessions.get('bs-b4-2026-11-12')).toMatchObject({ retro: true });

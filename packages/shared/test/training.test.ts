@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TrainingLog, TrainingPlan } from '../src/types';
+import type { TrainingDay, TrainingLog, TrainingPlan } from '../src/types';
 import {
   FIVE_DAY_SPLIT, adoptableWorkout, cardioIssue, cardioText, cardioWeeks, exerciseHistory, exercisesFromText, lastSession,
   lastSessionText, normalizePlanDays, parseKg, parseSet, setsText, startTrainingLog, trainingDayOf, trainingLogId,
@@ -7,7 +7,8 @@ import {
 } from '../src/training';
 import { base, workout } from './patternFixture';
 
-const plan: TrainingPlan = { ...base, id: 'plan', days: [...FIVE_DAY_SPLIT] };
+// Names only (the detailed request has its own tests in trainingDetail.test.ts).
+const plan: TrainingPlan = { ...base, id: 'plan', days: FIVE_DAY_SPLIT.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ name: e.name })) })) };
 const WED = '2026-11-11';
 const log = (day: string, p: Partial<TrainingLog> = {}): TrainingLog =>
   ({ ...base, id: trainingLogId(day), ...startTrainingLog(day, plan), ...p });
@@ -17,21 +18,21 @@ describe('plan', () => {
     expect(FIVE_DAY_SPLIT.map((d) => [d.weekday, d.name, d.exercises.length])).toEqual([
       [1, 'Peito e tríceps', 5], [2, 'Costas e bíceps', 5], [3, 'Pernas', 6], [4, 'Ombros', 5], [5, 'Corpo inteiro', 5],
     ]);
-    expect(FIVE_DAY_SPLIT.every((d) => d.exercises.every((e) => e[0] === e[0]!.toUpperCase()))).toBe(true);
+    expect(FIVE_DAY_SPLIT.every((d) => d.exercises.every((e) => e.name[0] === e.name[0]!.toUpperCase()))).toBe(true);
   });
   it('exercisesFromText: one per line, blanks out, capitalised', () => {
     expect(exercisesFromText('  supino reto \n\n\nremada aberta\r\n')).toEqual(['Supino reto', 'Remada aberta']);
   });
-  it('normalizePlanDays: sorted, last of a weekday wins, empty is rest, missing name is "Treino", bad weekday out', () => {
-    expect(normalizePlanDays([
+  it('normalizePlanDays: sorted, last of a weekday wins, empty is rest, missing name is "Treino", bad weekday out (old string format)', () => {
+    expect(normalizePlanDays(([
       { weekday: 3, name: ' Pernas ', exercises: ['agachamento'] },
       { weekday: 1, name: 'x', exercises: [] },
       { weekday: 1, name: '', exercises: [' remada ', ''] },
       { weekday: 2, name: '  ', exercises: [] },
       { weekday: 7, name: 'Nunca', exercises: [] },
-    ])).toEqual([
-      { weekday: 1, name: 'Treino', exercises: ['Remada'] },
-      { weekday: 3, name: 'Pernas', exercises: ['Agachamento'] },
+    ] as unknown as TrainingDay[]))).toEqual([
+      { weekday: 1, name: 'Treino', exercises: [{ name: 'Remada' }] },
+      { weekday: 3, name: 'Pernas', exercises: [{ name: 'Agachamento' }] },
     ]);
   });
   it('trainingDayOf: Wednesday is Pernas, Saturday rests, no plan rests', () => {

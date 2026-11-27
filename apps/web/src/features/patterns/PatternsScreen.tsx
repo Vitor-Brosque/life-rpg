@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import type { PeriodKind } from '@life/shared';
-import { dayIndex, weekKey } from '@life/shared';
+import { dayIndex } from '@life/shared';
 import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import '../settings/settings.css';
@@ -11,7 +11,6 @@ import { MonthReflections } from './MonthReflections';
 import { PlanVsDoneSection } from './PlanVsDoneSection';
 import { PostponeSection } from './PostponeSection';
 import { TrendSection } from './TrendCards';
-import { WeekExperimentContext } from './UseAsExperiment';
 import { WatchNotice } from './WatchNotice';
 import './patterns.css';
 
@@ -30,17 +29,12 @@ export function PatternsScreen() {
   // The day index depends only on the data: toggling Semanas/Meses reuses it.
   const idx = useMemo(() => (data ? dayIndex(data) : undefined), [data]);
   const view = useMemo(() => (data && idx ? buildPatternsView(data, kind, idx) : undefined), [data, idx, kind]);
-  const experiment = useMemo(() => {
-    const w = data?.weeks.find((x) => x.id === weekKey(data.today));
-    return { current: w?.experiment?.trim() || undefined };
-  }, [data]);
   const choose = (k: PeriodKind) => {
     setKind(k);
     try { localStorage.setItem(PATTERNS_PERIOD_KEY, k); } catch { /* storage may be unavailable */ }
   };
   if (!view) return <section className="screen patterns" aria-busy="true" aria-label="Padrões" />;
   return (
-    <WeekExperimentContext.Provider value={experiment}>
     <section className="screen patterns stack" aria-labelledby="patterns-title">
       <Link href="/personagem" className="settings__back">‹ Personagem</Link>
       <h1 id="patterns-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Padrões</h1>
@@ -57,6 +51,5 @@ export function PatternsScreen() {
         </>
       )}
     </section>
-    </WeekExperimentContext.Provider>
   );
 }

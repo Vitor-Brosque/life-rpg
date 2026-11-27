@@ -69,7 +69,7 @@ describe('Dexie v1 → v2 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
 
     const hard = await db.dayState.get('2026-11-09');
     expect(hard).toMatchObject({ hardDay: true, reviewDone: true, mode: 'low', updatedAt: 2 });
@@ -142,7 +142,7 @@ describe('Dexie v2 → v3 migration', () => {
     v2.version(2).stores(V2_ADDED);
     await v2.open();
     for (const [table, rows] of Object.entries(V1_ROWS)) await v2.table(table).bulkPut(rows);
-    await v2.table('blocks').put({ ...base, id: 'b1', name: 'Complementos', weekdays: [1], order: 0, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light', protected: false, checklist: [], archived: false });
+    await v2.table('blocks').put({ ...base, id: 'b1', name: 'Complementos', weekdays: [1], order: 0, targetStart: '16:50', durationMin: 30, minimumMin: 10, kind: 'light', protected: false, checklist: [], archived: false });
     v2.close();
   }
 
@@ -151,7 +151,7 @@ describe('Dexie v2 → v3 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.blocks.get('b1')).toMatchObject({ name: 'Complementos', kind: 'light' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -187,7 +187,7 @@ describe('Dexie v3 → v4 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.decks.get('d1')).toMatchObject({ name: 'SQL' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -216,7 +216,7 @@ describe('Dexie v4 → v5 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'conta' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     // v5 alone keeps the cursor (no synced table), but a v4 database also goes through v6, which restarts it.
@@ -242,7 +242,7 @@ describe('Dexie v4 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista 3' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -276,7 +276,7 @@ describe('Dexie v5 → v6 migration', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.mediaInfo.get(hash)).toMatchObject({ mime: 'image/png', size: 3 });
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual({ hash, addedAt: 7 });
@@ -304,7 +304,7 @@ describe('Dexie v4 → v7 migration (Marco 4)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.sketches.get('s1')).toMatchObject({ title: 'Lista' });
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
@@ -327,7 +327,7 @@ describe('Dexie v8 (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
     expect(await db.table('monthReviews').count()).toBe(0);
     await db.table('monthReviews').put({ ...base, id: 'month-2026-10', month: '2026-10', observed: {}, answeredAt: 5 });
@@ -371,7 +371,7 @@ describe('Dexie v7 → v8 migration (Marco 5)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.mediaInfo.get(hash)).toEqual(rows.mediaInfo);
     expect(await db.mediaData.get(hash)).toMatchObject({ hash });
     expect(await db.mediaQueue.get(hash)).toEqual(rows.mediaQueue);
@@ -419,7 +419,7 @@ describe('Dexie v8 → v9 (acompanhamento diário)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.table('monthReviews').get('month-2026-10')).toEqual(rows.monthReviews);
     expect(await db.workouts.get('w1')).toEqual(rows.workouts);
     expect(await db.missions.toArray()).toEqual(V1_ROWS.missions);
@@ -487,7 +487,7 @@ describe('Dexie v9 → v10 (diário)', () => {
     const db = new LifeDB(NAME);
     open = db;
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(17);
     expect(await db.diaryEntries.toArray()).toEqual([CLOSE_10, CLOSE_11]);
     expect(await db.outbox.toArray()).toEqual([
       { key: 'diaryEntries:diary-close-2026-11-10', table: 'diaryEntries', id: 'diary-close-2026-11-10', updatedAt: t(10, 23, 6) },
@@ -546,5 +546,237 @@ describe('Dexie v9 → v10 (diário)', () => {
       appDb.close();
       await Dexie.delete('life-rpg');
     }
+  });
+});
+
+// Frozen copy of the v10 schema that is already in the user's browser: never edit it.
+const V10_ADDED = { diaryEntries: 'id,day,at' };
+
+describe('Dexie v10 → v11 (estratégias)', () => {
+  it('keeps every v10 row, adds the strategies table and restarts the cursor (no data migration)', async () => {
+    const v10 = new Dexie(NAME);
+    v9Schema(v10);
+    v10.version(10).stores(V10_ADDED);
+    await v10.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v10.table(table).bulkPut(rows);
+    const week = { ...base, id: '2026-11-16', objectives: [], experiment: 'Celular longe' };
+    await v10.table('weeks').put(week);
+    await v10.table('diaryEntries').put(CLOSE_10);
+    await v10.table('meta').put({ key: 'cursor', value: 42 });
+    v10.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.weeks.get('2026-11-16')).toEqual(week);
+    expect(await db.diaryEntries.get(CLOSE_10.id)).toEqual(CLOSE_10);
+    expect(await db.strategies.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.strategies.put({ ...base, id: 's1', title: 'Celular longe', source: 'ideia', startDay: '2026-11-23', reviewDay: '2026-12-07', status: 'testando' });
+    expect(await db.strategies.get('s1')).toMatchObject({ title: 'Celular longe' });
+  });
+});
+
+// Frozen copy of the v11 schema that is already in the user's browser: never edit it.
+const V11_ADDED = { strategies: 'id' };
+
+describe('Dexie v11 → v12 (objetivos e temporadas)', () => {
+  it('keeps every v11 row, adds the goals and seasons tables and restarts the cursor (no data migration)', async () => {
+    const v11 = new Dexie(NAME);
+    v9Schema(v11);
+    v11.version(10).stores(V10_ADDED);
+    v11.version(11).stores(V11_ADDED);
+    await v11.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v11.table(table).bulkPut(rows);
+    const strategy = { ...base, id: 's1', title: 'Celular longe', source: 'ideia', startDay: '2026-11-16', reviewDay: '2026-11-30', status: 'testando' };
+    await v11.table('strategies').put(strategy);
+    await v11.table('meta').put({ key: 'cursor', value: 42 });
+    v11.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.journeys.get('j1')).toEqual(V1_ROWS.journeys![0]);
+    expect(await db.strategies.get('s1')).toEqual(strategy);
+    expect(await db.goals.count()).toBe(0);
+    expect(await db.seasons.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.goals.put({ ...base, id: 'g1', title: 'Carreira em Dados', status: 'ativo', order: 0 });
+    await db.seasons.put({ ...base, id: 'se1', title: 'Consistência', focus: [], startDay: '2026-11-23', plannedWeeks: 6, status: 'ativa' });
+    expect(await db.goals.get('g1')).toMatchObject({ title: 'Carreira em Dados' });
+    expect(await db.seasons.get('se1')).toMatchObject({ plannedWeeks: 6 });
+  });
+});
+
+// Frozen copy of the v12 schema that is already in the user's browser: never edit it.
+const V12_ADDED = { goals: 'id', seasons: 'id' };
+
+describe('Dexie v12 → v13 (comunicação oral)', () => {
+  it('keeps every v12 row, adds the speech tables and restarts the cursor (no data migration)', async () => {
+    const v12 = new Dexie(NAME);
+    v9Schema(v12);
+    v12.version(10).stores(V10_ADDED);
+    v12.version(11).stores(V11_ADDED);
+    v12.version(12).stores(V12_ADDED);
+    await v12.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v12.table(table).bulkPut(rows);
+    const goal = { ...base, id: 'g1', title: 'Carreira em Dados', status: 'ativo', order: 0 };
+    await v12.table('goals').put(goal);
+    await v12.table('meta').put({ key: 'cursor', value: 42 });
+    v12.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.journeys.get('j1')).toEqual(V1_ROWS.journeys![0]);
+    expect(await db.goals.get('g1')).toEqual(goal);
+    expect(await db.speechSessions.count()).toBe(0);
+    expect(await db.speechSituations.count()).toBe(0);
+    expect(await db.speechPrograms.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.speechSessions.put({ ...base, id: 'sp1', day: '2026-11-23', kind: 'leitura', passage: 'feira', recordings: [], ratings: {} });
+    expect((await db.speechSessions.where('day').equals('2026-11-23').toArray()).map((s) => s.id)).toEqual(['sp1']);
+  });
+});
+
+// Frozen copy of the v13 and v14 schemas that are already in the user's browser: never edit them.
+const V13_ADDED = { speechSessions: 'id,day', speechSituations: 'id,day', speechPrograms: 'id' };
+const V14_ADDED = { proposals: 'id,status' };
+
+describe('Dexie v14 → v15 (nutrição)', () => {
+  it('keeps every v14 row, adds the nutrition tables and restarts the cursor (no data migration)', async () => {
+    const v14 = new Dexie(NAME);
+    v9Schema(v14);
+    v14.version(10).stores(V10_ADDED);
+    v14.version(11).stores(V11_ADDED);
+    v14.version(12).stores(V12_ADDED);
+    v14.version(13).stores(V13_ADDED);
+    v14.version(14).stores(V14_ADDED);
+    await v14.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v14.table(table).bulkPut(rows);
+    const proposal = { ...base, id: 'p1', source: 'Claude', payload: { title: 'Rotina', summary: 's' }, status: 'pending' };
+    await v14.table('proposals').put(proposal);
+    await v14.table('meta').put({ key: 'cursor', value: 42 });
+    v14.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.proposals.get('p1')).toEqual(proposal);
+    expect(await db.settings.get('settings')).toEqual(V1_ROWS.settings![0]);
+    for (const t of [db.foods, db.nutritionTargets, db.foodLogs, db.pantry, db.weighIns]) expect(await t.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.foodLogs.put({ ...base, id: 'fl1', day: '2026-11-25', meal: 'almoco', foodId: 'f1', name: 'Arroz', per100: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 }, basis: 'pronto', estimate: false, grams: 150, status: 'comido', order: 0 });
+    expect((await db.foodLogs.where('day').equals('2026-11-25').toArray()).map((l) => l.id)).toEqual(['fl1']);
+    await db.weighIns.put({ ...base, id: 'w1', day: '2026-11-25', kg: 72.4 });
+    expect(await db.weighIns.where('day').equals('2026-11-25').count()).toBe(1);
+    await db.pantry.put({ ...base, id: 'pantry-f1', foodId: 'f1', confirmedDay: '2026-11-25' });
+    expect(await db.pantry.where('foodId').equals('f1').count()).toBe(1);
+    await db.nutritionTargets.bulkPut([
+      { ...base, id: 'ntarget-2026-11-20', from: '2026-11-20', byWeekday: [] },
+      { ...base, id: 'ntarget-2026-11-10', from: '2026-11-10', byWeekday: [] },
+    ]);
+    expect((await db.nutritionTargets.orderBy('from').toArray()).map((t) => t.from)).toEqual(['2026-11-10', '2026-11-20']);
+    await db.foods.put({ ...base, id: 'f1', name: 'Arroz', per100: { kcal: 130, protein: 2.7, carbs: 28, fat: 0.3 }, basis: 'pronto', source: 'tabela', group: 'carboidrato', like: 'normal' });
+    expect((await db.foods.orderBy('name').first())!.id).toBe('f1');
+  });
+});
+
+// Frozen copy of the v15 schema that is already in the user's browser: never edit it.
+const V15_ADDED = { foods: 'id,name', nutritionTargets: 'id,from', foodLogs: 'id,day', pantry: 'id,foodId', weighIns: 'id,day' };
+
+describe('Dexie v15 → v16 (caderno da disciplina)', () => {
+  it('keeps every v15 row, adds the notebook and apostila tables and restarts the cursor (no data migration)', async () => {
+    const v15 = new Dexie(NAME);
+    v9Schema(v15);
+    v15.version(10).stores(V10_ADDED);
+    v15.version(11).stores(V11_ADDED);
+    v15.version(12).stores(V12_ADDED);
+    v15.version(13).stores(V13_ADDED);
+    v15.version(14).stores(V14_ADDED);
+    v15.version(15).stores(V15_ADDED);
+    await v15.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v15.table(table).bulkPut(rows);
+    const weigh = { ...base, id: 'w1', day: '2026-11-25', kg: 72.4 };
+    await v15.table('weighIns').put(weigh);
+    await v15.table('meta').put({ key: 'cursor', value: 42 });
+    v15.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.weighIns.get('w1')).toEqual(weigh);
+    expect(await db.profile.get('me')).toEqual(V1_ROWS.profile![0]);
+    expect(await db.subjectNotebooks.count()).toBe(0);
+    expect(await db.studyDocs.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.subjectNotebooks.put({ ...base, id: 'notebook-j1', journeyId: 'j1', plan: 'Ementa', bibliography: [] });
+    expect((await db.subjectNotebooks.where('journeyId').equals('j1').toArray()).map((n) => n.id)).toEqual(['notebook-j1']);
+    await db.studyDocs.bulkPut([
+      { ...base, id: 'doc1', journeyId: 'j1', title: 'Normalização', markdown: '# 1FN', source: 'ChatGPT' },
+      { ...base, id: 'doc2', journeyId: 'j2', title: 'Limites', markdown: 'x', source: 'Você' },
+    ]);
+    expect((await db.studyDocs.where('journeyId').equals('j1').toArray()).map((d) => d.id)).toEqual(['doc1']);
+  });
+});
+
+// Frozen copy of the v16 schema that is already in the user's browser: never edit it.
+const V16_ADDED = { subjectNotebooks: 'id,journeyId', studyDocs: 'id,journeyId' };
+
+describe('Dexie v16 → v17 (PDFs da aula)', () => {
+  it('keeps every v16 row, adds the PDF and reading progress tables and restarts the cursor (no data migration)', async () => {
+    const v16 = new Dexie(NAME);
+    v9Schema(v16);
+    v16.version(10).stores(V10_ADDED);
+    v16.version(11).stores(V11_ADDED);
+    v16.version(12).stores(V12_ADDED);
+    v16.version(13).stores(V13_ADDED);
+    v16.version(14).stores(V14_ADDED);
+    v16.version(15).stores(V15_ADDED);
+    v16.version(16).stores(V16_ADDED);
+    await v16.open();
+    for (const [table, rows] of Object.entries(V1_ROWS)) await v16.table(table).bulkPut(rows);
+    const doc = { ...base, id: 'doc1', journeyId: 'j1', title: 'Normalização', markdown: '# 1FN', source: 'ChatGPT' };
+    await v16.table('studyDocs').put(doc);
+    const media = { hash: 'a'.repeat(64), type: 'image/png', size: 32, addedAt: 5 };
+    await v16.table('mediaInfo').put(media);
+    await v16.table('meta').put({ key: 'cursor', value: 42 });
+    v16.close();
+
+    const db = new LifeDB(NAME);
+    open = db;
+    await db.open();
+    expect(db.verno).toBe(17);
+    expect(await db.studyDocs.get('doc1')).toEqual(doc);
+    expect(await db.mediaInfo.get('a'.repeat(64))).toEqual(media);
+    expect(await db.profile.get('me')).toEqual(V1_ROWS.profile![0]);
+    expect(await db.studyFiles.count()).toBe(0);
+    expect(await db.outbox.toArray()).toEqual(V1_ROWS.outbox);
+    expect(await db.meta.get('cursor')).toEqual({ key: 'cursor', value: 0 });
+    expect(await db.meta.get('deviceId')).toEqual({ key: 'deviceId', value: 'dev-1' });
+    await db.studyFiles.bulkPut([
+      { ...base, id: 'pdf1', journeyId: 'j1', title: 'Slides', fileHash: 'b'.repeat(64), bytes: 900, pages: 12, hasText: true, textHash: 'c'.repeat(64), textChars: 300 },
+      { ...base, id: 'pdf2', title: 'Sem disciplina', fileHash: 'd'.repeat(64), bytes: 900, pages: 3, hasText: false },
+    ]);
+    expect((await db.studyFiles.where('journeyId').equals('j1').toArray()).map((f) => f.id)).toEqual(['pdf1']);
+    // Where she stopped: a record of its own, keyed by the PDF's id.
+    expect(await db.studyFileProgress.count()).toBe(0);
+    await db.studyFileProgress.put({ ...base, id: 'pdf1', lastPage: 7, lastReadAt: 9 });
+    expect(await db.studyFileProgress.get('pdf1')).toMatchObject({ lastPage: 7, lastReadAt: 9 });
   });
 });

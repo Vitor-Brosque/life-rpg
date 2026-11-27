@@ -6,10 +6,13 @@ import { Button } from '../../ui/Button';
 import { focusWhenGone } from '../../ui/focusAfter';
 import { Panel } from '../../ui/Panel';
 import { safeRun } from '../../ui/safeRun';
+import { useToday } from '../../db/hooks';
+import { useSeasonNow } from '../../db/seasonData';
 import { useToast } from '../../ui/Toast';
 import { EvidenceLine } from './Evidence';
+import './patterns.css';
 import { WATCH_CONTEXT, WATCH_CONTEXT_SHORT, watchExperiment, watchObservedText } from './patternText';
-import { UseAsExperiment } from './UseAsExperiment';
+import { TestAsStrategy } from './TestAsStrategy';
 
 export interface WatchNoticeProps {
   notice: WatchNoticeData;
@@ -20,6 +23,7 @@ export interface WatchNoticeProps {
 
 /** Weeks 5–8 notice (spec §5.5): observed numbers, a calm context and a small experiment; never a grade. */
 export function WatchNotice({ notice, variant = 'full', onUse }: WatchNoticeProps) {
+  const season = useSeasonNow(useToday());
   const experiment = watchExperiment(notice);
   const name = `Semanas 5–8: ${notice.name}`;
   if (variant === 'compact') {
@@ -27,8 +31,9 @@ export function WatchNotice({ notice, variant = 'full', onUse }: WatchNoticeProp
       <div className="watch-compact" role="group" aria-label={name}>
         <p>{`Semanas 5–8 · ${notice.name}: ${watchObservedText(notice)}`}</p>
         <p className="watch-notice__context">{WATCH_CONTEXT_SHORT}</p>
+        {season && <p className="watch-notice__season">{season.line}</p>}
         <div className="watch-notice__actions">
-          <UseAsExperiment text={experiment} label="Usar no ajuste" onUse={onUse} />
+          <TestAsStrategy text={experiment} label="Usar no ajuste" onUse={onUse} />
           <Link href="/padroes" className="btn btn--secondary btn--sm">Ver em Padrões</Link>
         </div>
       </div>
@@ -43,9 +48,10 @@ export function WatchNotice({ notice, variant = 'full', onUse }: WatchNoticeProp
       <h2 className="watch-notice__title">{`Semanas 5–8 · ${notice.name}`}</h2>
       <EvidenceLine kind="observado">{watchObservedText(notice)}</EvidenceLine>
       <p className="watch-notice__context">{WATCH_CONTEXT}</p>
+      {season && <p className="watch-notice__season">{season.line}</p>}
       <EvidenceLine kind="experimento">{experiment}</EvidenceLine>
       <div className="watch-notice__actions">
-        <UseAsExperiment text={experiment} />
+        <TestAsStrategy text={experiment} />
         <Link href="/planejar?aba=rotina" className="btn btn--secondary btn--sm">Ajustar a rotina</Link>
         <Button size="sm" variant="ghost" onClick={dismiss}>Está tudo bem assim</Button>
       </div>

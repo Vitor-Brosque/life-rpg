@@ -83,6 +83,9 @@ describe('desiredStudyReminders', () => {
   it('um card só fica no singular', () => {
     expect(desiredStudyReminders({ ...base, remaining: { count: 1, minutes: 2 } })[0]!.body).toBe('Revisão de hoje: 1 card, uns 2 min.');
   });
+  it('um minuto vira "cerca de 1 min", nunca "uns 1 min"', () => {
+    expect(desiredStudyReminders({ ...base, remaining: { count: 2, minutes: 1 } })[0]!.body).toBe('Revisão de hoje: 2 cards, cerca de 1 min.');
+  });
   it('um dia livre (fim de semana) não recebe lembrete futuro, mesmo sem restDays', () => {
     const out = desiredStudyReminders({
       ...base, study: { ...study, restDays: [0] }, today: '2026-11-13', now: at(13, 10),

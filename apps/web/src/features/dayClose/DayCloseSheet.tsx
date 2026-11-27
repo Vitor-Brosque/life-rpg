@@ -1,14 +1,15 @@
 import { useId, useState, type MouseEvent } from 'react';
 import { useLocation } from 'wouter';
-import type { DayCloseSummary, DayKey, DayState, DiaryEntry, Mission, Tiredness } from '@life/shared';
+import type { DayCloseSummary, DayKey, DayState, DayStateChoices, DayStateKey, DiaryEntry, Mission } from '@life/shared';
 import {
-  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, TIREDNESS, TIREDNESS_LABEL, WORKOUT_LABEL, addDays, ulid,
+  BLOCK_OUTCOME_LABEL, CLOSE_BLOCK_LABEL, DAY_STATE_KEYS, DAY_STATE_LEGEND, DAY_STATE_OPTIONS, WORKOUT_LABEL, addDays,
+  pickChoices, ulid,
 } from '@life/shared';
 import { diaryCloseId } from '@life/shared';
 import { db } from '../../db/db';
 import { useToday } from '../../db/hooks';
 import { rescheduleMission } from '../../domain/actions';
-import { closeDay } from '../../domain/dayCloseActions';
+import { closeDay, saveDayChoices } from '../../domain/dayCloseActions';
 import { saveCloseNote } from '../../domain/diaryActions';
 import { Button } from '../../ui/Button';
 import { Chip } from '../../ui/Chip';
@@ -19,6 +20,7 @@ import { Sheet } from '../../ui/Sheet';
 import { useToast } from '../../ui/Toast';
 import { DROP_REASONS } from '../agora/ReviewSheet';
 import { dropWithFeedback } from '../mission/missionFeedback';
+import { useSituationSheet } from '../speech/SituationSheet';
 import { DayCloseCorrections } from './DayCloseCorrections';
 import { useDayCloseData, useDayCloseSheet } from './useDayClose';
 import './dayClose.css';
@@ -52,9 +54,13 @@ function observedLines(s: DayCloseSummary): string[] {
       + (s.counts.pulado ? ` · ${plural(s.counts.pulado, 'pulado', 'pulados')}` : '') + '.');
   }
   const done = s.completed.length;
-  const part = s.partial.length;
-  if (done > 0) lines.push(plural(done, 'missão concluída', 'missões concluídas') + (part ? ` · ${plural(part, 'parcial', 'parciais')}` : ''));
-  else if (part > 0) lines.push(plural(part, 'missão parcial', 'missões parciais'));
+  const inv = s.partial.filter((p) => p.investigated).length;
+  const part = s.partial.length - inv;
+  const tail = [part ? plural(part, 'parcial', 'parciais') : '', inv ? plural(inv, 'investigação', 'investigações') : '']
+    .filter(Boolean).join(' · ');
+  if (done > 0) lines.push(plural(done, 'missão concluída', 'missões concluídas') + (tail ? ` · ${tail}` : ''));
+  else if (part > 0) lines.push(plural(part, 'missão parcial', 'missões parciais') + (inv ? ` · ${plural(inv, 'investigação', 'investigações')}` : ''));
+  else if (inv > 0) lines.push(plural(inv, 'missão com investigação', 'missões com investigação'));
   if (s.focusMin > 0) lines.push(`${formatDuration(s.focusMin)} de foco registrado`);
   if (s.training) lines.push(s.training);
   else if (s.workouts.length > 0) lines.push(s.workouts.map((w) => `${WORKOUT_LABEL[w.kind]} ${w.minutes} min`).join(' · '));
@@ -161,7 +167,16 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
   today: DayKey; summary: DayCloseSummary; state?: DayState; closeEntry?: DiaryEntry; onClose(): void;
 }) {
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
-  const [tiredness, setTiredness] = useState<Tiredness | undefined>(state?.tiredness);
+  // The four choices as they were when the sheet opened, and which ones he touched: only those are written.
+  const [choices, setChoices] = useState<DayStateChoices>(() => ({
+    tiredness: state?.tiredness, mood: state?.mood, load: state?.load, concentration: state?.concentration,
+  }));
+  const [touched, setTouched] = useState<ReadonlySet<DayStateKey>>(() => new Set());
+  const stateId = useId();
+  const choose = (key: DayStateKey, value: string) => {
+    setChoices((c) => ({ ...c, [key]: c[key] === value ? undefined : value }) as DayStateChoices);
+    setTouched((t) => new Set(t).add(key));
+  };
   // The text shown when the sheet opened: the observation is written only when he changed it, so a newer
   // version (another device, the diary) is never replaced by this copy, nor trashed by an untouched empty field.
   // When he did change it, a version newer than this one is kept in Apagadas recentemente (saveCloseNote).
@@ -190,12 +205,19 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       && fresh.text !== initialNote && fresh.text.trim() !== note.trim();
   };
   const KEPT_NEWER = ' A versão mais nova da observação ficou em Apagadas recentemente.';
+  // What he typed or tapped is kept before the sheet hands over to the diary or to "Situação real" (the day is not closed).
+  const keepTyped = async (): Promise<void> => {
+    const kept = await keepsNewer();
+    if (noteChanged) await saveCloseNote(today, note, { shown: initialNote });
+    if (touched.size > 0) await saveDayChoices(today, pickChoices(choices, touched));
+    if (kept) toast(KEPT_NEWER.trim());
+  };
   const save = () => {
     setBusy(true);
     safeRun(async () => {
       try {
         const kept = await keepsNewer();
-        await closeDay(today, { tiredness, ...(noteChanged ? { note, noteShown: initialNote } : {}) });
+        await closeDay(today, { ...pickChoices(choices, touched), ...(noteChanged ? { note, noteShown: initialNote } : {}) });
         toast(`${closed === undefined ? 'Dia fechado.' : 'Fechamento atualizado.'}${kept ? KEPT_NEWER : ''}`);
         onClose();
       } finally {
@@ -216,14 +238,17 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
           </ul>
         </section>
       )}
-      <fieldset className="day-close__tiredness">
-        <legend>Cansaço durante o dia (opcional)</legend>
-        {TIREDNESS.map((t) => (
-          <Chip key={t} selected={tiredness === t} onClick={() => setTiredness(tiredness === t ? undefined : t)}>
-            {TIREDNESS_LABEL[t]}
-          </Chip>
+      <div className="day-close__state" role="group" aria-labelledby={stateId}>
+        <p id={stateId} className="day-close__state-title">Como você esteve (tudo opcional)</p>
+        {DAY_STATE_KEYS.map((key) => (
+          <fieldset key={key} className="day-close__tiredness">
+            <legend>{DAY_STATE_LEGEND[key]}</legend>
+            {DAY_STATE_OPTIONS[key].map((o) => (
+              <Chip key={o.value} selected={choices[key] === o.value} onClick={() => choose(key, o.value)}>{o.label}</Chip>
+            ))}
+          </fieldset>
         ))}
-      </fieldset>
+      </div>
       <label className="field" htmlFor={noteId}>
         <span className="field__label">Observação (opcional)</span>
       </label>
@@ -233,12 +258,15 @@ function DayCloseForm({ today, summary, state, closeEntry, onClose }: {
       <div className="cluster">
         <Button size="sm" variant="ghost" icon="diary" onClick={() => safeRun(async () => {
           // What was typed is never lost: it is saved as the fechamento (the day is not closed by this).
-          const kept = await keepsNewer();
-          if (noteChanged) await saveCloseNote(today, note, { shown: initialNote });
-          if (kept) toast(KEPT_NEWER.trim());
+          await keepTyped();
           onClose();
           navigate(`/diario/${ulid()}`);
         })}>Escrever no diário</Button>
+        <Button size="sm" variant="ghost" icon="mic" onClick={() => safeRun(async () => {
+          await keepTyped();
+          onClose();
+          useSituationSheet.getState().open();
+        })}>Situação de fala</Button>
       </div>
       <DayCloseCorrections blocks={summary.blocks} focus={summary.focus} />
       <div className="day-close__footer">

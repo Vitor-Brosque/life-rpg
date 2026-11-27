@@ -20,11 +20,11 @@ const block = (b: Partial<Block> & Pick<Block, 'id' | 'name' | 'order' | 'target
   ...base, weekdays: WD, protected: false, checklist: [], archived: false, ...b,
 });
 const FIXTURE: Block[] = [
-  block({ id: 'b1', name: 'Tech', order: 0, targetStart: '09:00', durationMin: 180, minimumMin: 45, kind: 'focus', journeyId: 'j-tech' }),
-  block({ id: 'b2', name: 'Treino', order: 1, targetStart: '12:30', durationMin: 120, minimumMin: 45, kind: 'body', areaId: 'area-vigor' }),
-  block({ id: 'b3', name: 'Facul', order: 2, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study', protected: true, areaId: 'area-facul' }),
-  block({ id: 'b4', name: 'Tecnico', order: 3, targetStart: '16:45', durationMin: 60, minimumMin: 25, kind: 'study', areaId: 'area-intelecto' }),
-  block({ id: 'b5', name: 'Compl', order: 4, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light' }),
+  block({ id: 'b1', name: 'Tech', order: 0, targetStart: '08:30', durationMin: 165, minimumMin: 40, kind: 'focus', journeyId: 'j-tech' }),
+  block({ id: 'b2', name: 'Treino', order: 1, targetStart: '11:45', durationMin: 90, minimumMin: 35, kind: 'body', areaId: 'area-vigor' }),
+  block({ id: 'b3', name: 'Facul', order: 2, targetStart: '13:45', durationMin: 90, minimumMin: 30, kind: 'study', protected: true, areaId: 'area-facul' }),
+  block({ id: 'b4', name: 'Tecnico', order: 3, targetStart: '15:30', durationMin: 60, minimumMin: 25, kind: 'study', areaId: 'area-intelecto' }),
+  block({ id: 'b5', name: 'Compl', order: 4, targetStart: '16:50', durationMin: 30, minimumMin: 10, kind: 'light' }),
 ];
 const AULA: Commitment = {
   ...base, id: 'aula', title: 'Aula', date: '2026-11-02', start: '19:00', end: '23:00', weekdays: WD, remind: true,

@@ -21,7 +21,7 @@ const PROB = 'Redes de Computadores';
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(at(11, 15, 30)); // Wednesday
+  vi.setSystemTime(at(11, 14, 30)); // Wednesday
   localStorage.clear();
   await db.delete(); await db.open();
   await ensureSeed();
@@ -124,7 +124,7 @@ describe('sugestão no bloco Faculdade', () => {
     expect(screen.queryByRole('region', { name: 'Sugestão para este bloco' })).toBeNull();
     sat.unmount();
 
-    vi.setSystemTime(at(11, 15, 30));
+    vi.setSystemTime(at(11, 14, 30));
     await setDayMode('free');
     renderAgora();
     await screen.findByRole('region', { name: 'Dia livre' });

@@ -3,7 +3,7 @@ import { AUDIO_BITS_PER_SECOND, AUDIO_MAX_MS, pickRecorderType } from '@life/sha
 
 // Microphone recording (Marco 3c, spec §4.2 and §6.4). The microphone is asked for only inside
 // start() (a tap), tracks are stopped as soon as the recording ends (the iPhone's mic indicator
-// goes off), and a recording longer than AUDIO_MAX_MS stops by itself.
+// goes off), and a recording longer than `maxMs` (default AUDIO_MAX_MS) stops by itself.
 
 export const RECORDER_MESSAGES = {
   denied: 'O microfone não está liberado para o LIFE RPG. Para gravar, permita o microfone nas configurações do navegador para este site. Dá para continuar sem áudio.',
@@ -37,7 +37,21 @@ export function recordingSupported(): boolean {
 
 const TICK_MS = 250;
 
-interface Active { recorder: MediaRecorder; stream: MediaStream; timer: ReturnType<typeof setInterval>; capped: boolean }
+interface Active {
+  recorder: MediaRecorder; stream: MediaStream; timer: ReturnType<typeof setInterval>; capped: boolean;
+  chunks: Blob[]; startedAt: number; type: string | undefined;
+}
+
+/** A finished recording handed to the caller (see `RecorderOptions.onUnmount`). */
+export interface RecordingResult { blob: Blob; durationMs: number; capped: boolean }
+
+export interface RecorderOptions {
+  /**
+   * Called when the component unmounts with a recording in progress (it is stopped and finished first), one whose
+   * stop is still pending (finished when the recorder delivers it) or one that ended and was not reset yet. Without it (card audio), unmounting drops the recording, as before.
+   */
+  onUnmount?: (r: RecordingResult) => void;
+}
 
 const stopTracks = (stream: MediaStream): void => {
   for (const t of stream.getTracks()) t.stop();
@@ -50,8 +64,15 @@ function errorMessage(e: unknown): string {
   return RECORDER_MESSAGES.failed;
 }
 
-export function useRecorder(): Recorder {
+/** `maxMs`: where the recording stops by itself (cards: AUDIO_MAX_MS, 2 min; speech: SPEECH_AUDIO_MAX_MS, 3 min). The `maxMs` in force is the one captured when recording starts. */
+export function useRecorder(maxMs: number = AUDIO_MAX_MS, options?: RecorderOptions): Recorder {
   const [state, setState] = useState<RecorderState>({ kind: 'idle' });
+  const onUnmount = useRef(options?.onUnmount);
+  onUnmount.current = options?.onUnmount;
+  /** The finished recording while the state is 'done' (cleared by start/reset). */
+  const finished = useRef<RecordingResult | undefined>(undefined);
+  const maxMsRef = useRef(maxMs);
+  maxMsRef.current = maxMs;
   const active = useRef<Active | undefined>(undefined);
   const url = useRef<string | undefined>(undefined);
   /** Bumped by every start/reset/unmount: callbacks of an older run do nothing. */
@@ -74,7 +95,32 @@ export function useRecorder(): Recorder {
     url.current = undefined;
   }, []);
 
-  useEffect(() => teardown, [teardown]);
+  useEffect(() => () => {
+    const give = onUnmount.current;
+    const a = active.current;
+    if (give && a) {
+      // Finish the recording outside the component: the last data arrives with stop, then the caller gets the blob.
+      // `a` still being active while the recorder is 'inactive' means stop() was called and onstop has not arrived
+      // yet (Parar, then leaving at once): the hand-over takes onstop over the same way, without calling stop() again.
+      active.current = undefined;
+      run.current += 1;   // the React state callbacks of this run do nothing any more
+      clearInterval(a.timer);
+      const { recorder, stream, chunks, startedAt, type } = a;
+      recorder.onerror = null;
+      recorder.onstop = () => {
+        stopTracks(stream);
+        const blob = new Blob(chunks, { type: recorder.mimeType || type || 'audio/webm' });
+        if (blob.size > 0) give({ blob, durationMs: Math.min(maxMsRef.current, Date.now() - startedAt), capped: a.capped });
+      };
+      if (recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch { stopTracks(stream); }
+      }
+    } else if (give && finished.current) {
+      give(finished.current);
+    }
+    finished.current = undefined;
+    teardown();
+  }, [teardown]);
   useEffect(() => { stateKind.current = state.kind; }, [state.kind]);
 
   const stateKind = useRef<RecorderState['kind']>('idle');
@@ -94,6 +140,7 @@ export function useRecorder(): Recorder {
   const start = useCallback((): void => {
     if (!recordingSupported()) return;
     teardown();
+    finished.current = undefined;
     const id = run.current;
     stateKind.current = 'asking';
     setState({ kind: 'asking' });
@@ -113,10 +160,10 @@ export function useRecorder(): Recorder {
       const chunks: Blob[] = [];
       const startedAt = Date.now();
       const a: Active = {
-        recorder, stream, capped: false,
+        recorder, stream, capped: false, chunks, startedAt, type,
         timer: setInterval(() => {
           const elapsedMs = Date.now() - startedAt;
-          if (elapsedMs >= AUDIO_MAX_MS) {
+          if (elapsedMs >= maxMs) {
             a.capped = true;
             if (recorder.state !== 'inactive') recorder.stop();
             return;
@@ -138,7 +185,9 @@ export function useRecorder(): Recorder {
           return;
         }
         url.current = URL.createObjectURL(blob);
-        setState({ kind: 'done', blob, url: url.current, durationMs: Math.min(AUDIO_MAX_MS, Date.now() - startedAt), capped: a.capped });
+        const durationMs = Math.min(maxMs, Date.now() - startedAt);
+        finished.current = { blob, durationMs, capped: a.capped };
+        setState({ kind: 'done', blob, url: url.current, durationMs, capped: a.capped });
       };
       // An interruption (a call on the iPhone) ends the track: stop cleanly instead of counting up to the cap.
       for (const t of stream.getTracks()) {
@@ -158,10 +207,11 @@ export function useRecorder(): Recorder {
     }, (e: unknown) => {
       if (run.current === id) setState({ kind: 'error', message: errorMessage(e) });
     });
-  }, [teardown]);
+  }, [teardown, maxMs]);
 
   const reset = useCallback((): void => {
     teardown();
+    finished.current = undefined;
     setState({ kind: 'idle' });
   }, [teardown]);
 

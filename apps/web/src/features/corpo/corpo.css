@@ -69,3 +69,37 @@
 .training-evo__list { list-style: none; margin: 4px 0; padding-left: 0; display: flex; flex-direction: column; gap: 4px; }
 .training-plan__day { padding-block: 4px; }
 .training-evo summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+
+/* Treino detalhado (2026-11-25): plan request, block week, progression tag, RIR, discomfort, rest bar, plan editor. */
+.training__target { margin: 0; color: var(--text-dim); }
+.training-ex__plan { margin: 0; font-weight: 600; }
+.training-ex__note { margin: 0; color: var(--text-dim); font-size: 0.9em; font-style: italic; }
+.training-ex__ready { margin: 0; font-size: 0.9em; }
+.training-ex__ready-tag { display: inline-block; padding: 2px 8px; border: 2px solid var(--gold); color: var(--gold); font-weight: 700; }
+.training-ex__discomfort, .training-evo__discomfort { margin: 0; color: var(--text-dim); font-size: 0.9em; }
+.training-rir { display: flex; flex-direction: column; gap: 4px; flex-basis: 100%; }
+.training-rir .chip__main, .plan-exercise__chips .chip__main { min-height: 44px; min-width: 44px; }
+.training-discomfort { padding-top: 4px; }
+.rest-bar {
+  position: fixed; left: 0; right: 0; z-index: var(--z-dock);
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--dock-h));
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 8px;
+  /* Above the dock (the "+" slot): no room to keep free at the right. */
+  padding: 8px var(--space-4);
+  background: var(--stone); border-top: 3px solid var(--gold-dark);
+}
+.rest-bar--ready { border-top-color: var(--gold); }
+.rest-bar__text { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rest-bar .btn { flex: none; }
+.rest-bar__time { flex: none; font-weight: 700; font-size: 1.15rem; color: var(--gold); font-variant-numeric: tabular-nums; min-width: 4ch; }
+.rest-bar__spacer { height: 72px; }
+.plan-exercises, .plan-weeks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.plan-exercise { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 2px solid var(--stone-light); }
+.plan-exercise__numbers { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.plan-exercise__numbers .field { flex: 1; min-width: 9ch; }
+.plan-exercise__rest { display: flex; flex-direction: column; gap: 6px; }
+.plan-exercise__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.plan-exercise__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-week { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.plan-week .field { flex: 1; min-width: 8ch; }
+.plan-week__title { flex-basis: 100%; font-weight: 700; }

@@ -102,6 +102,25 @@ export class RecordStore {
     return { cursor: last ? last.rev : cursor, changes };
   }
 
+  /** Every record of one table, as stored (deleted ones included: callers filter). */
+  list<T = SyncChange['record']>(table: SyncTable): T[] {
+    const rows = this.db.prepare('SELECT data FROM records WHERE tbl = ?').all(table) as unknown as { data: string }[];
+    return rows.map((r) => JSON.parse(r.data) as T);
+  }
+
+  /**
+   * Only some top-level fields of every record of one table (deleted ones included), taken by SQLite with
+   * `json_extract`: the other fields (an apostila's Markdown) never become JavaScript strings. For counts.
+   */
+  listFields<T>(table: SyncTable, fields: readonly string[]): T[] {
+    const cols = fields.map((f) => {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(f)) throw new Error(`Campo inválido: ${f}`);
+      return f === 'deleted' ? 'deleted' : `json_extract(data, '$.${f}') AS ${f}`;
+    });
+    const rows = this.db.prepare(`SELECT ${cols.join(', ')} FROM records WHERE tbl = ?`).all(table) as Record<string, unknown>[];
+    return rows.map((r) => ({ ...r, ...('deleted' in r ? { deleted: r.deleted === 1 } : {}) }) as T);
+  }
+
   backupTo(file: string): void {
     this.db.prepare('VACUUM INTO ?').run(file);
   }

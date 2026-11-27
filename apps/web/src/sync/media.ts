@@ -4,10 +4,12 @@ import { db } from '../db/db';
 import { storeMedia } from '../db/media';
 import { getMeta } from '../db/repo';
 
-// Media sync (Marco 3c, spec §5). Files go up through a persistent queue BEFORE the records of each
-// sync round, so a device that receives a note finds its files on the server. They come down on
-// demand (what is on screen) and in background (everything live notes reference), so reviews work
-// offline on the iPhone. Nothing here throws: failures wait for the next round.
+// Media sync (Marco 3c, spec §5). Files go up through a persistent queue BEFORE the records of each sync round, so a
+// device that receives a note finds its files on the server (PDFs over 8 MB go after the records: no note references
+// them). They come down on demand (what is on screen) and in background (everything live notes reference), so reviews
+// work offline on the iPhone. Nothing here throws: failures wait for the next round. PDFs da aula (2026-11-26 §2.4): a
+// PDF comes down only when the reader opens it (fetchMediaNow), never in background, and its extracted text never does
+// (only notes' references are prefetched).
 
 export const UPLOAD_ROUND_FILES = 20;
 export const UPLOAD_ROUND_BYTES = 8 * 1024 * 1024;
@@ -18,8 +20,8 @@ export const ON_DEMAND_RETRY_MS = 30_000;
 export const PREFETCH_COOLDOWN_MS = 10 * 60_000;
 /** Per file: a stalled connection must not hold the sync round forever. */
 export const MEDIA_TIMEOUT_MS = 60_000;
-/** Uploads: 60 s plus 10 s per MB, at most 180 s. */
-export const uploadTimeoutMs = (bytes: number): number => Math.min(180_000, MEDIA_TIMEOUT_MS + Math.ceil(bytes / (1024 * 1024)) * 10_000);
+/** Uploads (and PDF downloads): 60 s plus 10 s per MB, at most 10 minutes (a 50 MB PDF; an 8 MB image gets 140 s). */
+export const uploadTimeoutMs = (bytes: number): number => Math.min(600_000, MEDIA_TIMEOUT_MS + Math.ceil(bytes / (1024 * 1024)) * 10_000);
 
 export type MediaStatus = 'downloading' | 'missing';
 /** Download state of files this device lacks (absent key: nothing known yet). */
@@ -48,22 +50,36 @@ function withTimeout<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): P
 export type UploadOutcome = 'done' | 'more' | 'stopped';
 
 /**
+ * Which queued files a call sends: 'all'; 'small' (up to UPLOAD_ROUND_BYTES each: images, audio, PDF texts, small PDFs),
+ * which goes before the records; 'big' (bigger files, PDFs), which goes after them so a 50 MB PDF never holds the records.
+ */
+export type UploadPass = 'all' | 'small' | 'big';
+const isBig = (size: number): boolean => size > UPLOAD_ROUND_BYTES;
+
+/**
  * Sends queued files, oldest first: 2xx → done; 400/413/415 → the server will never take it, so it
  * leaves the queue (warning); anything else (offline, 401, 404 of a server without media, 5xx) →
- * stop, retry next round. At most UPLOAD_ROUND_FILES files / UPLOAD_ROUND_BYTES per round ('more').
+ * stop, retry next round. At most UPLOAD_ROUND_FILES files / UPLOAD_ROUND_BYTES per round ('more'); a file bigger than
+ * that (a PDF) goes alone in its round. A file that fails by timeout, and a big one that fails in any way, goes to the
+ * back of the queue, so it does not hold the others every round.
  */
-export async function uploadPendingMedia(token: string): Promise<UploadOutcome> {
+export async function uploadPendingMedia(token: string, pass: UploadPass = 'all'): Promise<UploadOutcome> {
   try {
     const queue = await db.mediaQueue.orderBy('addedAt').toArray();
     let files = 0;
     let bytes = 0;
     for (const item of queue) {
-      if (files >= UPLOAD_ROUND_FILES || bytes >= UPLOAD_ROUND_BYTES) return 'more';
+      // The size from the metadata, so a 50 MB PDF that waits for the next round is not read now.
+      const size = (await db.mediaInfo.get(item.hash))?.size ?? 0;
+      if ((pass === 'small' && isBig(size)) || (pass === 'big' && !isBig(size))) continue;
+      if (files >= UPLOAD_ROUND_FILES) return 'more';
+      if (files > 0 && bytes + size > UPLOAD_ROUND_BYTES) return 'more';
       const data = await db.mediaData.get(item.hash);
       if (!data) {
         await db.mediaQueue.delete(item.hash);
         continue;
       }
+      const toBack = () => db.mediaQueue.update(item.hash, { addedAt: Date.now() });
       let res: Response;
       try {
         res = await withTimeout(uploadTimeoutMs(data.bytes.byteLength), (signal) => fetch(mediaUrl(item.hash), {
@@ -73,12 +89,15 @@ export async function uploadPendingMedia(token: string): Promise<UploadOutcome> 
           signal,
         }));
       } catch (e) {
-        // A timeout sends the file to the back of the queue, so a slow one does not hold the others every round.
-        if ((e as { name?: string } | null)?.name === 'AbortError') await db.mediaQueue.update(item.hash, { addedAt: Date.now() });
+        // iOS cuts connections in background ("Load failed"): a big file goes to the back on any failure.
+        if ((e as { name?: string } | null)?.name === 'AbortError' || isBig(data.bytes.byteLength)) await toBack();
         return 'stopped';
       }
       const refused = res.status === 400 || res.status === 413 || res.status === 415;
-      if (!res.ok && !refused) return 'stopped';
+      if (!res.ok && !refused) {
+        if (isBig(data.bytes.byteLength)) await toBack();
+        return 'stopped';
+      }
       if (refused) console.warn(`media: the server refused ${item.hash} (${res.status})`);
       await db.mediaQueue.delete(item.hash);
       files += 1;
@@ -91,13 +110,48 @@ export async function uploadPendingMedia(token: string): Promise<UploadOutcome> 
   }
 }
 
+let bigUpload: Promise<UploadOutcome> | undefined;
+
+/**
+ * The big files (PDFs over UPLOAD_ROUND_BYTES), one at a time, after the records of a round and without holding the
+ * next rounds (one run at a time). Stops at the first failure; the next round tries again.
+ */
+export function uploadBigMedia(token: string): Promise<UploadOutcome> {
+  bigUpload ??= (async () => {
+    let r: UploadOutcome;
+    do r = await uploadPendingMedia(token, 'big'); while (r === 'more');
+    return r;
+  })().finally(() => { bigUpload = undefined; });
+  return bigUpload;
+}
+
+/** What the server says about a file: it holds it ('present'), it answered that it lacks it ('missing'), or no answer. */
+export type ServerMediaState = 'present' | 'missing' | 'unknown';
+
+/** HEAD of the file on the server: 2xx 'present', 404 'missing'; any other answer, an error or a timeout 'unknown'. Never throws. */
+export async function mediaServerState(hash: string, token: string): Promise<ServerMediaState> {
+  try {
+    return await withTimeout(MEDIA_TIMEOUT_MS, async (signal) => {
+      const res = await fetch(mediaUrl(hash), { method: 'HEAD', headers: { Authorization: `Bearer ${token}` }, signal });
+      return res.ok ? 'present' : res.status === 404 ? 'missing' : 'unknown';
+    });
+  } catch {
+    return 'unknown';
+  }
+}
+
+/** True only when the server answers that it holds `hash` (HEAD). Any other answer, an error or a timeout is false; never throws. */
+export async function mediaOnServer(hash: string, token: string): Promise<boolean> {
+  return (await mediaServerState(hash, token)) === 'present';
+}
+
 export type DownloadOutcome = 'stored' | 'missing' | 'failed' | 'offline';
 
 /** One file from the server: its bytes must hash to `hash`; kept here, not queued for upload. */
-export async function downloadMedia(hash: string, token: string): Promise<DownloadOutcome> {
+export async function downloadMedia(hash: string, token: string, timeoutMs: number = MEDIA_TIMEOUT_MS): Promise<DownloadOutcome> {
   let bytes: ArrayBuffer;
   try {
-    const got = await withTimeout(MEDIA_TIMEOUT_MS, async (signal) => {
+    const got = await withTimeout(timeoutMs, async (signal) => {
       const res = await fetch(mediaUrl(hash), { headers: { Authorization: `Bearer ${token}` }, signal });
       return { status: res.status, bytes: res.ok ? await res.arrayBuffer() : undefined };
     });
@@ -120,7 +174,7 @@ const inFlight = new Map<string, Promise<DownloadOutcome>>();
 const triedAt = new Map<string, number>();
 
 /** downloadMedia, once at a time per hash, with the status the placeholders show. */
-function fetchOnce(hash: string, token: string): Promise<DownloadOutcome> {
+function fetchOnce(hash: string, token: string, timeoutMs: number = MEDIA_TIMEOUT_MS): Promise<DownloadOutcome> {
   const running = inFlight.get(hash);
   if (running) return running;
   triedAt.set(hash, Date.now());
@@ -131,7 +185,7 @@ function fetchOnce(hash: string, token: string): Promise<DownloadOutcome> {
     } catch {
       return 'failed';
     }
-    return downloadMedia(hash, token);
+    return downloadMedia(hash, token, timeoutMs);
   })()
     .then((r) => { mark(hash, r === 'stored' ? undefined : 'missing'); return r; })
     .finally(() => { inFlight.delete(hash); });
@@ -157,6 +211,26 @@ export function requestMedia(hash: string): void {
     }
     await fetchOnce(hash, token);
   })().catch(() => mark(hash, 'missing'));
+}
+
+export type FetchNowOutcome = DownloadOutcome | 'no-sync';
+
+/**
+ * A file needed right now (the PDF reader, "Baixar para ler sem internet"): already here → 'stored'; otherwise fetched
+ * from the server with a timeout that grows with `bytes` (up to 10 minutes). 'no-sync' without an access code,
+ * 'offline' without network. Deduplicated with the other downloads of the same hash; never throws.
+ */
+export async function fetchMediaNow(hash: string, bytes: number): Promise<FetchNowOutcome> {
+  try {
+    if (!isMediaHash(hash)) return 'failed';
+    if (await db.mediaInfo.get(hash)) return 'stored';
+    const token = await getMeta<string>('syncToken');
+    if (!token) return 'no-sync';
+    if (isOffline()) return 'offline';
+    return await fetchOnce(hash, token, uploadTimeoutMs(bytes));
+  } catch {
+    return 'failed';
+  }
 }
 
 /** After a sync round: files that were missing on screen may be asked for again right away. */
@@ -228,5 +302,6 @@ export function resetMediaSyncState(): void {
   lastScan = 0;
   prefetching = undefined;
   again = false;
+  bigUpload = undefined;
   useMediaStatus.setState({}, true);
 }

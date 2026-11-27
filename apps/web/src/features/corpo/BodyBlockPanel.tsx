@@ -1,7 +1,7 @@
 import { Link } from 'wouter';
 import type { BlockOccurrence } from '@life/shared';
 import {
-  CARDIO_MINIMUM_MIN, CARDIO_MINIMUM_TEXT, WORKOUT_LABEL, WORKOUT_MAX_MIN, trainingCounts, trainingDayOf,
+  CARDIO_MINIMUM_MIN, CARDIO_MINIMUM_TEXT, WORKOUT_LABEL, WORKOUT_MAX_MIN, blockWeekOf, targetText, trainingCounts, trainingDayOf,
 } from '@life/shared';
 import { useTrainingLog, useTrainingPlan, useWorkouts } from '../../db/corpoData';
 import { Button } from '../../ui/Button';
@@ -27,6 +27,7 @@ export function BodyBlockPanel({ occurrence, now }: { occurrence: BlockOccurrenc
   const entry = trainingDayOf(plan ?? undefined, occurrence.day);
   const counts = trainingLog ? trainingCounts(trainingLog) : undefined;
   const planned = trainingLog?.planName ?? entry?.name;
+  const target = planned ? (trainingLog?.target ?? blockWeekOf(plan?.block, occurrence.day)) : undefined;
   // Only the block: the training screen counts the minutes live from the block session (never stale).
   const openHref = `/corpo/treino?bloco=${blockId}`;
 
@@ -35,7 +36,7 @@ export function BodyBlockPanel({ occurrence, now }: { occurrence: BlockOccurrenc
       {plan && (
         <p className="body-block__plan">
           {planned
-            ? `Treino de hoje: ${planned}${counts ? ` · ${counts.done + counts.swapped} de ${trainingLog!.exercises.length} exercícios` : ''}`
+            ? `Treino de hoje: ${planned}${target ? ` · ${targetText(target)}` : ''}${counts ? ` · ${counts.done + counts.swapped} de ${trainingLog!.exercises.length} exercícios` : ''}`
             : 'Descanso da musculação.'}
           {' '}<Link href={openHref} className="body-card__link">Abrir treino</Link>
         </p>

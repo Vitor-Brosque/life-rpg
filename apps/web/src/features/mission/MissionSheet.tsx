@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { plural } from '../../ui/format';
 import { safeRun } from '../../ui/safeRun';
 import { Sheet } from '../../ui/Sheet';
+import { PurposeChainLine } from '../journeys/PurposeChain';
 import { startWithCheckin } from '../agora/startWithCheckin';
 import { ChecklistEditor } from './ChecklistEditor';
 import { EditableField } from './EditableField';
@@ -117,6 +118,7 @@ function MissionSheetBody({ mission, onClose }: { mission: Mission; onClose(): v
           )}
         </p>
       )}
+      <PurposeChainLine journeyId={mission.journeyId} className="mission-sheet__chain" />
       <EditableField label="Título" value={mission.title} required className="field--title"
         onSave={(title) => set({ title })} />
       <EditableField label="Primeiro passo" value={mission.firstStep} placeholder="A menor ação para começar"

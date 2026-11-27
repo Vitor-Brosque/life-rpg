@@ -254,3 +254,4 @@
 .capacity-warning__text { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--text); font-size: 0.9375rem; }
 .capacity-warning__icon { flex-shrink: 0; margin-top: 4px; color: var(--gold); }
 .capacity-warning__actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 2px; }
+.block-banner__strategy { margin: 0; color: var(--text-dim); font-size: 0.875rem; overflow-wrap: anywhere; }

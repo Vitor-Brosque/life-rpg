@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { MdBlock, MdInline } from '@life/shared';
-import { CLOZE_CLOSE, CLOZE_OPEN, highlight, langOf, parseMarkdown } from '@life/shared';
+import { CLOZE_CLOSE, CLOZE_OPEN, highlight, isWebUrl, langOf, parseMarkdown } from '@life/shared';
 import { AudioButton } from '../media/AudioPlayer';
 import { MediaImage } from '../media/MediaImage';
 
@@ -91,6 +91,11 @@ function inlines(nodes: MdInline[], cur: Cursor, key: string): ReactNode[] {
         const el = <AudioButton key={k} hash={n.hash} label={m.clean} />;
         return m.marked ? <mark key={k} className="cloze">{el}</mark> : el;
       }
+      // Document mode only (caderno, apostilas): http(s) addresses, checked again here, in a new tab.
+      case 'link':
+        return isWebUrl(n.href)
+          ? <a key={k} className="rich__link" href={n.href} target="_blank" rel="noopener noreferrer">{inlines(n.c, cur, k)}</a>
+          : <Fragment key={k}>{inlines(n.c, cur, k)}</Fragment>;
     }
   });
 }
@@ -110,8 +115,10 @@ function codeBlock(code: string, lang: string | undefined, cur: Cursor, key: str
   );
 }
 
-function block(b: MdBlock, cur: Cursor, key: string): ReactNode {
+function block(b: MdBlock, cur: Cursor, key: string, headingLevel: number): ReactNode {
   switch (b.t) {
+    case 'h': return createElement(`h${Math.min(6, headingLevel + b.level - 1)}`, { key, className: 'rich__h' }, inlines(b.c, cur, key));
+    case 'hr': return <hr key={key} className="rich__hr" />;
     case 'p': return <p key={key}>{inlines(b.c, cur, key)}</p>;
     case 'pre': return codeBlock(b.v, b.lang, cur, key);
     case 'list': {
@@ -125,12 +132,19 @@ function block(b: MdBlock, cur: Cursor, key: string): ReactNode {
   }
 }
 
-export interface RichProps { text: string; className?: string }
+export interface RichProps {
+  text: string;
+  className?: string;
+  /** The document subset (caderno, perfil de estudo, apostilas): # headings, --- rules and http(s) links. */
+  doc?: boolean;
+  /** The HTML level of a `#` heading in document mode (each `#` more goes one level down, up to h6). */
+  headingLevel?: number;
+}
 
-export function Rich({ text, className }: RichProps) {
-  const blocks = useMemo(() => parseMarkdown(text), [text]);
+export function Rich({ text, className, doc = false, headingLevel = 3 }: RichProps) {
+  const blocks = useMemo(() => parseMarkdown(text, { doc }), [text, doc]);
   const cur: Cursor = { open: false };
-  return <div className={['rich', className].filter(Boolean).join(' ')}>{blocks.map((b, i) => block(b, cur, `b${i}`))}</div>;
+  return <div className={['rich', className].filter(Boolean).join(' ')}>{blocks.map((b, i) => block(b, cur, `b${i}`, headingLevel))}</div>;
 }
 
 /** A code answer or solution, highlighted like a fenced block. */

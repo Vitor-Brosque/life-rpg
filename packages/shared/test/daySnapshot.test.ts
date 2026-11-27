@@ -15,11 +15,11 @@ const at = (day: string, t: string): number => timestampAt(day, t);
 const aula: Commitment = { ...base, id: 'aula', title: 'Aula', date: '2026-10-01', start: '19:00', end: '23:00', weekdays: [1, 2, 3, 4, 5], remind: true };
 // The routine as it is today (A was shortened, C was added later; D was deleted).
 const A = block({ id: 'A', name: 'Tech', order: 0, targetStart: '09:00', durationMin: 120, minimumMin: 30, areaId: 'area-tech' });
-const B = block({ id: 'B', name: 'Facul', order: 1, targetStart: '15:00', durationMin: 90, minimumMin: 30, kind: 'study', areaId: 'area-facul' });
-const C = block({ id: 'C', name: 'Compl', order: 2, targetStart: '18:00', durationMin: 40, minimumMin: 10, kind: 'light' });
+const B = block({ id: 'B', name: 'Facul', order: 1, targetStart: '14:00', durationMin: 90, minimumMin: 30, kind: 'study', areaId: 'area-facul' });
+const C = block({ id: 'C', name: 'Compl', order: 2, targetStart: '18:15', durationMin: 40, minimumMin: 10, kind: 'light' });
 const R = block({ id: 'R', name: 'Início', order: 3, targetStart: '08:30', durationMin: 30, minimumMin: 15, kind: 'routine' });
 const D = block({ id: 'D', name: 'Inglês', order: 2, targetStart: '17:00', durationMin: 60, minimumMin: 20, areaId: 'area-x' });
-const plan = (day: string, mode: DayPlan['mode'], blocks = [{ ...A, durationMin: 180, minimumMin: 45 }, B, D, R]): DayPlan =>
+const plan = (day: string, mode: DayPlan['mode'], blocks = [{ ...A, durationMin: 165, minimumMin: 40 }, B, D, R]): DayPlan =>
   ({ ...base, id: day, ...takeDayPlan({ day, mode, takenAt: at(day, '08:00'), blocks, commitments: [aula], dayStartHour: 4 }) });
 const session = (blockId: string, day: string, start: string, end: string, version: 'normal' | 'minimum' = 'normal'): BlockSession =>
   ({ ...base, id: `bs-${blockId}-${day}`, blockId, day, version, startedAt: at(day, start), endedAt: at(day, end) });
@@ -51,21 +51,21 @@ describe('takeDayPlan', () => {
     const p = plan(MON, 'normal');
     const out = blocksFromPlan(p, [A, B, C]);
     expect(out.map((b) => [b.id, b.durationMin, b.weekdays])).toEqual([
-      ['A', 180, [1]], ['B', 90, [1]], ['D', 60, [1]], ['R', 30, [1]], ['C', 40, []],
+      ['A', 165, [1]], ['B', 90, [1]], ['D', 60, [1]], ['R', 30, [1]], ['C', 40, []],
     ]);
     expect(commitmentsFromPlan(p)).toEqual([{ id: 'aula', createdAt: 0, updatedAt: 0, deleted: false, title: 'Aula', date: MON, start: '19:00', end: '23:00', remind: false }]);
     const lived = countedBlocksOn({
       day: MON, mode: 'normal', blocks: out, commitments: commitmentsFromPlan(p), dayStartHour: 4, dayEndHour: 0,
-      sessions: [session('C', MON, '18:00', '18:30')],
+      sessions: [session('C', MON, '18:15', '18:45')],
     });
-    expect(lived.map((c) => [c.block.id, c.started, c.plannedMin])).toEqual([['A', false, 180], ['B', false, 90], ['D', false, 60], ['C', true, 0]]);
+    expect(lived.map((c) => [c.block.id, c.started, c.plannedMin])).toEqual([['A', false, 165], ['B', false, 90], ['D', false, 60], ['C', true, 0]]);
   });
 });
 
 describe('dayIndex with plans', () => {
   const sessions = [
     session('A', MON, '09:00', '11:30'), session('D', MON, '17:00', '17:40'),
-    session('B', TUE, '15:00', '15:30', 'minimum'),
+    session('B', TUE, '14:00', '14:30', 'minimum'),
   ];
   const data = emptyData({
     blocks: [A, B, C, R], commitments: [aula], sessions,
@@ -83,8 +83,8 @@ describe('dayIndex with plans', () => {
     expect(idx.plan(MON)?.mode).toBe('normal');
     expect(idx.plan(WED)).toBeUndefined();
     expect(idx.blocks(MON).map((c) => [c.block.id, c.started, c.plannedMin, c.lived ? (c.lived.end - c.lived.start) / 60_000 : 0]))
-      .toEqual([['A', true, 180, 150], ['B', false, 90, 0], ['D', true, 60, 40]]);
-    expect(idx.blocks(TUE).map((c) => [c.block.id, c.started, c.minimum, c.plannedMin])).toEqual([['A', false, false, 45], ['B', true, true, 30], ['D', false, false, 20]]);
+      .toEqual([['A', true, 165, 150], ['B', false, 90, 0], ['D', true, 60, 40]]);
+    expect(idx.blocks(TUE).map((c) => [c.block.id, c.started, c.minimum, c.plannedMin])).toEqual([['A', false, false, 40], ['B', true, true, 30], ['D', false, false, 20]]);
     expect(idx.blocks(WED).map((c) => [c.block.id, c.plannedMin])).toEqual([['A', 120], ['B', 90], ['C', 40]]);
   });
   it('trend counts follow the plans; without plans they are what they were', () => {
@@ -103,7 +103,7 @@ describe('dayIndex with plans', () => {
     expect(weekStats({ ...input, dayPlans: data.dayPlans })).toMatchObject({ planned: 15, started: 3, minimumUsed: 1 });
     expect(weekStats(input)).toMatchObject({ planned: 14, started: 2, minimumUsed: 1 });
     // A commitment created after the plan of Monday counts on both screens alike.
-    const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '15:00', end: '17:00', remind: true };
+    const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '14:00', end: '17:00', remind: true };
     const withDent = { ...data, commitments: [aula, dent] };
     const [t] = trendPoints(withDent, [{ kind: 'week', key: MON, start: MON, end: '2026-11-08', label: '02/11' }]);
     expect(weekStats({ ...input, commitments: withDent.commitments, dayPlans: data.dayPlans })).toMatchObject({
@@ -112,13 +112,13 @@ describe('dayIndex with plans', () => {
   });
   it('planVsDone: days with a plan only; planned by mode; executed = lived blocks + focus outside them', () => {
     const [p] = planVsDone(data, [completedWeeks('2026-11-13', 2)[0]!].map((x) => ({ ...x, start: MON, end: '2026-11-08', key: MON })));
-    expect(p).toMatchObject({ daysWithPlan: 2, plannedMin: 425, executedMin: 265 });
+    expect(p).toMatchObject({ daysWithPlan: 2, plannedMin: 405, executedMin: 265 });
     expect(p!.areas).toEqual([
-      { key: 'area-tech', name: 'Tech', plannedMin: 225, executedMin: 150 },
+      { key: 'area-tech', name: 'Tech', plannedMin: 205, executedMin: 150 },
       { key: 'area-facul', name: 'Faculdade', plannedMin: 120, executedMin: 75 },
       { key: 'area-x', name: 'Inglês', plannedMin: 80, executedMin: 40 },
     ]);
-    expect(p!.days.map((d) => [d.day, d.mode, d.plannedMin, d.executedMin])).toEqual([[MON, 'normal', 330, 235], [TUE, 'low', 95, 30]]);
+    expect(p!.days.map((d) => [d.day, d.mode, d.plannedMin, d.executedMin])).toEqual([[MON, 'normal', 315, 235], [TUE, 'low', 90, 30]]);
   });
   it('planVsDone groups a journey block without area under the journey, and unknown under "Sem área"', () => {
     const J = block({ id: 'J', name: 'Tech News', order: 0, targetStart: '09:00', durationMin: 60, minimumMin: 15, journeyId: 'j-tech' });
@@ -136,13 +136,13 @@ describe('dayIndex with plans', () => {
 });
 
 describe('a day with a plan and commitments created later that day', () => {
-  // The plan was taken at 08:00; "Dentista 15:00–17:00" was created at 10:00 for the same day.
+  // The plan was taken at 08:00; "Dentista 14:00–17:00" was created at 10:00 for the same day.
   const blocks = [A, B, D];
-  const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '15:00', end: '17:00', remind: true };
+  const dent: Commitment = { ...base, id: 'dent', createdAt: at(MON, '10:00'), title: 'Dentista', date: MON, start: '14:00', end: '17:00', remind: true };
   const p = plan(MON, 'normal', blocks);
   const ids = (d: ReturnType<typeof emptyData>) => dayIndex(d).blocks(MON).map((c) => c.block.id);
 
-  it('the later commitment counts as on a day without plan (the 15:00 block is left out); the plan is not rewritten', () => {
+  it('the later commitment counts as on a day without plan (the 14:00 block is left out); the plan is not rewritten', () => {
     const without = ids(emptyData({ blocks, commitments: [aula, dent] }));
     expect(without).toEqual(['A', 'D']);
     expect(ids(emptyData({ blocks, commitments: [aula, dent], dayPlans: [p] }))).toEqual(without);

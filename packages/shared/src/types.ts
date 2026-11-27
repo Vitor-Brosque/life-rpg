@@ -59,6 +59,8 @@ export interface Journey extends BaseRecord {
   status: JourneyStatus;
   order: number;
   subject?: boolean;      // Acompanhamento E: a college subject ("disciplina"), only when true
+  goalId?: ID;            // Objetivos (2026-11-23): the objective it serves; absent = "Sem objetivo"
+  chatUrl?: string;       // Estudo pelos chats (2026-11-25): subjects only, the https:// link of its chat; never sent to assistants
 }
 
 export interface Commitment extends BaseRecord {
@@ -109,7 +111,7 @@ export interface LifeEvent extends BaseRecord {
 
 export type XpReason = 'complete' | 'start' | 'strategy' | 'focus' | 'review' | 'journey' | 'resilience'
   | 'block' | 'resumption' | 'checkin' | 'objective' | 'study' | 'practice'
-  | 'sleep' | 'mealprep' | 'workout';
+  | 'sleep' | 'mealprep' | 'workout' | 'speech';
 export interface XpEvent extends BaseRecord {
   at: number;
   amount: number;
@@ -125,6 +127,7 @@ export interface Profile extends BaseRecord {   // id = 'me'
   look: CharacterLook;
   companionName: string;
   onboarded: boolean;
+  studyProfile?: string;  // Caderno da disciplina (2026-11-26): how they learn best, read by every subject chat (≤ 3.000)
 }
 export interface Settings extends BaseRecord {  // id = 'settings'
   dayStartHour: number;
@@ -137,6 +140,9 @@ export interface Settings extends BaseRecord {  // id = 'settings'
   sleep?: SleepSettings;           // Marco 4; absent = DEFAULT_SLEEP (see sleepSettingsOf)
   patterns?: PatternSettings;      // Marco 5; absent = { watchDismissed: [] } (see patternSettingsOf)
   ai?: AiSettings;                 // Marco 7; absent = every AI aid off (see aiSettingsOf)
+  observation?: ObservationSettings; // Observação de 14 dias; absent = none (see observationOf)
+  speech?: SpeechSettings;           // Comunicação oral; absent = the vocal health note still shows
+  nutrition?: NutritionSettings;     // Nutrição; absent = every meal on (see nutritionSettingsOf)
 }
 export interface DayState extends BaseRecord {  // id = DayKey
   hardDay: boolean;
@@ -145,6 +151,9 @@ export interface DayState extends BaseRecord {  // id = DayKey
   startedAt?: number;   // when the day actually started
   closedAt?: number;          // Acompanhamento C: "Fechar o dia"
   tiredness?: Tiredness;      // "Cansaço durante o dia" (optional)
+  mood?: Mood;                // "Humor" (optional)
+  load?: Load;                // "Sobrecarga" (optional)
+  concentration?: Concentration;  // "Concentração" (optional)
   closeNote?: string;         // until Dexie v10 the day's note; now the `fechamento` diary entry (no longer written)
   closeDismissed?: boolean;   // "Agora não" on the evening card (only when true)
   subjectPicks?: Record<ID, ID>;  // Acompanhamento E: block id → subject journey id chosen with "Usar"
@@ -182,7 +191,13 @@ export interface BlockSession extends BaseRecord {  // id = `bs-${blockId}-${day
   correctedAt?: number;        // start/end corrected afterwards
 }
 export interface WeekObjective { id: ID; blockId: ID; text: string; done: boolean }
-export interface WeekReview { worked: string; obstacle: string; adjustment: string; answeredAt: number }
+export interface WeekReview {
+  worked: string;
+  obstacle: string;
+  adjustment: string;
+  answeredAt: number;
+  goals?: Record<ID, GoalProgress>;   // "Avançou?" per objective (2026-11-23): only the ones tapped
+}
 export interface Week extends BaseRecord {           // id = Monday DayKey
   objectives: WeekObjective[];
   review?: WeekReview;
@@ -229,7 +244,11 @@ export interface Note extends BaseRecord {
   extra?: string;       // "Por quê?": the explanation / intuition, shown after reveal
   language?: CodeLang;  // code notes
   draft: boolean;       // drafts have no cards
+  source?: NoteSource;  // PDFs da aula (2026-11-26): made from a PDF page ("Ver no PDF, p. N" in the review)
 }
+
+/** Where a card came from: a page of a PDF of Materiais (StudyFile). */
+export interface NoteSource { fileId: ID; page: number }
 
 export interface CardSchedule {
   state: CardState;
@@ -492,13 +511,36 @@ export interface AiSettings { hints: boolean; cards: boolean; weekly: boolean }
 // ------------------------------------------------------------------ acompanhamento diário (2026-11-14)
 
 // A — treino do dia
+/**
+ * What the plan asks of one exercise (treino detalhado, 2026-11-25). Everything but the name is optional. Records
+ * saved before it hold a plain string per exercise: `planDaysOf` reads those as `{ name }`.
+ */
+export interface PlannedExercise {
+  name: string;
+  sets?: number;          // 1–10
+  repsMin?: number;       // 1–100
+  repsMax?: number;       // 1–100, ≥ repsMin
+  restMinSec?: number;    // 15–600
+  restMaxSec?: number;    // 15–600, ≥ restMinSec
+  note?: string;          // up to 120
+}
+/** The plan's request for an exercise, copied into the day log (the history keeps what was asked that day). */
+export type PlannedDetail = Omit<PlannedExercise, 'name'>;
 /** One weekday of the training plan (0 = Sunday). A weekday without an entry is a rest day. */
-export interface TrainingDay { weekday: number; name: string; exercises: string[] }
+export interface TrainingDay { weekday: number; name: string; exercises: PlannedExercise[] }
+/** One week of a training block: the RIR range and, optionally, the cardio minutes. */
+export interface BlockWeek { rirMin: number; rirMax: number; cardioMin?: number; cardioMax?: number }
+/** A training block (mesocycle) from `startDay`, one entry per week (1–8). */
+export interface TrainingBlock { startDay: DayKey; weeks: BlockWeek[] }
 export interface TrainingPlan extends BaseRecord {   // id = 'plan' (TRAINING_PLAN_ID): a single record
   days: TrainingDay[];                                // sorted by weekday, at most one per weekday
+  block?: TrainingBlock;                              // treino detalhado: the current block, if any
 }
 export type ExerciseStatus = 'feito' | 'pulado' | 'trocado';
-export interface ExerciseSet { reps: number; kg?: number }
+/** `rir`: reps in reserve, 0–5 (5 = "5 or more"), optional. */
+export interface ExerciseSet { reps: number; kg?: number; rir?: number }
+export type DiscomfortSpot = 'ombro' | 'cotovelo' | 'punho' | 'lombar' | 'joelho' | 'canela' | 'outro';
+export interface Discomfort { spot: DiscomfortSpot; note?: string }
 export interface TrainingExercise {
   id: ID;                  // `p${index}` for the plan's exercises, `x-${ulid}` for extras
   name: string;            // as in the plan when the log was created (or typed, for an extra)
@@ -506,7 +548,11 @@ export interface TrainingExercise {
   replacedBy?: string;     // 'trocado': what was done instead (the sets are of the replacement)
   sets: ExerciseSet[];
   extra?: boolean;         // added that day (only when true)
+  planned?: PlannedDetail; // what the plan asked that day (copied when the log was created)
+  discomfort?: Discomfort; // "Senti desconforto"
 }
+/** The block week of a day, copied into its log when the log is created. */
+export interface TrainingTarget { week: number; weeks: number; rirMin: number; rirMax: number; cardioMin?: number; cardioMax?: number }
 export type CardioModality = 'bicicleta' | 'esteira' | 'caminhada' | 'outro';
 export interface TrainingCardio { modality: CardioModality; minutes: number; intensity?: number }  // intensity 1–10
 export interface TrainingLog extends BaseRecord {    // id = `training-${day}`: one editable record per logical day
@@ -519,10 +565,11 @@ export interface TrainingLog extends BaseRecord {    // id = `training-${day}`: 
   finishedAt?: number;     // "Terminei o treino"
   strengthWorkoutId?: ID;  // the 'musculacao' Workout it produced or adopted
   cardioWorkoutId?: ID;    // the 'cardio' Workout made from `cardio`
+  target?: TrainingTarget; // the block week of that day, if the plan had a block covering it
 }
 
 // B — fechar a atividade
-export type BlockOutcome = 'feito' | 'parcial' | 'nao-deu';
+export type BlockOutcome = 'feito' | 'parcial' | 'investiguei' | 'nao-deu';   // 'investiguei' since 2026-11-23
 export type SnoozeReason = 'sem-tempo' | 'sem-energia' | 'nao-sei-comecar' | 'falta-algo' | 'outra-prioridade';
 export type Blocker = 'nao-sei-comecar' | 'falta-informacao' | 'grande-demais' | 'medo-de-errar' | 'chato';
 
@@ -563,11 +610,57 @@ export interface SubjectTopic extends BaseRecord {
   marks: TopicMark[];    // level history, oldest first: only appended (current level = last mark)
 }
 
+// Caderno da disciplina (2026-11-26): the memory a subject's chats share through the app, and the study materials
+// (apostilas) they write. Assistants write them only through reviewed proposals.
+export type BibKind = 'basica' | 'complementar' | 'outra';
+export interface BibItem {
+  title: string;         // ≤ 200; the merge key (accents, case and extra spaces ignored)
+  authors?: string;      // ≤ 200
+  kind: BibKind;
+  url?: string;          // https:// only, ≤ 500
+  note?: string;         // ≤ 200
+}
+export interface SubjectNotebook extends BaseRecord {  // id = `notebook-${journeyId}` (notebookId): one per subject
+  journeyId: ID;
+  plan?: string;         // Plano de ensino (≤ 8.000); an empty section is an absent field
+  studied?: string;      // O que já foi estudado (≤ 4.000)
+  difficulties?: string; // Dificuldades (≤ 2.000)
+  nextChat?: string;     // Para o próximo chat (≤ 4.000)
+  bibliography: BibItem[]; // ≤ 40, in the order they were added
+}
+export interface StudyDoc extends BaseRecord {   // id: ulid; "Apagar" is a soft delete with "Desfazer"
+  journeyId: ID;
+  title: string;         // ≤ 120; a proposal with the same title in the subject replaces the text
+  markdown: string;      // ≤ 40.000
+  source: string;        // the assistant's name, "Colada de um chat" or "Você"
+}
+
+// PDFs da aula (2026-11-26, fase 2): a PDF (slides, plano de ensino, chapters) read in the app. The bytes are media
+// (content-addressed, uploaded through the queue, downloaded only when the reader opens); the extracted text is a media
+// file too, read only by the server (ler_material). Assistants see only the PDFs linked to a subject.
+export interface StudyFile extends BaseRecord {   // id: ulid; "Apagar" is a soft delete with "Desfazer"
+  journeyId?: ID;        // the subject; absent = "Sem disciplina" (never read by assistants)
+  title: string;         // ≤ 120
+  fileHash: string;      // the PDF's media hash
+  bytes: number;
+  pages: number;
+  textHash?: string;     // the extracted text's media hash (absent when hasText is false)
+  textChars?: number;    // characters of the extracted text
+  hasText: boolean;      // false: only scanned images (no OCR)
+}
+
+// Where she stopped in a PDF, a record of its own (id = the StudyFile's id): reading never rewrites the StudyFile, so
+// moving or deleting a PDF on another device is never undone by a reader left open here (record-level LWW).
+export interface StudyFileProgress extends BaseRecord {   // id: the StudyFile's id
+  lastPage?: number;     // where she stopped (written at most every 5 s and on leaving the reader)
+  lastReadAt?: number;   // the last time she read it for real (counts as contact with the subject)
+}
+
 // ------------------------------------------------------------------ diário (2026-11-16)
 
 export type DiaryKind = 'livre' | 'fechamento';
 export type DiaryTheme = 'faculdade' | 'carreira' | 'projetos' | 'estudo' | 'saude' | 'treino' | 'sono'
-  | 'relacionamentos' | 'familia' | 'lazer' | 'sentimentos' | 'ideias';
+  | 'relacionamentos' | 'familia' | 'lazer' | 'sentimentos' | 'ideias' | 'comunicacao';
 export interface DiaryLink { kind: 'mission' | 'journey'; id: ID }
 export interface DiaryEntry extends BaseRecord {   // id: ulid; fechamento: `diary-close-${day}` (diaryCloseId)
   day: DayKey;           // logical day
@@ -581,6 +674,195 @@ export interface DiaryEntry extends BaseRecord {   // id: ulid; fechamento: `dia
   editedAt?: number;     // last edit after the editing session that created it
 }
 
+// ------------------------------------------------------------------ estratégias e estado do dia (2026-11-23)
+
+export type StrategySource = 'ia' | 'pesquisa' | 'ideia' | 'padroes';
+export type StrategyStatus = 'testando' | 'mantida' | 'ajustada' | 'descartada';
+export interface StrategyLink { kind: 'block' | 'journey'; id: ID }
+export interface Strategy extends BaseRecord {   // id: ulid (editable, LWW; "Apagar" = trashedAt, "Apagar de vez" = soft delete)
+  title: string;            // what is tested, one line ('' only after "Apagar de vez")
+  source: StrategySource;   // "De onde veio?"
+  sourceNote?: string;      // "Qual conversa ou fonte?" (only for 'ia' and 'pesquisa')
+  why?: string;             // "Por quê?" (one line)
+  observe?: string;         // "O que observar?" (one line)
+  link?: StrategyLink;      // a block (any block of the same name counts) or a journey
+  startDay: DayKey;         // "Desde" (logical day, up to today)
+  reviewDay: DayKey;        // "Decidir em" (after startDay; "Hora de decidir" from this day on)
+  status: StrategyStatus;
+  decidedDay?: DayKey;      // the day of the decision (absent while 'testando')
+  decisionNote?: string;    // his words when deciding (absent while 'testando')
+  trashedAt?: number;       // in "Apagadas recentemente"
+}
+export type Mood = 'baixo' | 'ok' | 'bem';
+export type Load = 'leve' | 'media' | 'pesada';
+export type Concentration = 'dificil' | 'ok' | 'boa';
+/** The 14-day observation (one at a time): started on `startDay` (day 1); `endedDay` when ended early. */
+export interface ObservationSettings { startDay: DayKey; endedDay?: DayKey }
+
+// ------------------------------------------------------------------ objetivos e temporadas (2026-11-23)
+
+export type GoalStatus = 'ativo' | 'pausado' | 'concluido' | 'arquivado';
+/** "Objetivo" on screen: the why above the journeys. Named Goal in code, apart from WeekObjective (a block's objective of the week). */
+export interface Goal extends BaseRecord {   // id: ulid (editable, LWW; put away by archiving, never deleted by the app)
+  title: string;            // one line, up to GOAL_TITLE_MAX
+  why?: string;             // "Por que importa?" (one line)
+  horizon?: string;         // "Horizonte", free text ("2027", "julho de 2027")
+  status: GoalStatus;
+  order: number;            // creation order (the list shows the goals of a status by it)
+}
+/** "Avançou?" of the Nova semana, per objective: Sim · Um pouco · Não desta vez. */
+export type GoalProgress = 'sim' | 'um-pouco' | 'nao';
+
+export type SeasonStatus = 'ativa' | 'encerrada';
+export interface SeasonLink { kind: 'goal' | 'strategy'; id: ID }
+/** One focus line of a season: his words and/or a link to an objective or a strategy (at least one of the two). */
+export interface SeasonFocus { text?: string; link?: SeasonLink }
+/** The end review's answers ('' when left blank) and when they were saved. */
+export interface SeasonReview { progress: string; obstacle: string; next: string; answeredAt: number }
+export interface Season extends BaseRecord {   // id: ulid (editable, LWW); one active at a time
+  title: string;            // one line, up to SEASON_TITLE_MAX
+  focus: SeasonFocus[];     // 0–2
+  startDay: DayKey;         // logical day it started, up to today; its week (Monday) is week 1
+  plannedWeeks: number;     // 6, 7 or 8 usual weeks: atypical weeks do not count
+  status: SeasonStatus;
+  endedDay?: DayKey;        // "Encerrar temporada"
+  review?: SeasonReview;    // only when some answer was typed
+}
+
+// ------------------------------------------------------------------ comunicação oral (2026-11-23)
+
+/** The session's size: a label he picks (5, 15 or 25–30 minutes), never a timer or a target. */
+export type SpeechSize = 5 | 15 | 30;
+export type SpeechKind = 'leitura' | 'explicacao' | 'exercicio' | 'simulacao';
+export type SpeechExercise = 'pausas' | 'ritmo' | 'enfase' | 'articulacao';
+export type SpeechSimulation = 'entrevista' | 'apresentacao' | 'pergunta';
+/** Self-assessment, 1 to 5: how close it felt to what he wanted (a perception, never a measure). */
+export type SpeechScore = 1 | 2 | 3 | 4 | 5;
+export type SpeechRatingKey = 'clareza' | 'ritmo' | 'pausas' | 'conforto';
+/** "Consegui explicar?" (content, apart from the delivery). */
+export type SpeechContent = 'sim' | 'em-parte' | 'nao';
+/** A recording of a session: the bytes live in the media tables under `hash` (never in the synced record). */
+export interface SpeechRecording {
+  hash: string;             // sha256 of the audio file (media pipeline)
+  durationMs: number;       // from tapping Gravar to Parar (or to the 3-minute cap)
+  at: number;               // when it was saved
+  capped?: boolean;         // stopped by the 3-minute cap
+  keep?: boolean;           // "Guardar": never offered to leave this device
+}
+export interface SpeechSession extends BaseRecord {   // id: ulid (editable, LWW)
+  day: DayKey;              // logical day it was created
+  kind: SpeechKind;
+  size?: SpeechSize;
+  exercise?: SpeechExercise;     // used when kind is 'exercicio'
+  simulation?: SpeechSimulation; // used when kind is 'simulacao'
+  passage?: string;              // a SPEECH_READINGS id, used when kind is 'leitura'
+  topic?: string;                // "Tema" (one line, his words)
+  recordings: SpeechRecording[];
+  ratings: Partial<Record<SpeechRatingKey, SpeechScore>>;
+  content?: SpeechContent;       // used when kind is 'explicacao' or 'simulacao'
+  notes?: string;                // "Notas" (his words)
+  done?: boolean;                // "Fiz a atividade" (without recording)
+  closedAt?: number;             // "Encerrar sessão"
+}
+export type SituationContext = 'aula' | 'conversa' | 'entrevista' | 'apresentacao' | 'outra';
+/** "Pediram para repetir?": 0, 1, 2, or 3 meaning "3 ou mais". */
+export type SituationRepeats = 0 | 1 | 2 | 3;
+export interface SpeechSituation extends BaseRecord {   // id: ulid (append-only: created or soft-deleted, never edited)
+  day: DayKey;
+  at: number;
+  context: SituationContext;
+  repeats?: SituationRepeats;
+  clarity?: SpeechScore;    // perceived
+  comfort?: SpeechScore;    // perceived
+  note?: string;            // one optional sentence
+}
+export type SpeechProgramStatus = 'ativo' | 'encerrado';
+export type SpeechPhase = 1 | 2 | 3 | 4;
+/** "O que mudou nas situações reais?" at the end of a phase, and the logical day it was saved. */
+export interface SpeechPhaseNote { text: string; day: DayKey; answeredAt: number }
+export interface SpeechProgram extends BaseRecord {   // id: ulid (editable, LWW); one active at a time
+  startDay: DayKey;
+  week: number;             // 1–12, chosen by him (never advanced by the calendar)
+  status: SpeechProgramStatus;
+  endedDay?: DayKey;
+  phaseNotes: Partial<Record<SpeechPhase, SpeechPhaseNote>>;
+}
+/** settings.speech; absent = the vocal health note was not dismissed. */
+export interface SpeechSettings { noteDismissed?: boolean }
+
+// ------------------------------------------------------------------ nutrição (2026-11-25)
+
+/** The six meals of the day, in order: café da manhã, lanche da manhã, almoço, café da tarde, jantar, ceia. */
+export type NutritionMeal = 'cafe' | 'lanche' | 'almoco' | 'tarde' | 'jantar' | 'ceia';
+/** Nutrients of an amount of food: kcal and grams (per 100 g on a food). `fiber` only when known. */
+export interface Nutrients { kcal: number; protein: number; carbs: number; fat: number; fiber?: number }
+/** The three macros of a target, in grams (the calories come from them: 4/4/9 kcal per gram). */
+export interface MacroTarget { protein: number; carbs: number; fat: number }
+/** Whether a food's values (and its weights) are of the food ready to eat or raw. */
+export type FoodBasis = 'pronto' | 'cru';
+/** Where the values came from: the label, a recognised table, or an estimate (shown as "estimado"). */
+export type FoodSource = 'rotulo' | 'tabela' | 'estimativa';
+export type FoodGroup = 'proteina' | 'carboidrato' | 'gordura' | 'fruta' | 'verdura' | 'laticinio' | 'outro';
+/** gosto · normal · pouco (at most one meal a day) · nunca (never suggested; can still be logged). */
+export type FoodLike = 'gosto' | 'normal' | 'pouco' | 'nunca';
+/** A natural unit of the food, such as "1 fatia = 25 g". */
+export interface FoodUnit { name: string; grams: number }
+export interface RecipeIngredient { foodId: ID; grams: number }
+/** A recipe: its ingredients (the cooking fat included) and the final weight once ready. */
+export interface FoodRecipe { ingredients: RecipeIngredient[]; yieldGrams: number }
+export interface Food extends BaseRecord {   // id: ulid (editable, LWW; soft delete never touches the food logs)
+  name: string;
+  per100: Nutrients;        // a recipe's is computed when saved (recipePer100)
+  basis: FoodBasis;
+  source: FoodSource;       // a recipe's is 'estimativa' when any ingredient is
+  group: FoodGroup;
+  like: FoodLike;
+  unit?: FoodUnit;
+  maxPortion?: number;      // grams per meal the generator never goes over
+  meals?: NutritionMeal[];  // "Bom para": the meals the generator may use it in (absent or empty = every meal)
+  recipe?: FoodRecipe;
+}
+export interface NutritionTarget extends BaseRecord {   // id = `ntarget-${from}` (nutritionTargetId): saving again the same day replaces it
+  from: DayKey;             // in force from this day; each day uses the target with the greatest `from` ≤ day
+  byWeekday: MacroTarget[]; // 7 entries, 0 = Sunday
+}
+export type FoodLogStatus = 'comido' | 'planejado';
+export interface FoodLog extends BaseRecord {   // id: ulid; one item of one meal
+  day: DayKey;
+  meal: NutritionMeal;
+  foodId: ID;
+  name: string;             // copied from the food when logged: the history never changes with the food
+  per100: Nutrients;        // copied
+  basis: FoodBasis;         // copied
+  estimate: boolean;        // copied (the food's source was 'estimativa')
+  grams: number;
+  status: FoodLogStatus;    // 'planejado' items are replaced by "Montar o resto do dia"; 'comido' never are
+  order: number;            // order inside the meal
+  eatenAt?: number;         // ms when it became 'comido' (the stock follows it only while not counted again since)
+  stockTaken?: number;      // grams of it taken from the counted stock (what a correction or deletion may give back)
+}
+export interface PantryItem extends BaseRecord {   // id = `pantry-${foodId}` (pantryId): one per food
+  foodId: ID;
+  confirmedDay: DayKey;     // available only on this day ("Tinha em 24/11 · Confirmar" afterwards)
+  grams?: number;           // what is left, in the food's basis; absent = "tem, sem contar"
+  countedAt?: number;       // ms when the grams were typed (eaten items from before it no longer move the stock)
+}
+export interface WeighIn extends BaseRecord {   // id: ulid (append-only: created or soft-deleted, never edited)
+  day: DayKey;
+  kg: number;               // 30–300, one decimal
+}
+/** How hungry he is when building the rest of the day. */
+export type Hunger = 'pouca' | 'normal' | 'muita';
+/**
+ * The last "Montar o resto do dia" of this device (kept in the local meta, never synced): the day, the hunger and the
+ * meal right after training (it becomes pós-treino; the meal switched on before it, pré-treino).
+ */
+export interface NutritionBuild { day: DayKey; hunger: Hunger; afterTraining?: NutritionMeal }
+/** settings.nutrition; absent = every meal on (see nutritionSettingsOf). */
+export interface NutritionSettings {
+  meals: NutritionMeal[];   // the meals switched on, in day order (at least one)
+}
+
 export const SYNC_TABLES = [
   'missions', 'journeys', 'commitments', 'areas', 'focusSessions', 'energyLogs',
   'events', 'xpEvents', 'profile', 'settings', 'dayState',
@@ -591,9 +873,18 @@ export const SYNC_TABLES = [
   'sleepLogs', 'recipes', 'menus', 'shoppingLists', 'freezerMoves', 'workouts',
   'monthReviews', 'trainingPlans', 'trainingLogs', 'dayPlans', 'problemSets', 'subjectTopics',
   'diaryEntries',
+  'strategies',
+  'goals', 'seasons',
+  'speechSessions', 'speechSituations', 'speechPrograms',
+  'proposals',
+  'foods', 'nutritionTargets', 'foodLogs', 'pantry', 'weighIns',
+  'subjectNotebooks', 'studyDocs',
+  'studyFiles', 'studyFileProgress',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
-export const APPEND_ONLY_TABLES: readonly SyncTable[] = ['events', 'xpEvents', 'reviews', 'freezerMoves', 'workouts'];
+export const APPEND_ONLY_TABLES: readonly SyncTable[] = [
+  'events', 'xpEvents', 'reviews', 'freezerMoves', 'workouts', 'speechSituations', 'weighIns',
+];
 
 export interface SyncChange { table: SyncTable; record: BaseRecord & Record<string, unknown> }
 export interface SyncRequest { deviceId: string; cursor: number; changes: SyncChange[] }

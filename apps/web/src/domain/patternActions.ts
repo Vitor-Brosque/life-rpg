@@ -4,7 +4,10 @@ import { db } from '../db/db';
 import { newRecord, patch, put, upsert } from '../db/repo';
 import { getToday, withLock } from './common';
 
-/** The experiment of the current week (the Agora shows it); blank text does nothing. */
+/**
+ * The experiment of the current week (the Agora shows it); blank text does nothing.
+ * Legacy: nothing in the app calls it since Estratégias (2026-11-23); old weeks keep their text, read only.
+ */
 export async function setWeekExperiment(text: string): Promise<void> {
   const experiment = text.trim();
   if (!experiment) return;

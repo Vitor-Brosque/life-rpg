@@ -1,10 +1,11 @@
 import type {
-  BlockOutcome, Commitment, DayKey, DayMode, DayState, FocusSession, HHmm, ID, LifeEvent, Mission, PracticeSession, Review,
-  Tiredness, TrainingLog, Workout,
+  BlockOutcome, Commitment, Concentration, DayKey, DayMode, DayState, FocusSession, HHmm, ID, LifeEvent, Load, Mission, Mood,
+  PracticeSession, Review, Tiredness, TrainingLog, Workout,
 } from './types';
 import type { BlockOccurrence } from './planDay';
 import { dayKeyOf, logicalTimestamp } from './dates';
 import { occurrencesOn, todayList } from './engine';
+import { investigatedPartial } from './outcomes';
 import { trainingSummaryText } from './training';
 
 // Encerramento do dia (Acompanhamento C): when the evening card shows, what the day observed, and the
@@ -13,6 +14,37 @@ import { trainingSummaryText } from './training';
 export const CLOSE_FROM: HHmm = '20:00';
 export const TIREDNESS: readonly Tiredness[] = ['pouco', 'medio', 'muito'];
 export const TIREDNESS_LABEL: Record<Tiredness, string> = { pouco: 'Pouco', medio: 'Médio', muito: 'Muito' };
+export const MOODS: readonly Mood[] = ['baixo', 'ok', 'bem'];
+export const MOOD_LABEL: Record<Mood, string> = { baixo: 'Para baixo', ok: 'Ok', bem: 'Bem' };
+export const LOADS: readonly Load[] = ['leve', 'media', 'pesada'];
+export const LOAD_LABEL: Record<Load, string> = { leve: 'Leve', media: 'Média', pesada: 'Pesada' };
+export const CONCENTRATIONS: readonly Concentration[] = ['dificil', 'ok', 'boa'];
+export const CONCENTRATION_LABEL: Record<Concentration, string> = { dificil: 'Difícil', ok: 'Ok', boa: 'Boa' };
+
+/** The four optional one-tap choices of "Como foi hoje?" (estado do dia). */
+export type DayStateChoices = Pick<DayState, 'tiredness' | 'mood' | 'load' | 'concentration'>;
+export type DayStateKey = keyof DayStateChoices;
+export const DAY_STATE_KEYS: readonly DayStateKey[] = ['tiredness', 'mood', 'load', 'concentration'];
+export const DAY_STATE_LEGEND: Record<DayStateKey, string> = {
+  tiredness: 'Cansaço durante o dia', mood: 'Humor', load: 'Sobrecarga', concentration: 'Concentração',
+};
+/** Each choice's levels with their chip labels, in order. */
+export const DAY_STATE_OPTIONS: Record<DayStateKey, ReadonlyArray<{ value: string; label: string }>> = {
+  tiredness: TIREDNESS.map((v) => ({ value: v, label: TIREDNESS_LABEL[v] })),
+  mood: MOODS.map((v) => ({ value: v, label: MOOD_LABEL[v] })),
+  load: LOADS.map((v) => ({ value: v, label: LOAD_LABEL[v] })),
+  concentration: CONCENTRATIONS.map((v) => ({ value: v, label: CONCENTRATION_LABEL[v] })),
+};
+
+/**
+ * Only the choices in `keys` (the ones he touched), each kept as it is — undefined included, which clears it — so the
+ * day's other choices, maybe newer from another device, are never written over.
+ */
+export function pickChoices(choices: Partial<DayStateChoices>, keys: Iterable<DayStateKey>): Partial<DayStateChoices> {
+  const out: Partial<DayStateChoices> = {};
+  for (const k of keys) Object.assign(out, { [k]: choices[k] });
+  return out;
+}
 /** Longest focus session a correction accepts. */
 export const FOCUS_MAX_MIN = 600;
 
@@ -59,7 +91,7 @@ export interface DayCloseSummary {
   blocks: CloseBlockRow[];
   counts: Record<CloseBlockState, number>;
   completed: Mission[];                                   // concluded today, in completion order
-  partial: Array<{ missionId: ID; title: string }>;      // "Parcial" today, one per mission
+  partial: Array<{ missionId: ID; title: string; investigated?: true }>;  // "Parcial" today, one per mission (its last one marked "Investiguei")
   focus: FocusSession[];                                  // today's live sessions, by start
   focusMin: number;
   reviews: number;
@@ -105,9 +137,11 @@ export function dayCloseSummary(input: DayCloseInput): DayCloseSummary {
   const missions = input.missions.filter((m) => !m.deleted);
   const titles = new Map(missions.map((m) => [m.id, m.title]));
   const partialIds: ID[] = [];
+  const explored = new Map<ID, boolean>();
   for (const e of [...input.events].sort((a, b) => a.at - b.at)) {
     if (e.deleted || e.type !== 'partial' || !e.missionId || !onDay(e.at)) continue;
     if (!partialIds.includes(e.missionId) && titles.has(e.missionId)) partialIds.push(e.missionId);
+    explored.set(e.missionId, investigatedPartial(e));   // the day's last Parcial of the mission decides
   }
   const focus = input.focus.filter((f) => !f.deleted && onDay(f.startedAt)).sort((a, b) => a.startedAt - b.startedAt);
   const log = input.trainingLog && !input.trainingLog.deleted && input.trainingLog.day === day ? input.trainingLog : undefined;
@@ -116,7 +150,9 @@ export function dayCloseSummary(input: DayCloseInput): DayCloseSummary {
     counts,
     completed: missions.filter((m) => m.status === 'done' && onDay(m.completedAt))
       .sort((a, b) => a.completedAt! - b.completedAt!),
-    partial: partialIds.map((missionId) => ({ missionId, title: titles.get(missionId)! })),
+    partial: partialIds.map((missionId) => ({
+      missionId, title: titles.get(missionId)!, ...(explored.get(missionId) ? { investigated: true as const } : {}),
+    })),
     focus,
     focusMin: Math.round(focus.reduce((s, f) => s + f.activeMs, 0) / MIN),
     reviews: input.reviews.filter((r) => !r.deleted && r.day === day).length,

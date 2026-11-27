@@ -27,11 +27,11 @@ export async function readFacultyData(now: number): Promise<FacultyData | undefi
   const today = dayKeyOf(now, dayStartHour);
   const since = addDays(today, -WINDOW_DAYS);
   const sinceTs = now - WINDOW_DAYS * 86_400_000;
-  const [areas, journeys, missions, commitments, decks, cards, reviews, practice, focus, problemSets, topics] = await Promise.all([
+  const [areas, journeys, missions, commitments, decks, cards, reviews, practice, focus, problemSets, topics, studyFiles, progress] = await Promise.all([
     db.areas.toArray(), db.journeys.toArray(), db.missions.toArray(), db.commitments.toArray(),
     db.decks.toArray(), db.cards.toArray(), db.reviews.where('day').aboveOrEqual(since).toArray(),
     db.practiceSessions.toArray(), db.focusSessions.where('startedAt').aboveOrEqual(sinceTs).toArray(),
-    db.problemSets.toArray(), db.subjectTopics.toArray(),
+    db.problemSets.toArray(), db.subjectTopics.toArray(), db.studyFiles.toArray(), db.studyFileProgress.toArray(),
   ]);
   const liveMissions = live(missions);
   return {
@@ -46,6 +46,7 @@ export async function readFacultyData(now: number): Promise<FacultyData | undefi
       dayStartHour,
       decks: live(decks), cards: live(cards), reviews: live(reviews), practice: live(practice),
       missions: liveMissions, focus: live(focus), problemSets: live(problemSets), topics: live(topics),
+      studyFiles: live(studyFiles), studyFileProgress: live(progress), // PDFs da aula: reading one counts as contact
     },
   };
 }

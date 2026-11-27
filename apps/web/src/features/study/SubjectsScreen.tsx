@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { dayKeyOf, subjectJourneys, subjectsOf, type Deck, type Subject, type SubjectsData } from '@life/shared';
+import { NOTEBOOK_LIMITS, dayKeyOf, subjectJourneys, subjectsOf, type Deck, type Subject, type SubjectsData } from '@life/shared';
 import { db } from '../../db/db';
 import { useFacultyData, type FacultyData } from '../../db/facultyData';
-import { useNow } from '../../db/hooks';
+import { useNow, useProfile } from '../../db/hooks';
+import { setStudyProfile } from '../../domain/notebookActions';
 import { AssessmentSheet } from '../faculty/AssessmentSheet';
 import { FacultyLines } from '../faculty/FacultyLines';
 import { SemesterCard, useSemesterCard } from '../faculty/SemesterCard';
@@ -15,6 +16,7 @@ import { FOCUS_PAGE } from '../../ui/focusAfter';
 import { ddmm, plural } from '../../ui/format';
 import { Panel } from '../../ui/Panel';
 import { ProgressBar } from '../../ui/ProgressBar';
+import { EditableMarkdown } from './EditableMarkdown';
 import './study.css';
 
 /** One read for the whole screen: only the tables the subjects need. */
@@ -60,6 +62,7 @@ export function SubjectsScreen() {
     <section className="screen study stack" aria-labelledby="subjects-title">
       <Link className="deck__back" href="/estudo">← Estudo</Link>
       <h1 id="subjects-title" tabIndex={-1} data-focus-target={FOCUS_PAGE}>Matérias</h1>
+      <StudyProfilePanel />
       <div className="faculty-actions">
         <Button onClick={() => setSheet('subject')}>Nova disciplina</Button>
         {disciplines.length > 0 && <Button onClick={() => setSheet('assessment')}>Nova prova ou trabalho</Button>}
@@ -74,6 +77,19 @@ export function SubjectsScreen() {
       <SubjectSheet open={sheet === 'subject'} onClose={() => setSheet(undefined)} />
       <AssessmentSheet open={sheet === 'assessment'} onClose={() => setSheet(undefined)} subjects={disciplines} today={today} />
     </section>
+  );
+}
+
+/** "Perfil de estudo" (spec 2026-11-26 §5.3): how the person learns best, read by the chats of every subject. */
+function StudyProfilePanel() {
+  const profile = useProfile();
+  return (
+    <Panel variant="stone" className="study-section">
+      <EditableMarkdown title="Perfil de estudo" level={2} headingId="study-profile" text={profile?.studyProfile ?? ''}
+        max={NOTEBOOK_LIMITS.studyProfile} note="Os chats de todas as matérias leem este perfil."
+        emptyText="Vazio. Escreva como você aprende melhor ou peça ao chat de uma matéria para preencher."
+        savedText="Perfil de estudo salvo." onSave={setStudyProfile} />
+    </Panel>
   );
 }
 

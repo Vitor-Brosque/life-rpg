@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { MEDIA_MAX_BYTES } from '@life/shared';
+import { MEDIA_MAX_BYTES, PDF_MAX_BYTES, PDF_TEXT_MAX_BYTES, PDF_TEXT_SIGNATURE, encodePdfText } from '@life/shared';
 import { buildApp } from '../src/app';
 import type { ServerConfig } from '../src/config';
 import * as fs from 'node:fs';
@@ -47,6 +47,16 @@ describe('media API', () => {
     expect(Buffer.compare(get.rawPayload, body)).toBe(0);
   });
 
+  it('HEAD answers 200 for a stored file and 404 for a missing one, with the same auth as GET', async () => {
+    const { app } = await make();
+    const body = webp();
+    const h = sha(body);
+    await app.inject({ method: 'PUT', url: `/api/media/${h}`, headers: bin, payload: body });
+    expect((await app.inject({ method: 'HEAD', url: `/api/media/${h}`, headers: auth })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'HEAD', url: `/api/media/${'b'.repeat(64)}`, headers: auth })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'HEAD', url: `/api/media/${h}` })).statusCode).toBe(401);
+  });
+
   it('refuses bad hashes, mismatches, unknown formats, empty and oversized bodies', async () => {
     const { app, dir } = await make();
     const body = webp();
@@ -69,6 +79,36 @@ describe('media API', () => {
     const typed = await app.inject({ method: 'PUT', url: `/api/media/${sha(body)}`, headers: { ...auth, 'content-type': 'image/webp' }, payload: body });
     expect(typed.statusCode).toBe(415);
     expect(existsSync(join(dir, 'media'))).toBe(false);
+  });
+
+  it('PDFs da aula: a PDF up to 50 MB is accepted and served as a PDF; above, refused; images keep 8 MB', async () => {
+    const { app, dir } = await make();
+    const pdf = (n: number) => { const b = Buffer.alloc(n, 0x20); b.write('%PDF-1.7 ', 0, 'latin1'); return b; };
+    const max = pdf(PDF_MAX_BYTES);
+    expect((await app.inject({ method: 'PUT', url: `/api/media/${sha(max)}`, headers: bin, payload: max })).statusCode).toBe(204);
+    const get = await app.inject({ url: `/api/media/${sha(max)}`, headers: auth });
+    expect(get.headers['content-type']).toBe('application/pdf');
+    expect(get.rawPayload.length).toBe(PDF_MAX_BYTES);
+    const over = pdf(PDF_MAX_BYTES + 1);
+    const refused = await app.inject({ method: 'PUT', url: `/api/media/${sha(over)}`, headers: bin, payload: over });
+    expect(refused.statusCode).toBe(413);
+    // An image between 8 and 50 MB passes the body limit but not its own.
+    const image = webp(MEDIA_MAX_BYTES + 1);
+    const img = await app.inject({ method: 'PUT', url: `/api/media/${sha(image)}`, headers: bin, payload: image });
+    expect(img.statusCode).toBe(413);
+    expect(img.json()).toEqual({ error: 'too_large' });
+    expect(readdirSync(join(dir, 'media'))).toEqual([sha(max)]);
+  }, 60_000);
+
+  it('the extracted text of a PDF: accepted up to 4 MB, refused above', async () => {
+    const { app } = await make();
+    const { bytes } = encodePdfText(['Aula 1', 'Aula 2']);
+    const body = Buffer.from(bytes);
+    expect((await app.inject({ method: 'PUT', url: `/api/media/${sha(body)}`, headers: bin, payload: body })).statusCode).toBe(204);
+    const big = Buffer.alloc(PDF_TEXT_MAX_BYTES + 1, 0x61);
+    big.write(PDF_TEXT_SIGNATURE, 0, 'latin1');
+    const r = await app.inject({ method: 'PUT', url: `/api/media/${sha(big)}`, headers: bin, payload: big });
+    expect(r.statusCode).toBe(413);
   });
 
   it('accepts more than the 5 MB of sync requests, up to 8 MiB', async () => {
