@@ -38,6 +38,8 @@
 .painel .main-card__speech,
 .painel .main-card--empty > .companion,
 .painel .main-card__speech--empty { display: none; }
+/* So it needs no lane above the main card for the bubble. */
+.painel .main-card:not(.main-card--empty) { margin-top: 0; }
 .painel .main-card__eyebrow { margin-right: 0; }
 .painel .main-card { padding-top: var(--space-4); }
 

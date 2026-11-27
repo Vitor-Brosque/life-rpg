@@ -68,18 +68,28 @@
 
 /* The top padding is where the companion sits; the bubble ends just above the eyebrow (see below). */
 .main-card { position: relative; padding: var(--space-6) var(--space-4) var(--space-4); }
+/* The companion and its bubble rise above the card: this margin, added to the Agora's gap, makes a lane that
+   holds a two-line bubble, so it never covers what sits above the card (a proposal, a moment, the energy buttons).
+   The empty card keeps its bubble inside. */
+.main-card:not(.main-card--empty) { margin-top: var(--space-4); }
 .main-card__companion { position: absolute; top: -22px; right: 12px; z-index: 2; }
-/* Bubble to the left of the companion, tail pointing right. Its bottom (with the frame and the 9px drop
-   shadow) stays 3px above the eyebrow, which starts at the card's top padding: more lines grow upwards,
-   over the gap above the card, never over the card's label or title. */
+/* Bubble to the left of the companion, tail pointing right. Its box runs from the top of the lane (less the
+   bubble's frame and 1px) down to 3px above the eyebrow, counting the frame and the 9px drop shadow. The bubble
+   sits at the bottom of the box, next to the companion. A bubble taller than the box (three lines or more)
+   starts at the lane's top and grows down over the eyebrow, never up over what sits above the card: an auto
+   top margin gives that, where justify-content: flex-end would let it overflow upwards. */
 .main-card__speech {
   position: absolute;
+  top: calc(var(--px) + 1px - var(--space-5) - var(--space-4));
   bottom: calc(100% - var(--space-6) + 12px);
   right: 72px;
   z-index: 3;
+  display: flex;
+  flex-direction: column;
   max-width: min(280px, calc(100% - 88px));
   pointer-events: none;
 }
+.main-card__speech .speech__bubble { margin-top: auto; }
 .main-card__speech .speech__bubble::after {
   top: calc(50% - var(--px) * 1.5);
   right: calc(var(--px) * -1);
